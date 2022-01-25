@@ -148,6 +148,8 @@ protected:
 
 	void HandleEquipmentEffect(InventorySlot InSlot, const FBareItem& LocalItem);
 
+	void HandleUnEquipmentEffect(InventorySlot InSlot, const FBareItem& LocalItem);
+
 	UFUNCTION(BlueprintCallable)
 	void RecomputeTotalWeight();
 

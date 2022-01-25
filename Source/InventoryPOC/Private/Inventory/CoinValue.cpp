@@ -77,8 +77,34 @@ float FCoinValue::ToFloat() const
 
 //----------------------------------------------------------------------------------------------------------------------
 
+void MakeChange(int32& AvailableLow, const int32& NeededLow, int32& AvailableCurrent, const int32& NeededCurrent, int32& NeededHigher)
+{
+	//if we don't have enough coin of the current value
+	if (AvailableCurrent < NeededCurrent)
+	{
+		const int32 SpareLow = AvailableLow - NeededLow;
+		const int32 MissingCurrent = NeededCurrent - AvailableCurrent;
+
+		//if we can use lower value coins to make up for current values
+		if (SpareLow >= MissingCurrent * 10)
+		{
+			AvailableLow -= MissingCurrent * 10;//we use 10 time more lower value coin
+			AvailableCurrent += MissingCurrent;
+		}
+		else//otherwise we can try to use higher value coin to compensate
+		{
+			const int32 Factor = std::max((NeededCurrent - AvailableCurrent) / 10, 1);
+			AvailableCurrent += Factor * 10;
+			NeededHigher += Factor;
+		}
+	}
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 bool FCoinValue::RetrieveValue(FCoinValue& AvailableCoins, FCoinValue& NeededCoins)
 {
+	//if copper coin is missing, the only option is to convert at least one silver into 10 copper
 	if (AvailableCoins.CopperPieces < NeededCoins.CopperPieces)
 	{
 		const int32 Factor = std::max((NeededCoins.CopperPieces - AvailableCoins.CopperPieces) / 10, 1);
@@ -86,22 +112,28 @@ bool FCoinValue::RetrieveValue(FCoinValue& AvailableCoins, FCoinValue& NeededCoi
 		NeededCoins.SilverPieces += Factor;
 	}
 
-	if (AvailableCoins.SilverPieces < NeededCoins.SilverPieces)
-	{
-		const int32 Factor = std::max((NeededCoins.SilverPieces - AvailableCoins.SilverPieces) / 10, 1);
-		AvailableCoins.SilverPieces += Factor * 10;
-		NeededCoins.GoldPieces += Factor;
-	}
+	//Silver can be obtained using either copper or gold
+	MakeChange(AvailableCoins.CopperPieces, NeededCoins.CopperPieces,
+	           AvailableCoins.SilverPieces, NeededCoins.SilverPieces,
+	           NeededCoins.GoldPieces);
 
-	if (AvailableCoins.GoldPieces < NeededCoins.GoldPieces)
-	{
-		const int32 Factor = std::max((NeededCoins.GoldPieces - AvailableCoins.GoldPieces) / 10, 1);
-		AvailableCoins.GoldPieces += Factor * 10;
-		NeededCoins.PlatinumPieces += Factor;
-	}
+	//Gold can be obtained using either silver or platinum
+	MakeChange(AvailableCoins.SilverPieces, NeededCoins.SilverPieces,
+		   AvailableCoins.GoldPieces, NeededCoins.GoldPieces,
+		   NeededCoins.PlatinumPieces);
 
+	//if platinum coin is missing, we have to figure out if we have enough gold to cover the cost
 	if (AvailableCoins.PlatinumPieces < NeededCoins.PlatinumPieces)
 	{
+		const int32 SpareGold = AvailableCoins.GoldPieces - NeededCoins.GoldPieces;
+		const int32 MissingPlatinum = NeededCoins.PlatinumPieces - AvailableCoins.PlatinumPieces;
+
+		if (SpareGold >= MissingPlatinum * 10)
+		{
+			AvailableCoins.GoldPieces -= MissingPlatinum * 10;
+			AvailableCoins.PlatinumPieces += MissingPlatinum;
+			return true;
+		}
 		return false;
 	}
 

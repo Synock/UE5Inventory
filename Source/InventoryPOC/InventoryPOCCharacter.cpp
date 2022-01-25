@@ -340,7 +340,6 @@ void AInventoryPOCCharacter::PlayerEquip(InventorySlot InSlot, int64 InItemId)
 	{
 		const FBareItem LocalItem = UCommonUtilities::GetItemFromID(InItemId, GetWorld());
 
-		HandleTwoSlotItemEquip(LocalItem, InSlot);
 		Equipment->EquipItem(LocalItem, InSlot);
 		HandleEquipmentEffect(InSlot, LocalItem);
 	}
@@ -447,7 +446,7 @@ bool AInventoryPOCCharacter::Server_PlayerMoveItem_Validate(int32 InTopLeft, Bag
 void AInventoryPOCCharacter::Server_PlayerUnequipItem_Implementation(int32 InTopLeft, BagSlot InSlot, int64 InItemId,
 																	 InventorySlot OutSlot)
 {
-	HandleTwoSlotItemUnequip(Equipment->GetItemAtSlot(OutSlot), OutSlot);
+	HandleUnEquipmentEffect(OutSlot,Equipment->GetItemAtSlot(OutSlot));
 	Equipment->RemoveItem(OutSlot);
 	Inventory->AddItemAt(InSlot, InItemId, InTopLeft);
 }
@@ -530,10 +529,12 @@ void AInventoryPOCCharacter::Server_PlayerSwapEquipment_Implementation(int64 Dro
 	FBareItem DroppedItem = GetEquippedItem(DraggedOutSlot);
 
 	Equipment->RemoveItem(DroppedInSlot);
+	HandleUnEquipmentEffect(DroppedInSlot, ItemToMove);
 	Equipment->EquipItem(DroppedItem, DroppedInSlot);
 	HandleEquipmentEffect(DroppedInSlot, DroppedItem);
 
 	Equipment->RemoveItem(DraggedOutSlot);
+	HandleUnEquipmentEffect(DraggedOutSlot, DroppedItem);
 	Equipment->EquipItem(ItemToMove, DraggedOutSlot);
 	HandleEquipmentEffect(DraggedOutSlot, ItemToMove);
 }
@@ -616,11 +617,24 @@ void AInventoryPOCCharacter::HandleTwoSlotItemUnequip(const FBareItem& Item, Inv
 
 void AInventoryPOCCharacter::HandleEquipmentEffect(InventorySlot InSlot, const FBareItem& LocalItem)
 {
+	HandleTwoSlotItemEquip(LocalItem, InSlot);
 	//do equipment specific stuff here
 	if (LocalItem.Bag)
 	{
 		const BagSlot AffectedSlot = UFullInventoryComponent::GetBagSlotFromInventory(InSlot);
 		Inventory->BagSet(AffectedSlot, true, LocalItem.BagWidth, LocalItem.BagHeight, LocalItem.BagSize);
+	}
+}
+//----------------------------------------------------------------------------------------------------------------------
+
+void AInventoryPOCCharacter::HandleUnEquipmentEffect(InventorySlot InSlot, const FBareItem& LocalItem)
+{
+	HandleTwoSlotItemUnequip(LocalItem, InSlot);
+	//do equipment specific stuff here
+	if (LocalItem.Bag)
+	{
+		const BagSlot AffectedSlot = UFullInventoryComponent::GetBagSlotFromInventory(InSlot);
+		Inventory->BagSet(AffectedSlot, false);
 	}
 }
 

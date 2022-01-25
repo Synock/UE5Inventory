@@ -228,11 +228,11 @@ bool UInventoryGridWidget::IsRoomAvailable(const FBareItem& ItemObject, int TopL
 	{
 		for (int x = sx; x < sx + ItemWidth; ++x)
 		{
-			if (x > Width || x < 0)
+			if (x >= Width || x < 0)
 			{
 				return false;
 			}
-			if (y > Height || y < 0)
+			if (y >= Height || y < 0)
 			{
 				return false;
 			}

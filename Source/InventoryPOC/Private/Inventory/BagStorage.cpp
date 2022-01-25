@@ -41,10 +41,10 @@ bool GridBagSolver::IsRoomAvailable(const FBareItem& Item, int TopLeftIndex)
 	{
 		for (int x = SX; x < SX + Item.Width; ++x)
 		{
-			if (x > Width || x < 0)
+			if (x >= Width || x < 0)
 				return false;
 
-			if (y > Height || y < 0)
+			if (y >= Height || y < 0)
 				return false;
 
 			const int ID = x + y * Width;
