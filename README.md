@@ -1,5 +1,7 @@
 # Unreal Engine 5 Inventory proof of concept
 
+
+## Notice: This version of the repository will be updated to a more modern, plugin based approach which will completely break its current behavior.
 This repo is a proof of concept, grid based, fully replicated inventory and equipment system for unreal engine 5.
 
 For convenience, it also includes a separated money, merchant and loot system.
