@@ -171,5 +171,62 @@ UTexture2D* UInventoryUtilities::LoadTexture2D(const FString& Path)
 		return nullptr;
 
 	return Cast<UTexture2D>(StaticLoadObject(UTexture2D::StaticClass(), nullptr, *Path));
+}
 
+//----------------------------------------------------------------------------------------------------------------------
+
+FString UInventoryUtilities::GetCoinValueAsString(const FCoinValue& CoinValue)
+{
+	FString ResultString;
+
+	if (CoinValue.PlatinumPieces == 0 && CoinValue.GoldPieces == 0 && CoinValue.SilverPieces == 0 && CoinValue.
+		CopperPieces == 0)
+			return {};
+
+
+	FString PlatinumString;
+	FString GoldString;
+	FString SilverString;
+	FString CopperString;
+	if (CoinValue.PlatinumPieces)
+	{
+		PlatinumString += FString::FormatAsNumber(CoinValue.PlatinumPieces) + " Platinum";
+	}
+	if (CoinValue.GoldPieces)
+	{
+		GoldString += FString::FormatAsNumber(CoinValue.GoldPieces) + " Gold";
+	}
+	if (CoinValue.SilverPieces)
+	{
+		SilverString += FString::FormatAsNumber(CoinValue.PlatinumPieces) + " Silver";
+	}
+	if (CoinValue.CopperPieces)
+	{
+		CopperString += FString::FormatAsNumber(CoinValue.CopperPieces) + " Copper";
+	}
+
+	if (!PlatinumString.IsEmpty())
+		ResultString += PlatinumString;
+
+	if (!PlatinumString.IsEmpty() && (!GoldString.IsEmpty() || !SilverString.IsEmpty() || !CopperString.IsEmpty()))
+		ResultString += ", ";
+
+	if (!GoldString.IsEmpty())
+		ResultString += GoldString;
+
+	if (!GoldString.IsEmpty() && (!SilverString.IsEmpty() || !CopperString.IsEmpty()))
+		ResultString += ", ";
+
+	if (!SilverString.IsEmpty())
+		ResultString += SilverString;
+
+	if (!SilverString.IsEmpty() && !CopperString.IsEmpty())
+		ResultString += ", ";
+
+	if (!CopperString.IsEmpty())
+		ResultString += CopperString;
+
+	ResultString+= " Pieces.";
+
+	return ResultString;
 }

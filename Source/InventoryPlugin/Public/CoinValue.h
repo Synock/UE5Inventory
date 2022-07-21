@@ -11,7 +11,7 @@
  * Copper < Silver < Gold < Platinum
  */
 USTRUCT(BlueprintType)
-struct FCoinValue
+struct INVENTORYPLUGIN_API FCoinValue
 {
 	GENERATED_BODY()
 

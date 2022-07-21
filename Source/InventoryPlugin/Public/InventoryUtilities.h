@@ -56,4 +56,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Inventory|General")
 	static UTexture2D* LoadTexture2D(const FString& Path);
 
+	static FString GetCoinValueAsString(const FCoinValue& CoinValue);
+
 };

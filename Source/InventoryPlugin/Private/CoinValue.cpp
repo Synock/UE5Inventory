@@ -17,7 +17,7 @@ FCoinValue::FCoinValue(float ValueAsFloat)
 	ValueAsInt -= GoldPieces;
 	ValueAsInt /= 10;
 
-	PlatinumPieces = ValueAsInt % 10;
+	PlatinumPieces = ValueAsInt;
 }
 
 //----------------------------------------------------------------------------------------------------------------------

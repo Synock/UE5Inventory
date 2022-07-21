@@ -9,7 +9,7 @@
 #include "PurseInterface.generated.h"
 
 // This class does not need to be modified.
-UINTERFACE()
+UINTERFACE(MinimalAPI)
 class UPurseInterface : public UInterface
 {
 	GENERATED_BODY()
