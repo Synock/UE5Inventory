@@ -6,6 +6,15 @@
 #include "Definitions.generated.h"
 
 UENUM(BlueprintType)
+enum class ECurrencyType : uint8
+{
+	Copper UMETA(DisplayName = "Copper"),
+	Silver UMETA(DisplayName = "Silver"),
+	Gold UMETA(DisplayName = "Gold"),
+	Platinum UMETA(DisplayName = "Platinum")
+};
+
+UENUM(BlueprintType)
 enum class EAmmoType : uint8
 {
 	Unknown UMETA(DisplayName = "Unknown"),
