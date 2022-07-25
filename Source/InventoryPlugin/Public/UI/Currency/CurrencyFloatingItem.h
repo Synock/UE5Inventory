@@ -17,7 +17,6 @@ class INVENTORYPLUGIN_API UCurrencyFloatingItem : public UUserWidget
 	GENERATED_BODY()
 
 protected:
-
 	UPROPERTY(BlueprintReadOnly, Category="Inventory|Currency")
 	ECurrencyType CurrencyType = ECurrencyType::Copper;
 
@@ -31,9 +30,6 @@ protected:
 	void SetupUI();
 
 public:
-
 	UFUNCTION(BlueprintCallable)
 	void InitWidget(UCoinComponent* CoinOriginPointer, int32 InputCoinAmount, ECurrencyType InputCurrencyType);
-
-
 };

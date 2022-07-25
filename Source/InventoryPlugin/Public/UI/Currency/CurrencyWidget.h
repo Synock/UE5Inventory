@@ -18,7 +18,6 @@ class INVENTORYPLUGIN_API UCurrencyWidget : public UUserWidget
 	GENERATED_BODY()
 
 protected:
-
 	UPROPERTY(BlueprintReadWrite, Category="Inventory|Currency")
 	UTextBlock* CurrencyAmountTextBlockPointer = nullptr;
 
@@ -38,11 +37,9 @@ protected:
 	void Refresh();
 
 public:
-
 	UFUNCTION(BlueprintCosmetic, BlueprintCallable, Category = "Inventory|UI")
 	void UpdateCoinValue(int32 NewCoinAmount);
 
 	UFUNCTION()
 	void SetupCoinComponent(UCoinComponent* OriginCoinComponent);
-
 };

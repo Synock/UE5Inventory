@@ -16,7 +16,6 @@ class INVENTORYPLUGIN_API UDynamicPurseWidget : public UUserWidget
 	GENERATED_BODY()
 
 protected:
-
 	UPROPERTY(BlueprintReadOnly, Category= "Inventory|Purse")
 	class UCoinComponent* PursePointer = nullptr;
 

@@ -4,9 +4,8 @@
 #include "UI/Currency/CurrencyFloatingItem.h"
 
 void UCurrencyFloatingItem::InitWidget(UCoinComponent* CoinOriginPointer, int32 InputCoinAmount,
-	ECurrencyType InputCurrencyType)
+                                       ECurrencyType InputCurrencyType)
 {
-
 	CoinOrigin = CoinOriginPointer;
 	CoinAmount = InputCoinAmount;
 	CurrencyType = InputCurrencyType;

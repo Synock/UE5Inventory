@@ -144,6 +144,16 @@ void IInventoryPlayerInterface::PlayerMoveItem(int32 InTopLeft, EBagSlot InSlot,
 
 //----------------------------------------------------------------------------------------------------------------------
 
+void IInventoryPlayerInterface::TransferCoinTo(UCoinComponent* ReceivingComponent, const FCoinValue& CoinValue)
+{
+	//if(ReceivingComponent->GetOwner() != GetInventoryOwningActor())
+		//return;
+
+	Server_TransferCoinTo(ReceivingComponent, CoinValue);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 bool IInventoryPlayerInterface::IsLooting() const
 {
 	return GetLootedActorConst() != nullptr;

@@ -17,9 +17,11 @@ class INVENTORYPLUGIN_API UCurrencySelectionWidget : public UUserWidget
 	GENERATED_BODY()
 
 protected:
+	UPROPERTY(BlueprintReadOnly, Category="Inventory|Currency")
+	UCoinComponent* Origin = nullptr;
 
 	UPROPERTY(BlueprintReadOnly, Category="Inventory|Currency")
-	UCoinComponent* CoinComponent = nullptr;
+	UCoinComponent* Destination = nullptr;
 
 	UPROPERTY(BlueprintReadOnly, Category="Inventory|Currency")
 	ECurrencyType CurrencyType = ECurrencyType::Copper;
@@ -32,6 +34,9 @@ protected:
 
 public:
 	UFUNCTION(BlueprintCallable)
-	void InitWidget(UCoinComponent* OriginCoinComponent, ECurrencyType InputCurrencyType);
+	void InitWidget(UCoinComponent* OriginCoinComponent, UCoinComponent* DestinationCoinComponent,
+	                ECurrencyType InputCurrencyType);
 
+	UFUNCTION(BlueprintCallable)
+	void DoTheCoinTransfer(int32 SelectedCoinValue);
 };

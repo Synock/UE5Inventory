@@ -114,9 +114,11 @@ public:
 	UFUNCTION()
 	virtual int32 PlayerGetItem(int32 TopLeft, EBagSlot Slot) const;
 
-
 	UFUNCTION(BlueprintCallable, Category = "Neverquest|Inventory")
 	virtual void PlayerMoveItem(int32 InTopLeft, EBagSlot InSlot, int32 InItemId, int32 OutTopLeft, EBagSlot OutSlot);
+
+	UFUNCTION(BlueprintCallable, Category = "Neverquest|Inventory")
+	virtual void TransferCoinTo(UCoinComponent* ReceivingComponent, const FCoinValue& CoinValue);
 
 	//------------------------------------------------------------------------------------------------------------------
 	// Loot -- Client
@@ -231,4 +233,7 @@ protected:
 	//UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory|Equipment")
 	virtual void Server_PlayerSwapEquipment(int32 DroppedItemId, EEquipmentSlot DroppedInSlot, int32 SwappedItemId,
 	                                        EEquipmentSlot DraggedOutSlot) = 0;
+
+	//UFUNCTION(Server, Reliable, WithValidation, Category = "Neverquest|Inventory")
+	virtual void Server_TransferCoinTo(UCoinComponent* ReceivingComponent, const FCoinValue& CoinValue) = 0;
 };
