@@ -18,25 +18,12 @@ void UEquipmentSlotWidget::InitData()
 	check(EquipmentInterface);
 	check(EquipmentComponent);
 	EquipmentComponent->EquipmentDispatcher.AddDynamic(this, &UEquipmentSlotWidget::Refresh);
-
-	
 	EquipmentComponent->EquipmentDispatcher.AddUniqueDynamic(this, &UEquipmentSlotWidget::ResetTransaction);
 }
 
-//----------------------------------------------------------------------------------------------------------------------
 
-void UEquipmentSlotWidget::UpdateItemImageVisibility()
-{
-	if (ItemImagePointer)
-		ItemImagePointer->SetVisibility(Item.ItemID >= 0 ? ESlateVisibility::Visible : ESlateVisibility::Hidden);
-}
 
-//----------------------------------------------------------------------------------------------------------------------
 
-void UEquipmentSlotWidget::UpdateSlotState()
-{
-	EnabledSlot = Item.ItemID != 0;
-}
 
 //----------------------------------------------------------------------------------------------------------------------
 
@@ -128,9 +115,7 @@ void UEquipmentSlotWidget::InnerRefresh()
 	{
 		check(PC->GetEquipmentForInventory());
 		Item = PC->GetEquipmentForInventory()->GetEquippedItem(SlotID);
-		UpdateItemImageVisibility();
-		UpdateItemImage();
-		UpdateSlotState();
+		UGenericSlotWidget::InnerRefresh();
 	}
 }
 
@@ -139,27 +124,12 @@ void UEquipmentSlotWidget::InnerRefresh()
 void UEquipmentSlotWidget::HideItem()
 {
 	Item.ItemID = -1;
+	UGenericSlotWidget::InnerRefresh();
 
 	if (Item.TwoSlotsItem && SisterSlot)
 	{
 		SisterSlot->HideItem();
 	}
-
-	UpdateItemImageVisibility();
-	UpdateItemImage();
-	UpdateSlotState();
-}
-
-void UEquipmentSlotWidget::ResetTransaction()
-{
-	if(IInventoryPlayerInterface* PC = GetInventoryPlayerInterface())
-		PC->ResetTransaction();
-	
-}
-
-IInventoryPlayerInterface* UEquipmentSlotWidget::GetInventoryPlayerInterface() const
-{
-	return Cast<IInventoryPlayerInterface>(GetOwningPlayer());
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -185,11 +155,8 @@ void UEquipmentSlotWidget::SetSisterSlot(UEquipmentSlotWidget* NewSisterSlot)
 
 bool UEquipmentSlotWidget::CanEquipItem(const FInventoryItem& InputItem) const
 {
-	if (Item.ItemID >= 0 || !EnabledSlot)
-	{
-		UE_LOG(LogTemp, Log, TEXT("Slot is currently unvailable"));
+	if(!CanDropItem(InputItem))
 		return false;
-	}
 
 	if (!CanEquipItemAtSlot(InputItem, SlotID))
 		return false;

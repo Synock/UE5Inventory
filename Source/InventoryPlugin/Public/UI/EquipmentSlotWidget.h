@@ -3,20 +3,20 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GenericSlotWidget.h"
 #include "ItemBaseWidget.h"
 #include "Components/TextBlock.h"
 #include "InventoryItem.h"
 
 #include "EquipmentSlotWidget.generated.h"
 
-class IInventoryPlayerInterface;
 class APlayerCharacter;
 /**
  * 
  */
 
 UCLASS()
-class INVENTORYPLUGIN_API UEquipmentSlotWidget : public UItemBaseWidget
+class INVENTORYPLUGIN_API UEquipmentSlotWidget : public UGenericSlotWidget
 {
 	GENERATED_BODY()
 
@@ -34,24 +34,11 @@ protected:
 	// Only the first slot must reference the second to avoid cyclic calls
 	UPROPERTY(BlueprintReadOnly, Category = "Inventory|Equipment")
 	UEquipmentSlotWidget* SisterSlot = nullptr;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Inventory|Equipment")
-	UImage* BackgroundImagePointer = nullptr;
 	
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Inventory|Equipment")
 	EEquipmentSlot SlotID = EEquipmentSlot::Unknown;
 
-	UPROPERTY(BlueprintReadWrite, Category = "Inventory|Equipment")
-	bool EnabledSlot = true;
-	
-	UFUNCTION(BlueprintCallable)
-	void UpdateItemImageVisibility();
-
-	UFUNCTION(BlueprintCallable)
-	void UpdateSlotState();
-
-	UFUNCTION(BlueprintCallable)
-	bool HandleItemDrop(class UItemWidget* InputItem);
+	virtual bool HandleItemDrop(class UItemWidget* InputItem) override;
 
 	UFUNCTION(BlueprintCallable)
 	bool UnEquipBagSpecific();
@@ -62,18 +49,13 @@ protected:
 	UFUNCTION(BlueprintCallable)
 	bool IsBag() const;
 
-	UFUNCTION(BlueprintCallable)
-	void InnerRefresh();
+	virtual void InnerRefresh() override;
 
 	UFUNCTION(BlueprintCallable)
 	void HideItem();
 
-	UFUNCTION()
-	void ResetTransaction();
-	
-	IInventoryPlayerInterface* GetInventoryPlayerInterface() const;
-
 public:
+
 	virtual void StopDrag() override;
 
 	UFUNCTION(BlueprintCallable)
