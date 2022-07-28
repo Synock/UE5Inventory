@@ -17,11 +17,14 @@ class INVENTORYPLUGIN_API UGenericSlotWidget : public UItemBaseWidget
 
 protected:
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Inventory|Equipment")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Inventory")
 	UImage* BackgroundImagePointer = nullptr;
 
-	UPROPERTY(BlueprintReadWrite, Category = "Inventory|Equipment")
+	UPROPERTY(BlueprintReadWrite, Category = "Inventory")
 	bool EnabledSlot = true;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Inventory")
+	int32 ID = 0;
 
 	UFUNCTION(BlueprintCallable)
 	void UpdateItemImageVisibility();
@@ -43,5 +46,7 @@ protected:
 	public:
 	UFUNCTION(BlueprintCallable)
 	bool CanDropItem(const FInventoryItem& InputItem) const;
+
+
 
 };
