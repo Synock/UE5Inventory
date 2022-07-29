@@ -51,6 +51,8 @@ public:
 	virtual IInventoryHUDInterface* GetInventoryHUDInterface() = 0;
 	virtual UObject* GetInventoryHUDObject() = 0;
 
+	virtual UCoinComponent* GetStagingAreaCoin() = 0;
+
 	//------------------------------------------------------------------------------------------------------------------
 	// Equipment
 	//------------------------------------------------------------------------------------------------------------------
@@ -119,6 +121,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Neverquest|Inventory")
 	virtual void TransferCoinTo(UCoinComponent* ReceivingComponent, const FCoinValue& CoinValue);
+
+	UFUNCTION(BlueprintCallable, Category = "Neverquest|Inventory")
+	virtual void CancelStagingArea();
 
 	//------------------------------------------------------------------------------------------------------------------
 	// Loot -- Client
@@ -219,7 +224,7 @@ protected:
 	//------------------------------------------------------------------------------------------------------------------
 	// Inventory -- Server
 	//------------------------------------------------------------------------------------------------------------------
-	//UFUNCTION(Server, Reliable, WithValidation, Category = "Neverquest|Inventory")
+	//UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory")
 	virtual void Server_PlayerMoveItem(int32 InTopLeft, EBagSlot InSlot, int32 InItemId, int32 OutTopLeft,
 	                                   EBagSlot OutSlot) = 0;
 
@@ -234,6 +239,12 @@ protected:
 	virtual void Server_PlayerSwapEquipment(int32 DroppedItemId, EEquipmentSlot DroppedInSlot, int32 SwappedItemId,
 	                                        EEquipmentSlot DraggedOutSlot) = 0;
 
-	//UFUNCTION(Server, Reliable, WithValidation, Category = "Neverquest|Inventory")
+	//UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory")
 	virtual void Server_TransferCoinTo(UCoinComponent* ReceivingComponent, const FCoinValue& CoinValue) = 0;
+
+	//UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory")
+	virtual void Server_CancelStagingArea() = 0;
+
+	UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory")
+	virtual void Server_TransferStagingToActor(AActor* TargetActor) = 0;
 };

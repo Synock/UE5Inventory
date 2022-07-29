@@ -154,6 +154,13 @@ void IInventoryPlayerInterface::TransferCoinTo(UCoinComponent* ReceivingComponen
 
 //----------------------------------------------------------------------------------------------------------------------
 
+void IInventoryPlayerInterface::CancelStagingArea()
+{
+	Server_CancelStagingArea();
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 bool IInventoryPlayerInterface::IsLooting() const
 {
 	return GetLootedActorConst() != nullptr;
