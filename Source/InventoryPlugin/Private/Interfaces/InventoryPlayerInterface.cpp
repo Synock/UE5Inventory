@@ -5,7 +5,6 @@
 #include "InventoryUtilities.h"
 #include "Interfaces/EquipmentInterface.h"
 #include "GameFramework/Actor.h"
-#include "GameFramework/Character.h"
 #include "Interfaces/InventoryHUDInterface.h"
 #include "Interfaces/LootableInterface.h"
 
@@ -157,6 +156,27 @@ void IInventoryPlayerInterface::TransferCoinTo(UCoinComponent* ReceivingComponen
 void IInventoryPlayerInterface::CancelStagingArea()
 {
 	Server_CancelStagingArea();
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryPlayerInterface::TransferStagingToActor(AActor* TargetActor)
+{
+	Server_TransferStagingToActor(TargetActor);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryPlayerInterface::MoveEquipmentToStagingArea(int32 InItemId, EEquipmentSlot OutSlot)
+{
+	Server_MoveEquipmentToStagingArea(InItemId, OutSlot);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryPlayerInterface::MoveInventoryItemToStagingArea(int32 InItemId, int32 OutTopLeft, EBagSlot OutSlot)
+{
+	Server_MoveInventoryItemToStagingArea(InItemId, OutTopLeft, OutSlot);
 }
 
 //----------------------------------------------------------------------------------------------------------------------

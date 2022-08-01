@@ -51,8 +51,7 @@ protected:
 
 	virtual void InnerRefresh() override;
 
-	UFUNCTION(BlueprintCallable)
-	void HideItem();
+	virtual void HideItem() override;
 
 public:
 
@@ -69,9 +68,6 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	bool TryEquipItem(class UItemWidget* InputItem);
-
-	UFUNCTION(BlueprintCallable)
-	bool IsItemEquipped() const { return Item.ItemID > 0; }
 
 	UFUNCTION(BlueprintCallable)
 	void SetSlotWidgetStatus(bool InputStatus) { EnabledSlot = InputStatus; }

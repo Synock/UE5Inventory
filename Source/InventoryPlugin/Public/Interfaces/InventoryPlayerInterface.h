@@ -8,6 +8,7 @@
 #include "Components/CoinComponent.h"
 #include "Components/InventoryComponent.h"
 #include "CoinValue.h"
+#include "Components/StagingAreaComponent.h"
 #include "UI/WeightWidget.h"
 #include "UObject/Interface.h"
 #include "InventoryPlayerInterface.generated.h"
@@ -52,6 +53,7 @@ public:
 	virtual UObject* GetInventoryHUDObject() = 0;
 
 	virtual UCoinComponent* GetStagingAreaCoin() = 0;
+	virtual UStagingAreaComponent* GetStagingAreaItems() = 0;
 
 	//------------------------------------------------------------------------------------------------------------------
 	// Equipment
@@ -116,14 +118,23 @@ public:
 	UFUNCTION()
 	virtual int32 PlayerGetItem(int32 TopLeft, EBagSlot Slot) const;
 
-	UFUNCTION(BlueprintCallable, Category = "Neverquest|Inventory")
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	virtual void PlayerMoveItem(int32 InTopLeft, EBagSlot InSlot, int32 InItemId, int32 OutTopLeft, EBagSlot OutSlot);
 
-	UFUNCTION(BlueprintCallable, Category = "Neverquest|Inventory")
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	virtual void TransferCoinTo(UCoinComponent* ReceivingComponent, const FCoinValue& CoinValue);
 
-	UFUNCTION(BlueprintCallable, Category = "Neverquest|Inventory")
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	virtual void CancelStagingArea();
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	virtual void TransferStagingToActor(AActor* TargetActor);
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	virtual void MoveEquipmentToStagingArea(int32 InItemId, EEquipmentSlot OutSlot);
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	virtual void MoveInventoryItemToStagingArea(int32 InItemId, int32 OutTopLeft, EBagSlot OutSlot);
 
 	//------------------------------------------------------------------------------------------------------------------
 	// Loot -- Client
@@ -242,9 +253,19 @@ protected:
 	//UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory")
 	virtual void Server_TransferCoinTo(UCoinComponent* ReceivingComponent, const FCoinValue& CoinValue) = 0;
 
-	//UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory")
+	//------------------------------------------------------------------------------------------------------------------
+	// Staging -- Server
+	//------------------------------------------------------------------------------------------------------------------
+
+	//UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory|Staging")
 	virtual void Server_CancelStagingArea() = 0;
 
-	UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory")
+	//UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory|Staging")
 	virtual void Server_TransferStagingToActor(AActor* TargetActor) = 0;
+
+	//UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory|Staging")
+	virtual void Server_MoveEquipmentToStagingArea(int32 InItemId, EEquipmentSlot OutSlot) = 0;
+
+	//UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory|Staging")
+	virtual void Server_MoveInventoryItemToStagingArea( int32 InItemId, int32 OutTopLeft, EBagSlot OutSlot) = 0;
 };

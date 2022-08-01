@@ -77,4 +77,7 @@ public:
 
 	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, BlueprintCosmetic, Category = "Inventory")
 	void DisplayItemDescription(const FInventoryItem& Item, float X, float Y);
+
+	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable, Category = "Inventory")
+	void ForceRefreshStagingAreaPossibilities();
 };

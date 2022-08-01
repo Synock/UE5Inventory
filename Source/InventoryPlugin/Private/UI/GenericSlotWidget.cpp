@@ -4,6 +4,7 @@
 #include "UI/GenericSlotWidget.h"
 
 #include "Interfaces/InventoryPlayerInterface.h"
+#include "UI/ItemWidget.h"
 
 //----------------------------------------------------------------------------------------------------------------------
 
@@ -45,9 +46,16 @@ void UGenericSlotWidget::InnerRefresh()
 
 void UGenericSlotWidget::ResetTransaction()
 {
-	if(IInventoryPlayerInterface* PC = GetInventoryPlayerInterface())
+	if (IInventoryPlayerInterface* PC = GetInventoryPlayerInterface())
 		PC->ResetTransaction();
+}
 
+//----------------------------------------------------------------------------------------------------------------------
+
+void UGenericSlotWidget::HideItem()
+{
+	Item.ItemID = -1;
+	UGenericSlotWidget::InnerRefresh();
 }
 
 //----------------------------------------------------------------------------------------------------------------------

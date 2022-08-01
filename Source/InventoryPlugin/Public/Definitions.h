@@ -84,7 +84,8 @@ enum class EBagSlot : uint8
 	BackPack2 = 6 UMETA(DisplayName = "Backpack2"),
 	LastValidBag = 7,
 
-	LootPool = 20 UMETA(DisplayName = "Lootpool")
+	LootPool = 20 UMETA(DisplayName = "Lootpool"),
+	StagingArea = 21 UMETA(DisplayName = "StagingArea"),
 };
 
 UENUM(BlueprintType)

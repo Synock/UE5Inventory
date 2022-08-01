@@ -23,9 +23,6 @@ protected:
 	UPROPERTY(BlueprintReadWrite, Category = "Inventory")
 	bool EnabledSlot = true;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Inventory")
-	int32 ID = 0;
-
 	UFUNCTION(BlueprintCallable)
 	void UpdateItemImageVisibility();
 
@@ -43,9 +40,16 @@ protected:
 	UFUNCTION()
 	void ResetTransaction();
 
+	UFUNCTION(BlueprintCallable)
+	virtual void HideItem();
+
 	public:
+
 	UFUNCTION(BlueprintCallable)
 	bool CanDropItem(const FInventoryItem& InputItem) const;
+
+	UFUNCTION(BlueprintCallable)
+	bool IsItemEquipped() const { return Item.ItemID > 0; }
 
 
 
