@@ -32,12 +32,3 @@ bool UStagingAreaSlotWidget::HandleItemDrop(UItemWidget* InputItem)
 	return true;
 }
 
-void UStagingAreaSlotWidget::InitData()
-{
-		Refresh();
-		IInventoryPlayerInterface* PC = GetInventoryPlayerInterface();
-
-		PC->GetStagingAreaItems()->StagingAreaDispatcher.AddUniqueDynamic(this, &UStagingAreaSlotWidget::Refresh);
-		PC->GetStagingAreaItems()->StagingAreaDispatcher.AddUniqueDynamic(this, &UStagingAreaSlotWidget::ResetTransaction);
-
-}

@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GenericSlotWidget.h"
+#include "Components/StagingAreaComponent.h"
 #include "StagingAreaSlotWidget.generated.h"
 
 /**
@@ -23,5 +24,4 @@ protected:
 
 	virtual bool HandleItemDrop(class UItemWidget* InputItem) override;
 
-	void InitData();
 };
