@@ -55,4 +55,5 @@ protected:
 	UStagingAreaSlotWidget* Slot7 = nullptr;
 
 
+	UStagingAreaSlotWidget* GetItemSlotFromID(int32 ID);
 };
