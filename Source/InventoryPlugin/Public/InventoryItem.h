@@ -3,6 +3,7 @@
 #pragma once
 
 #include <CoreMinimal.h>
+#include "Engine/DataTable.h"
 #include "Definitions.h"
 #include "InventoryItem.generated.h"
 
@@ -81,6 +82,9 @@ struct FInventoryItem
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Actionnable")
 	float ThirstValue = 0.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Actionnable")
+	FString BookText;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Equipable")
 	bool Equipable = false;
@@ -178,4 +182,5 @@ struct FInventoryItem
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Spell")
 	int32 SpellID = 0;
+
 };
