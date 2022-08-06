@@ -29,6 +29,7 @@ public:
 	UPROPERTY(BlueprintAssignable)
 	FOnCloseEvent OnCloseEvent;
 
+	UFUNCTION(BlueprintCallable)
 	void SetText(const FText& TextToDisplay);
 
 };

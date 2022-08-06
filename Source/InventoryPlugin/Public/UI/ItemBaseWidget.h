@@ -71,6 +71,9 @@ protected :
 	void DisplayDescription(const FPointerEvent& InMouseEvent);
 
 	UFUNCTION(BlueprintCallable)
+	void DisplayBookText(const FPointerEvent& InMouseEvent);
+
+	UFUNCTION(BlueprintCallable)
 	void ResetSell();
 
 	UFUNCTION(BlueprintCallable)

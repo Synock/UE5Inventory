@@ -62,6 +62,21 @@ void UItemBaseWidget::DisplayDescription(const FPointerEvent& InMouseEvent)
 
 //----------------------------------------------------------------------------------------------------------------------
 
+void UItemBaseWidget::DisplayBookText(const FPointerEvent& InMouseEvent)
+{
+	if (Item.ItemID <= 0)
+		return;
+
+	if (IInventoryPlayerInterface* PC = Cast<IInventoryPlayerInterface>(GetOwningPlayer()))
+	{
+		PC->GetInventoryHUDInterface()->Execute_DisplayBookText(PC->GetInventoryHUDObject(), Item,
+																   InMouseEvent.GetScreenSpacePosition().X,
+																   InMouseEvent.GetScreenSpacePosition().Y);
+	}
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 void UItemBaseWidget::ResetSell()
 {
 	if (IInventoryPlayerInterface* PC = Cast<IInventoryPlayerInterface>(GetOwningPlayer()))
