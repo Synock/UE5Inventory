@@ -33,6 +33,9 @@ protected:
 	void HandleAutoEquip();
 
 	UFUNCTION(BlueprintCallable)
+	void HandleAutoLoot();
+
+	UFUNCTION(BlueprintCallable)
 	void HandleSellClick();
 
 	IInventoryPlayerInterface* GetInventoryPlayerInterface() const;

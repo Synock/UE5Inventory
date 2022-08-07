@@ -26,6 +26,10 @@ protected:
 
 public:
 
+	//for some reason using Pre-construct to define pointers do not work on live widget creation. Call this instead
+	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent)
+	void SetupUI();
+
 	UPROPERTY(BlueprintAssignable)
 	FOnCloseEvent OnCloseEvent;
 

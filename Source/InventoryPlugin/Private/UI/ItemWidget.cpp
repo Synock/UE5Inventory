@@ -30,6 +30,20 @@ void UItemWidget::HandleAutoEquip()
 
 //----------------------------------------------------------------------------------------------------------------------
 
+void UItemWidget::HandleAutoLoot()
+{
+	IInventoryPlayerInterface* PC = GetInventoryPlayerInterface();
+	if (!PC)
+		return;
+
+	if(!IsBelongingToSelf())
+	{
+		PC->PlayerAutoLootItem(Item.ItemID, TopLeftID);
+	}
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 void UItemWidget::HandleSellClick()
 {
 	IInventoryPlayerInterface* PC = GetInventoryPlayerInterface();
