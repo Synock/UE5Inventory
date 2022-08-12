@@ -11,7 +11,7 @@ struct FKeyStruct
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|KeyData")
-	int32 ItemID;
+	int32 ItemID = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|KeyData")
 	FString Name;
@@ -20,5 +20,5 @@ struct FKeyStruct
 	FString IconName;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|KeyData")
-	int32 KeyID;
+	int32 KeyID = 0;
 };

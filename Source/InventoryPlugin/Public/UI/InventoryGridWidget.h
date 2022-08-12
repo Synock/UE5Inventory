@@ -17,10 +17,10 @@ struct FInventoryLine
 	GENERATED_BODY()
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere)
-	FVector2D Begin;
+	FVector2D Begin {};
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere)
-	FVector2D End;
+	FVector2D End {};
 	FInventoryLine() = default;
 
 	FInventoryLine(const FVector2D& InputBegin, const FVector2D& InputEnd)
