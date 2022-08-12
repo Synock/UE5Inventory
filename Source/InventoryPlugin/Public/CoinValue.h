@@ -15,16 +15,16 @@ struct INVENTORYPLUGIN_API FCoinValue
 {
 	GENERATED_BODY()
 
-	UPROPERTY(BlueprintReadWrite, Category = "Inventory|Coins")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Inventory|Coins")
 	int32 CopperPieces = 0;
 
-	UPROPERTY(BlueprintReadWrite, Category = "Inventory|Coins")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Inventory|Coins")
 	int32 SilverPieces = 0;
 
-	UPROPERTY(BlueprintReadWrite, Category = "Inventory|Coins")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Inventory|Coins")
 	int32 GoldPieces = 0;
 
-	UPROPERTY(BlueprintReadWrite, Category = "Inventory|Coins")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Inventory|Coins")
 	int32 PlatinumPieces = 0;
 
 	FCoinValue() = default;
