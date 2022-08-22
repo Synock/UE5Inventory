@@ -96,11 +96,11 @@ struct FInventoryItem
 		Category = "Inventory|Equipable")
 	int32 EquipableSlotBitMask = 0;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Meta = (Bitmask, BitmaskEnum = "RaceId"),
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Meta = (Bitmask, BitmaskEnum = "ERaceId"),
 		Category = "Inventory|Equipable")
 	int32 RacialRestriction = 0;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Meta = (Bitmask, BitmaskEnum = "ClassId"),
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Meta = (Bitmask, BitmaskEnum = "EClassId"),
 		Category = "Inventory|Equipable")
 	int32 ClassRestriction = 0;
 
