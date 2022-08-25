@@ -4,6 +4,7 @@
 #include "UI/InventoryGridWidget.h"
 
 #include "InventoryUtilities.h"
+#include "Components/BankComponent.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Components/LootPoolComponent.h"
 #include "Interfaces/InventoryPlayerInterface.h"
@@ -184,6 +185,11 @@ void UInventoryGridWidget::InitData(AActor* Owner, EBagSlot InputBagSlot)
 
 		Cast<ILootableInterface>(ActorOwner)->GetLootPoolDelegate().
 		                                      AddDynamic(this, &UInventoryGridWidget::Refresh);
+	}
+	else if (BagID == EBagSlot::BankPool)
+	{
+		ResizeBagArea(8, 16);
+		PC->GetBankComponent()->BankPoolDispatcher. AddDynamic(this, &UInventoryGridWidget::Refresh);
 	}
 	else
 	{

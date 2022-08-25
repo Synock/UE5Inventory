@@ -8,6 +8,20 @@
 #include "Interfaces/InventoryHUDInterface.h"
 #include "Interfaces/LootableInterface.h"
 
+UCoinComponent* IInventoryPlayerInterface::GetBankCoin()
+{
+	return nullptr;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+UBankComponent* IInventoryPlayerInterface::GetBankComponent()
+{
+	return nullptr;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 void IInventoryPlayerInterface::PlayerUnequipItem(int32 InTopLeft, EBagSlot InSlot, int32 InItemId,
                                                   EEquipmentSlot OutSlot)
 {

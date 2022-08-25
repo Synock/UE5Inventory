@@ -13,6 +13,7 @@
 #include "UObject/Interface.h"
 #include "InventoryPlayerInterface.generated.h"
 
+class UBankComponent;
 // This class does not need to be modified.
 UINTERFACE(MinimalAPI, meta = (CannotImplementInterfaceInBlueprint))
 class UInventoryPlayerInterface : public UInterface
@@ -54,6 +55,11 @@ public:
 
 	virtual UCoinComponent* GetStagingAreaCoin() = 0;
 	virtual UStagingAreaComponent* GetStagingAreaItems() = 0;
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Bank")
+	virtual UCoinComponent* GetBankCoin();
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Bank")
+	virtual UBankComponent* GetBankComponent();
 
 	//------------------------------------------------------------------------------------------------------------------
 	// Equipment
