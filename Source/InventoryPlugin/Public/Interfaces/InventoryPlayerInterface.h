@@ -57,9 +57,9 @@ public:
 	virtual UStagingAreaComponent* GetStagingAreaItems() = 0;
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Bank")
-	virtual UCoinComponent* GetBankCoin();
+	virtual UCoinComponent* GetBankCoin() const;
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Bank")
-	virtual UBankComponent* GetBankComponent();
+	virtual UBankComponent* GetBankComponent() const;
 
 	//------------------------------------------------------------------------------------------------------------------
 	// Equipment

@@ -3,19 +3,20 @@
 #include "Interfaces/InventoryPlayerInterface.h"
 
 #include "InventoryUtilities.h"
+#include "Components/BankComponent.h"
 #include "Interfaces/EquipmentInterface.h"
 #include "GameFramework/Actor.h"
 #include "Interfaces/InventoryHUDInterface.h"
 #include "Interfaces/LootableInterface.h"
 
-UCoinComponent* IInventoryPlayerInterface::GetBankCoin()
+UCoinComponent* IInventoryPlayerInterface::GetBankCoin() const
 {
 	return nullptr;
 }
 
 //----------------------------------------------------------------------------------------------------------------------
 
-UBankComponent* IInventoryPlayerInterface::GetBankComponent()
+UBankComponent* IInventoryPlayerInterface::GetBankComponent() const
 {
 	return nullptr;
 }
@@ -76,6 +77,11 @@ TArray<FInventoryItem> IInventoryPlayerInterface::GetAllItems() const
 
 const TArray<FMinimalItemStorage>& IInventoryPlayerInterface::GetAllItemsInBag(EBagSlot Slot) const
 {
+    if(Slot == EBagSlot::BankPool)
+    {
+    	return GetBankComponent()->GetBagConst();
+    }
+
 	return GetInventoryComponentConst()->GetBagConst(Slot);
 }
 
