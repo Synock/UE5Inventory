@@ -47,6 +47,8 @@ void UBankComponent::Reorganize_Implementation()
 				return  Item1.Size >  Item2.Size;
 			});
 
+	Items.Empty();
+
 	GridBagSolver Solver(Width, Height);
 	for (auto& Item : ItemArray)
 	{

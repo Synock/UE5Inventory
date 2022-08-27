@@ -12,9 +12,13 @@
 UCLASS()
 class INVENTORYPLUGIN_API UBankWidget : public UUserWidget
 {
+
 	GENERATED_BODY()
 protected:
 
 public:
+
+	UFUNCTION(BlueprintCallable)
+	void ReorganizeContent();
 
 };

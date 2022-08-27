@@ -129,7 +129,12 @@ bool IInventoryPlayerInterface::PlayerTryAutoLootFunction(int32 InItemId, EEquip
 
 void IInventoryPlayerInterface::PlayerAddItem(int32 InTopLeft, EBagSlot InSlot, int32 InItemId)
 {
-	if (GetInventoryOwningActor()->HasAuthority())
+	if (!GetInventoryOwningActor()->HasAuthority())
+		return;
+
+	if(InSlot == EBagSlot::BankPool)
+		GetBankComponent()->AddItem(InItemId,InTopLeft);
+	else
 		GetInventoryComponent()->AddItemAt(InSlot, InItemId, InTopLeft);
 }
 
@@ -137,7 +142,12 @@ void IInventoryPlayerInterface::PlayerAddItem(int32 InTopLeft, EBagSlot InSlot, 
 
 void IInventoryPlayerInterface::PlayerRemoveItem(int32 TopLeft, EBagSlot Slot)
 {
-	if (GetInventoryOwningActor()->HasAuthority())
+	if (!GetInventoryOwningActor()->HasAuthority())
+		return;
+
+	if(Slot == EBagSlot::BankPool)
+		GetBankComponent()->RemoveItem(TopLeft);
+	else
 		GetInventoryComponent()->RemoveItem(Slot, TopLeft);
 }
 
@@ -145,6 +155,9 @@ void IInventoryPlayerInterface::PlayerRemoveItem(int32 TopLeft, EBagSlot Slot)
 
 int32 IInventoryPlayerInterface::PlayerGetItem(int32 TopLeft, EBagSlot Slot) const
 {
+	if(Slot == EBagSlot::BankPool)
+		return GetBankComponent()->GetItemAtIndex(TopLeft);
+
 	return GetInventoryComponentConst()->GetItemAtIndex(Slot, TopLeft);
 }
 
