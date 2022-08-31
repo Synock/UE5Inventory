@@ -144,19 +144,23 @@ FCoinValue UInventoryUtilities::ReduceCoinAmount(const FCoinValue& CoinValue)
 
 //----------------------------------------------------------------------------------------------------------------------
 
-FCoinValue UInventoryUtilities::ConvertCoins(ECurrencyType InputCurrency, int32 InputValue, ECurrencyType OutputCurrency)
+FCoinValue UInventoryUtilities::ConvertCoins(ECurrencyType InputCurrency, int32 InputValue,
+                                             ECurrencyType OutputCurrency)
 {
-
 	float InputRawValue;
 	float OutputRawValue;
 
 	switch (InputCurrency)
 	{
 	default:
-	case ECurrencyType::Copper: InputRawValue = 1.f; break;
-	case ECurrencyType::Silver: InputRawValue = 10.f; break;
-	case ECurrencyType::Gold: InputRawValue = 100.f;break;
-	case ECurrencyType::Platinum: InputRawValue = 1000.f;break;
+	case ECurrencyType::Copper: InputRawValue = 1.f;
+		break;
+	case ECurrencyType::Silver: InputRawValue = 10.f;
+		break;
+	case ECurrencyType::Gold: InputRawValue = 100.f;
+		break;
+	case ECurrencyType::Platinum: InputRawValue = 1000.f;
+		break;
 	}
 
 	const float BaseValue = InputValue * InputRawValue;
@@ -164,10 +168,14 @@ FCoinValue UInventoryUtilities::ConvertCoins(ECurrencyType InputCurrency, int32 
 	switch (OutputCurrency)
 	{
 	default:
-	case ECurrencyType::Copper: OutputRawValue = 1.f; break;
-	case ECurrencyType::Silver: OutputRawValue = 10.f; break;
-	case ECurrencyType::Gold: OutputRawValue = 100.f;break;
-	case ECurrencyType::Platinum: OutputRawValue = 1000.f;break;
+	case ECurrencyType::Copper: OutputRawValue = 1.f;
+		break;
+	case ECurrencyType::Silver: OutputRawValue = 10.f;
+		break;
+	case ECurrencyType::Gold: OutputRawValue = 100.f;
+		break;
+	case ECurrencyType::Platinum: OutputRawValue = 1000.f;
+		break;
 	}
 
 	const float ConversionRate = InputRawValue / OutputRawValue;
@@ -178,16 +186,19 @@ FCoinValue UInventoryUtilities::ConvertCoins(ECurrencyType InputCurrency, int32 
 	switch (OutputCurrency)
 	{
 	default:
-	case ECurrencyType::Copper: OutputValue.CopperPieces = NewValue; break;
-	case ECurrencyType::Silver: OutputValue.SilverPieces = NewValue; break;
-	case ECurrencyType::Gold: OutputValue.GoldPieces = NewValue; break;
-	case ECurrencyType::Platinum: OutputValue.PlatinumPieces = NewValue; break;
+	case ECurrencyType::Copper: OutputValue.CopperPieces = FMath::Floor(NewValue + 0.5);
+		break;
+	case ECurrencyType::Silver: OutputValue.SilverPieces = FMath::Floor(NewValue + 0.5);
+		break;
+	case ECurrencyType::Gold: OutputValue.GoldPieces = FMath::Floor(NewValue + 0.5);
+		break;
+	case ECurrencyType::Platinum: OutputValue.PlatinumPieces = FMath::Floor(NewValue + 0.5);
+		break;
 	}
 
 	const float Rest = BaseValue - OutputValue.ToFloat();
 	OutputValue += Rest;
 	return OutputValue;
-
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -229,7 +240,7 @@ FString UInventoryUtilities::GetCoinValueAsString(const FCoinValue& CoinValue)
 
 	if (CoinValue.PlatinumPieces == 0 && CoinValue.GoldPieces == 0 && CoinValue.SilverPieces == 0 && CoinValue.
 		CopperPieces == 0)
-			return {};
+		return {};
 
 
 	FString PlatinumString;
@@ -274,7 +285,7 @@ FString UInventoryUtilities::GetCoinValueAsString(const FCoinValue& CoinValue)
 	if (!CopperString.IsEmpty())
 		ResultString += CopperString;
 
-	ResultString+= " Pieces.";
+	ResultString += " Pieces.";
 
 	return ResultString;
 }

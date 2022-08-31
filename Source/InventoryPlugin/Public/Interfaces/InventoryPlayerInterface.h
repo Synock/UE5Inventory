@@ -257,7 +257,7 @@ protected:
 	virtual void Server_PlayerSwapEquipment(int32 DroppedItemId, EEquipmentSlot DroppedInSlot, int32 SwappedItemId,
 	                                        EEquipmentSlot DraggedOutSlot) = 0;
 
-	UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory")
+	//UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory")
 	virtual void Server_TransferCoinTo(UCoinComponent* GivingComponent, UCoinComponent* ReceivingComponent,
 		const FCoinValue& RemovedCoinValue, const FCoinValue& AddedCoinValue) = 0;
 
