@@ -128,7 +128,8 @@ public:
 	virtual void PlayerMoveItem(int32 InTopLeft, EBagSlot InSlot, int32 InItemId, int32 OutTopLeft, EBagSlot OutSlot);
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
-	virtual void TransferCoinTo(UCoinComponent* ReceivingComponent, const FCoinValue& CoinValue);
+	virtual void TransferCoinTo(UCoinComponent* GivingComponent, UCoinComponent* ReceivingComponent,
+		const FCoinValue& RemovedCoinValue, const FCoinValue& AddedCoinValue);
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	virtual void CancelStagingArea();
@@ -256,8 +257,9 @@ protected:
 	virtual void Server_PlayerSwapEquipment(int32 DroppedItemId, EEquipmentSlot DroppedInSlot, int32 SwappedItemId,
 	                                        EEquipmentSlot DraggedOutSlot) = 0;
 
-	//UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory")
-	virtual void Server_TransferCoinTo(UCoinComponent* ReceivingComponent, const FCoinValue& CoinValue) = 0;
+	UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory")
+	virtual void Server_TransferCoinTo(UCoinComponent* GivingComponent, UCoinComponent* ReceivingComponent,
+		const FCoinValue& RemovedCoinValue, const FCoinValue& AddedCoinValue) = 0;
 
 	//------------------------------------------------------------------------------------------------------------------
 	// Staging -- Server

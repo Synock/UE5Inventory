@@ -14,7 +14,8 @@ void UCurrencyWidget::UpdateCoinValue(int32 NewCoinAmount)
 	Refresh();
 }
 
-void UCurrencyWidget::SetupCoinComponent(UCoinComponent* OriginCoinComponent)
+void UCurrencyWidget::SetupCoinComponent(UCoinComponent* OriginCoinComponent, bool AllowForCurrencyChangeState)
 {
 	CoinComponent = OriginCoinComponent;
+	AllowForCurrencyChange = AllowForCurrencyChangeState;
 }

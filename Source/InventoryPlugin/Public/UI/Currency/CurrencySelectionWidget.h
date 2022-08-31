@@ -27,7 +27,13 @@ protected:
 	ECurrencyType CurrencyType = ECurrencyType::Copper;
 
 	UPROPERTY(BlueprintReadOnly, Category="Inventory|Currency")
+	ECurrencyType DesiredCurrencyType = ECurrencyType::Copper;
+
+	UPROPERTY(BlueprintReadOnly, Category="Inventory|Currency")
 	int32 MaximumCoinCapacity = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category="Inventory|Currency")
+	bool AllowForCurrencyChange = false;
 
 	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent)
 	void SetupUI();
@@ -35,7 +41,7 @@ protected:
 public:
 	UFUNCTION(BlueprintCallable)
 	void InitWidget(UCoinComponent* OriginCoinComponent, UCoinComponent* DestinationCoinComponent,
-	                ECurrencyType InputCurrencyType);
+	                ECurrencyType InputCurrencyType, ECurrencyType OutputCurrencyType, bool AllowForCurrencyChangeState = false);
 
 	UFUNCTION(BlueprintCallable)
 	void DoTheCoinTransfer(int32 SelectedCoinValue);

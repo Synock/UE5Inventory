@@ -41,6 +41,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Inventory|Coins")
 	static FCoinValue ReduceCoinAmount(const FCoinValue& CoinValue);
 
+	//@brief Convert an amount of currency type to another
+	UFUNCTION(BlueprintCallable, Category="Inventory|Coins")
+	static FCoinValue ConvertCoins(ECurrencyType InputCurrency, int32 InputValue, ECurrencyType OutputCurrency);
+
 	//@brief Return if it possible to pay the price NeededCoins using AvailableCoins without changing coins.
 	UFUNCTION(BlueprintCallable, Category="Inventory|Coins")
 	static bool CanPay(const FCoinValue& AvailableCoins, const FCoinValue& NeededCoins);

@@ -34,5 +34,6 @@ public:
 
 	virtual FCoinValue GetCoinAmount() const;
 
-	virtual void TransferCoinsTo(UCoinComponent* ReceivingComponent, const FCoinValue & TransferValue);
+	virtual void TransferCoinsTo(UCoinComponent* GivingComponent, UCoinComponent* ReceivingComponent,
+		const FCoinValue & RemovedValue, const FCoinValue & AddedValue);
 };

@@ -30,8 +30,8 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category="Inventory|Currency")
 	UCoinComponent* CoinComponent = nullptr;
 
-	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable, BlueprintCosmetic, Category = "Inventory|UI")
-	void InitWidget();
+	UPROPERTY(BlueprintReadWrite, Category="Inventory|Currency")
+	bool AllowForCurrencyChange = false;
 
 	UFUNCTION(BlueprintCosmetic, BlueprintCallable, Category = "Inventory|UI")
 	void Refresh();
@@ -41,5 +41,5 @@ public:
 	void UpdateCoinValue(int32 NewCoinAmount);
 
 	UFUNCTION()
-	void SetupCoinComponent(UCoinComponent* OriginCoinComponent);
+	void SetupCoinComponent(UCoinComponent* OriginCoinComponent, bool AllowForCurrencyChangeState = false);
 };

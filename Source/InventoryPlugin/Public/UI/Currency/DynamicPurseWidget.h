@@ -34,6 +34,9 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category= "Inventory|Purse")
 	bool Dynamic = false;
 
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category= "Inventory|Purse")
+	bool AllowForCurrencyChange = false;
+
 public:
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Inventory|UI")
 	void InitWidget(UCoinComponent* Owner);

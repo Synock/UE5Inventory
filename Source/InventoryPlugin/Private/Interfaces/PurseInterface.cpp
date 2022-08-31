@@ -26,8 +26,9 @@ FCoinValue IPurseInterface::GetCoinAmount() const
 
 //----------------------------------------------------------------------------------------------------------------------
 
-void IPurseInterface::TransferCoinsTo(UCoinComponent* ReceivingComponent, const FCoinValue & TransferValue)
+void IPurseInterface::TransferCoinsTo(UCoinComponent* GivingComponent, UCoinComponent* ReceivingComponent,
+	const FCoinValue & RemovedValue, const FCoinValue & AddedValue)
 {
-	GetPurseComponent()->RemoveCoins(TransferValue);
-	ReceivingComponent->AddCoins(TransferValue);
+	GivingComponent->RemoveCoins(RemovedValue);
+	ReceivingComponent->AddCoins(AddedValue);
 }

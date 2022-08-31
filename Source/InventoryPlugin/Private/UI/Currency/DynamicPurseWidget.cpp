@@ -9,16 +9,21 @@
 void UDynamicPurseWidget::InitWidget(UCoinComponent* Owner)
 {
 	if (PursePointer)
+	{
 		PursePointer->PurseDispatcher.RemoveAll(this);
+	}
 
 	PursePointer = Owner;
-	if (PursePointer)
-		PursePointer->PurseDispatcher.AddDynamic(this, &UDynamicPurseWidget::Refresh);
 
-	CopperCurrencyWidget->SetupCoinComponent(PursePointer);
-	SilverCurrencyWidget->SetupCoinComponent(PursePointer);
-	GoldCurrencyWidget->SetupCoinComponent(PursePointer);
-	PlatinumCurrencyWidget->SetupCoinComponent(PursePointer);
+	if (PursePointer)
+	{
+		PursePointer->PurseDispatcher.AddDynamic(this, &UDynamicPurseWidget::Refresh);
+	}
+
+	CopperCurrencyWidget->SetupCoinComponent(PursePointer, AllowForCurrencyChange);
+	SilverCurrencyWidget->SetupCoinComponent(PursePointer, AllowForCurrencyChange);
+	GoldCurrencyWidget->SetupCoinComponent(PursePointer, AllowForCurrencyChange);
+	PlatinumCurrencyWidget->SetupCoinComponent(PursePointer, AllowForCurrencyChange);
 
 	Refresh();
 }

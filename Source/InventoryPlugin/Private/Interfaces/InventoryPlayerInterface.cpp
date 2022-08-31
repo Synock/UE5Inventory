@@ -176,12 +176,13 @@ void IInventoryPlayerInterface::PlayerMoveItem(int32 InTopLeft, EBagSlot InSlot,
 
 //----------------------------------------------------------------------------------------------------------------------
 
-void IInventoryPlayerInterface::TransferCoinTo(UCoinComponent* ReceivingComponent, const FCoinValue& CoinValue)
+void IInventoryPlayerInterface::TransferCoinTo(UCoinComponent* GivingComponent, UCoinComponent* ReceivingComponent,
+	const FCoinValue& RemovedCoinValue, const FCoinValue& AddedCoinValue)
 {
 	//if(ReceivingComponent->GetOwner() != GetInventoryOwningActor())
 		//return;
 
-	Server_TransferCoinTo(ReceivingComponent, CoinValue);
+	Server_TransferCoinTo(GivingComponent, ReceivingComponent, RemovedCoinValue, AddedCoinValue);
 }
 
 //----------------------------------------------------------------------------------------------------------------------

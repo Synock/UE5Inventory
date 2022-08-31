@@ -2,10 +2,12 @@
 
 
 #include "UI/Currency/CurrencySelectionWidget.h"
+
+#include "InventoryUtilities.h"
 #include "Interfaces/InventoryPlayerInterface.h"
 
 void UCurrencySelectionWidget::InitWidget(UCoinComponent* OriginCoinComponent, UCoinComponent* DestinationCoinComponent,
-                                          ECurrencyType InputCurrencyType)
+                                          ECurrencyType InputCurrencyType, ECurrencyType OutputCurrencyType ,bool AllowForCurrencyChangeState)
 {
 	check(OriginCoinComponent);
 	check(DestinationCoinComponent);
@@ -13,6 +15,7 @@ void UCurrencySelectionWidget::InitWidget(UCoinComponent* OriginCoinComponent, U
 	CurrencyType = InputCurrencyType;
 	Origin = OriginCoinComponent;
 	Destination = DestinationCoinComponent;
+	DesiredCurrencyType = OutputCurrencyType;
 
 	switch (CurrencyType)
 	{
@@ -27,29 +30,21 @@ void UCurrencySelectionWidget::InitWidget(UCoinComponent* OriginCoinComponent, U
 		break;
 	}
 
+	AllowForCurrencyChange = AllowForCurrencyChangeState;
 	SetupUI();
 }
 
 void UCurrencySelectionWidget::DoTheCoinTransfer(int32 SelectedCoinValue)
 {
 	if (SelectedCoinValue == 0)
+	{
 		return;
+	}
 
 	if (IInventoryPlayerInterface* Player = Cast<IInventoryPlayerInterface>(GetOwningPlayer()))
 	{
-		FCoinValue TemporaryValue;
-		switch (CurrencyType)
-		{
-		default:
-		case ECurrencyType::Copper: TemporaryValue.CopperPieces = SelectedCoinValue;
-			break;
-		case ECurrencyType::Silver: TemporaryValue.SilverPieces = SelectedCoinValue;
-			break;
-		case ECurrencyType::Gold: TemporaryValue.GoldPieces = SelectedCoinValue;
-			break;
-		case ECurrencyType::Platinum: TemporaryValue.PlatinumPieces = SelectedCoinValue;
-			break;
-		}
-		Player->TransferCoinTo(Destination, TemporaryValue);
+		FCoinValue RemovedValue = UInventoryUtilities::ConvertCoins(CurrencyType,SelectedCoinValue,CurrencyType);
+		FCoinValue AddedValue = UInventoryUtilities::ConvertCoins(CurrencyType,SelectedCoinValue,DesiredCurrencyType);
+		Player->TransferCoinTo(Origin, Destination, RemovedValue, AddedValue);
 	}
 }

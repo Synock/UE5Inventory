@@ -144,6 +144,54 @@ FCoinValue UInventoryUtilities::ReduceCoinAmount(const FCoinValue& CoinValue)
 
 //----------------------------------------------------------------------------------------------------------------------
 
+FCoinValue UInventoryUtilities::ConvertCoins(ECurrencyType InputCurrency, int32 InputValue, ECurrencyType OutputCurrency)
+{
+
+	float InputRawValue;
+	float OutputRawValue;
+
+	switch (InputCurrency)
+	{
+	default:
+	case ECurrencyType::Copper: InputRawValue = 1.f; break;
+	case ECurrencyType::Silver: InputRawValue = 10.f; break;
+	case ECurrencyType::Gold: InputRawValue = 100.f;break;
+	case ECurrencyType::Platinum: InputRawValue = 1000.f;break;
+	}
+
+	const float BaseValue = InputValue * InputRawValue;
+
+	switch (OutputCurrency)
+	{
+	default:
+	case ECurrencyType::Copper: OutputRawValue = 1.f; break;
+	case ECurrencyType::Silver: OutputRawValue = 10.f; break;
+	case ECurrencyType::Gold: OutputRawValue = 100.f;break;
+	case ECurrencyType::Platinum: OutputRawValue = 1000.f;break;
+	}
+
+	const float ConversionRate = InputRawValue / OutputRawValue;
+	const float NewValue = InputValue * ConversionRate;
+
+	FCoinValue OutputValue;
+
+	switch (OutputCurrency)
+	{
+	default:
+	case ECurrencyType::Copper: OutputValue.CopperPieces = NewValue; break;
+	case ECurrencyType::Silver: OutputValue.SilverPieces = NewValue; break;
+	case ECurrencyType::Gold: OutputValue.GoldPieces = NewValue; break;
+	case ECurrencyType::Platinum: OutputValue.PlatinumPieces = NewValue; break;
+	}
+
+	const float Rest = BaseValue - OutputValue.ToFloat();
+	OutputValue += Rest;
+	return OutputValue;
+
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 bool UInventoryUtilities::CanPay(const FCoinValue& AvailableCoins, const FCoinValue& NeededCoins)
 {
 	return FCoinValue::CanPay(AvailableCoins, NeededCoins);
