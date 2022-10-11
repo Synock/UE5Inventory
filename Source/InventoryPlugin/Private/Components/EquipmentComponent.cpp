@@ -226,7 +226,6 @@ UEquipmentComponent::UEquipmentComponent()
 	InvalidItem.ItemID = -1;
 	Equipment.Init(InvalidItem, 32);
 
-
 	PrimaryWeaponComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("PrimaryWeaponComponentMesh"));
 	PrimaryWeaponComponent->SetIsReplicated(true);
 	SecondaryWeaponComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("SecondaryWeaponComponentMesh"));

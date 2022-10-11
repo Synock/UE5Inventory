@@ -111,7 +111,9 @@ void IEquipmentInterface::HandleEquipmentEffect(EEquipmentSlot InSlot, const FIn
 		return;
 
 	HandleTwoSlotItemEquip(LocalItem, InSlot);
+
 	//do equipment specific stuff here
+	// such as computing new damage output, edit armor, stuff like that
 
 	if (LocalItem.Bag)
 	{
