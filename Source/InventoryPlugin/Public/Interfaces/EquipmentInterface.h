@@ -59,7 +59,10 @@ public:
 	virtual void HandleTwoSlotItemEquip(const FInventoryItem& Item, EEquipmentSlot& InSlot);
 	virtual void HandleTwoSlotItemUnequip(const FInventoryItem& Item, EEquipmentSlot InSlot);
 
+	UFUNCTION()
 	virtual void HandleEquipmentEffect(EEquipmentSlot InSlot, const FInventoryItem& LocalItem);
+
+	UFUNCTION()
 	virtual void HandleUnEquipmentEffect(EEquipmentSlot InSlot, const FInventoryItem& LocalItem);
 	
 	float GetTotalWeight() const;
