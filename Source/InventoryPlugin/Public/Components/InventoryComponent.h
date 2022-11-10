@@ -13,6 +13,9 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnFullInventoryComponentChanged);
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FFullInventoryDispatcher_Server);
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FInventoryItemAdd, EBagSlot, ConsideredBag, int32, ItemID, int32, TopLeftIndex);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FInventoryItemRemove, EBagSlot, ConsideredBag, int32, TopLeftIndex);
+
 USTRUCT(BlueprintType)
 struct FVariableBagStorage
 {
@@ -66,6 +69,12 @@ public:
 	UPROPERTY(BlueprintAssignable, BlueprintAuthorityOnly, Category = "Neverquest|Inventory")
 	//this is public because its a dispatcher
 	FFullInventoryDispatcher_Server FullInventoryDispatcher_Server;
+
+	UPROPERTY(BlueprintAssignable, BlueprintAuthorityOnly, Category = "Neverquest|Inventory")
+	FInventoryItemAdd InventoryItemAdd;
+
+	UPROPERTY(BlueprintAssignable, BlueprintAuthorityOnly, Category = "Neverquest|Inventory")
+	FInventoryItemRemove InventoryItemRemove;
 
 	UFUNCTION(BlueprintCallable, Category = "Neverquest|Inventory")
 	int32 GetItemAtIndex(EBagSlot ConsideredBag, int32 ID) const;

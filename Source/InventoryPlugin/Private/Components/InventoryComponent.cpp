@@ -85,6 +85,7 @@ int32 UInventoryComponent::GetItemAtIndex(EBagSlot ConsideredBag, int32 ID) cons
 void UInventoryComponent::RemoveItem_Implementation(EBagSlot ConsideredBag, int32 TopLeftIndex)
 {
 	GetRelatedBag(ConsideredBag)->RemoveItem(TopLeftIndex);
+	InventoryItemRemove.Broadcast(ConsideredBag,TopLeftIndex);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -92,6 +93,7 @@ void UInventoryComponent::RemoveItem_Implementation(EBagSlot ConsideredBag, int3
 void UInventoryComponent::AddItemAt_Implementation(EBagSlot ConsideredBag, int32 ItemID, int32 TopLeftIndex)
 {
 	GetRelatedBag(ConsideredBag)->AddItemAt(ItemID, TopLeftIndex);
+	InventoryItemAdd.Broadcast(ConsideredBag,ItemID,TopLeftIndex);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
