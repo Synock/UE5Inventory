@@ -19,7 +19,7 @@ void UBagWidget::Show()
 
 void UBagWidget::ToggleDisplay()
 {
-	if (GetIsVisible())
+	if (IsInViewport())
 		Hide();
 	else
 		Show();

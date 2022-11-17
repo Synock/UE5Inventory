@@ -231,7 +231,6 @@ UEquipmentComponent::UEquipmentComponent()
 	SecondaryWeaponComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("SecondaryWeaponComponentMesh"));
 	SecondaryWeaponComponent->SetIsReplicated(true);
 
-
 	AmmoComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("AmmoComponentMesh"));
 	AmmoComponent->SetIsReplicated(true);
 	WaistBag1Component = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WaistBag1ComponentMesh"));
@@ -251,25 +250,6 @@ UEquipmentComponent::UEquipmentComponent()
 	SecondaryWeaponSheath->SetIsReplicated(true);
 	BackWeaponSheath = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("BackWeaponSheathComponentMesh"));
 	BackWeaponSheath->SetIsReplicated(true);
-
-
-	ACharacter* Parent = Cast<ACharacter>(GetOwner());
-	if (!Parent)
-		return;
-
-	PrimaryWeaponComponent->SetupAttachment(Parent->GetMesh(), FName("SOCKET_RightHandWeapon"));
-	SecondaryWeaponComponent->SetupAttachment(Parent->GetMesh(), FName("SOCKET_LeftHandWeapon"));
-	AmmoComponent->SetupAttachment(Parent->GetMesh(), FName("SOCKET_AmmoBag"));
-
-	WaistBag1Component->SetupAttachment(Parent->GetMesh(), FName("SOCKET_WaistBag1"));
-	WaistBag2Component->SetupAttachment(Parent->GetMesh(), FName("SOCKET_WaistBag2"));
-	ShoulderBag1Component->SetupAttachment(Parent->GetMesh(), FName("SOCKET_ShoulderBag1"));
-	ShoulderBag2Component->SetupAttachment(Parent->GetMesh(), FName("SOCKET_ShoulderBag2"));
-	BackpackComponent->SetupAttachment(Parent->GetMesh(), FName("SOCKET_Backpack"));
-
-	PrimaryWeaponSheath->SetupAttachment(Parent->GetMesh(), FName("SOCKET_PrimaryScabbard"));
-	SecondaryWeaponSheath->SetupAttachment(Parent->GetMesh(), FName("SOCKET_SecondaryScabbard"));
-	BackWeaponSheath->SetupAttachment(Parent->GetMesh(), FName("SOCKET_BackWeaponScabbard"));
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -279,6 +259,34 @@ void UEquipmentComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
+	if(GetOwnerRole() == ROLE_Authority)
+		return;
+
+	ACharacter* Parent = Cast<ACharacter>(GetOwner());
+    	if (!Parent)
+    		return;
+	USkeletalMeshComponent* PlayerMesh = Parent->GetMesh();
+
+	if(!PlayerMesh)
+		return;
+
+	if(!PrimaryWeaponComponent)
+		return;
+
+	FAttachmentTransformRules AttachmentTransformRules(EAttachmentRule::SnapToTarget,true);
+	PrimaryWeaponComponent->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("SOCKET_RightHandWeapon"));
+	SecondaryWeaponComponent->AttachToComponent(PlayerMesh, AttachmentTransformRules,  FName("SOCKET_LeftHandWeapon"));
+	AmmoComponent->AttachToComponent(PlayerMesh, AttachmentTransformRules,  FName("SOCKET_AmmoBag"));
+
+	WaistBag1Component->AttachToComponent(PlayerMesh, AttachmentTransformRules,  FName("SOCKET_WaistBag1"));
+	WaistBag2Component->AttachToComponent(PlayerMesh, AttachmentTransformRules,  FName("SOCKET_WaistBag2"));
+	ShoulderBag1Component->AttachToComponent(PlayerMesh, AttachmentTransformRules,  FName("SOCKET_ShoulderBag1"));
+	ShoulderBag2Component->AttachToComponent(PlayerMesh, AttachmentTransformRules,  FName("SOCKET_ShoulderBag2"));
+	BackpackComponent->AttachToComponent(PlayerMesh, AttachmentTransformRules,  FName("SOCKET_Backpack"));
+
+	PrimaryWeaponSheath->AttachToComponent(PlayerMesh, AttachmentTransformRules,  FName("SOCKET_PrimaryScabbard"));
+	SecondaryWeaponSheath->AttachToComponent(PlayerMesh, AttachmentTransformRules,  FName("SOCKET_SecondaryScabbard"));
+	BackWeaponSheath->AttachToComponent(PlayerMesh, AttachmentTransformRules,  FName("SOCKET_BackWeaponScabbard"));
 	// ...
 }
 

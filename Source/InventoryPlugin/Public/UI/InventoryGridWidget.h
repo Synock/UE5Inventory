@@ -17,10 +17,10 @@ struct FInventoryLine
 	GENERATED_BODY()
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere)
-	FVector2D Begin {};
+	FVector2D Begin{0.f, 0.f};
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere)
-	FVector2D End {};
+	FVector2D End{0.f, 0.f};
 	FInventoryLine() = default;
 
 	FInventoryLine(const FVector2D& InputBegin, const FVector2D& InputEnd)
@@ -75,7 +75,7 @@ protected:
 
 	UPROPERTY(BlueprintReadWrite, Category = "Inventory|Data")
 	TArray<UItemWidget*> ItemList;
-	
+
 	IInventoryPlayerInterface* GetInventoryPlayerInterface() const;
 
 	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, Category = "Inventory|Data")
@@ -91,9 +91,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Inventory|Data")
 	void InitData(AActor* Owner, EBagSlot InputBagSlot);
-	
+
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Data")
-	EBagSlot GetBagID() const {return BagID;}
+	EBagSlot GetBagID() const { return BagID; }
 
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Inventory|Data")
 	int GetWidth() const { return Width; }
@@ -158,7 +158,7 @@ protected:
 
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Inventory|UI|Helper")
 	FVector2D GetItemScreenFootprint(UItemWidget* Item) const;
-	
+
 	bool CanProcessItemDrop(UItemWidget* IncomingItem) const;
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory|UI|Helper")
@@ -167,12 +167,12 @@ protected:
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Inventory|UI|Helper")
 	bool UpdateDraggedItemTopLeft(UItemWidget* IncomingItem, float X, float Y);
 
-	UFUNCTION(BlueprintCallable,BlueprintCosmetic, Category = "Inventory|UI")
+	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Inventory|UI")
 	void AddItemWidgetToGrid(UCanvasPanel* GridCanvasPanel, UWidget* Content, int32 TopLeft);
 
-	UFUNCTION(BlueprintCallable,BlueprintCosmetic, Category = "Inventory|UI")
+	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Inventory|UI")
 	void CreateNewItem(UCanvasPanel* GridCanvasPanel, const FMinimalItemStorage& ItemStorage);
-	
-	UFUNCTION(BlueprintCallable,BlueprintCosmetic, Category = "Inventory|UI")
+
+	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Inventory|UI")
 	void FullRefresh(UCanvasPanel* GridCanvasPanel);
 };
