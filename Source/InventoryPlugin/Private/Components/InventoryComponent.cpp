@@ -39,6 +39,10 @@ UInventoryComponent::UInventoryComponent()
 void UInventoryComponent::BeginPlay()
 {
 	Super::BeginPlay();
+	for (auto& BagData : VariableBags)
+	{
+		BagData.Bag->BagDispatcher.AddDynamic(this, &UInventoryComponent::DoBroadcastChange);
+	}
 }
 
 //----------------------------------------------------------------------------------------------------------------------
