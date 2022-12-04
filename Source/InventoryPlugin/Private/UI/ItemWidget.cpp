@@ -58,6 +58,17 @@ void UItemWidget::HandleSellClick()
 
 //----------------------------------------------------------------------------------------------------------------------
 
+void UItemWidget::HandleActivation()
+{
+	if (Item.ItemID <= 0)
+		return;
+
+	if (IInventoryPlayerInterface* PC = Cast<IInventoryPlayerInterface>(GetOwningPlayer()))
+		PC->HandleActivation(Item.ItemID, TopLeftID, BagID);
+
+}
+//----------------------------------------------------------------------------------------------------------------------
+
 IInventoryPlayerInterface* UItemWidget::GetInventoryPlayerInterface() const
 {
 	return Cast<IInventoryPlayerInterface>(GetOwningPlayer());

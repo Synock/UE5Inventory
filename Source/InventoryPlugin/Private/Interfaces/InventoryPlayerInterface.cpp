@@ -215,6 +215,12 @@ void IInventoryPlayerInterface::MoveInventoryItemToStagingArea(int32 InItemId, i
 
 //----------------------------------------------------------------------------------------------------------------------
 
+void IInventoryPlayerInterface::HandleActivation(int32 ItemID, int32 TopLeft, EBagSlot BagSlot)
+{
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 bool IInventoryPlayerInterface::IsLooting() const
 {
 	return GetLootedActorConst() != nullptr;

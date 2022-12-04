@@ -143,6 +143,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	virtual void MoveInventoryItemToStagingArea(int32 InItemId, int32 OutTopLeft, EBagSlot OutSlot);
 
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	virtual void HandleActivation(int32 ItemID, int32 TopLeft, EBagSlot BagSlot);
+
 	//------------------------------------------------------------------------------------------------------------------
 	// Loot -- Client
 	//------------------------------------------------------------------------------------------------------------------

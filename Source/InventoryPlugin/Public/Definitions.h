@@ -129,4 +129,6 @@ struct INVENTORYPLUGIN_API FAttributeStruct
 	FAttributeStruct& operator+=(const FAttributeStruct& OtherAttribute);
 
 	int Sum() const;
+
+	bool IsNotNull() const;
 };
