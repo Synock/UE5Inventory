@@ -63,46 +63,49 @@ protected:
 	UBagStorage* GetRelatedBag(EBagSlot InputSlot) const;
 
 public:
-	UPROPERTY(BlueprintAssignable, Category = "Neverquest|Inventory") //this is public because its a dispatcher
+	UPROPERTY(BlueprintAssignable, Category = "Inventory") //this is public because its a dispatcher
 	FOnFullInventoryComponentChanged FullInventoryDispatcher;
 
-	UPROPERTY(BlueprintAssignable, BlueprintAuthorityOnly, Category = "Neverquest|Inventory")
+	UPROPERTY(BlueprintAssignable, BlueprintAuthorityOnly, Category = "Inventory")
 	//this is public because its a dispatcher
 	FFullInventoryDispatcher_Server FullInventoryDispatcher_Server;
 
-	UPROPERTY(BlueprintAssignable, BlueprintAuthorityOnly, Category = "Neverquest|Inventory")
+	UPROPERTY(BlueprintAssignable, BlueprintAuthorityOnly, Category = "Inventory")
 	FInventoryItemAdd InventoryItemAdd;
 
-	UPROPERTY(BlueprintAssignable, BlueprintAuthorityOnly, Category = "Neverquest|Inventory")
+	UPROPERTY(BlueprintAssignable, BlueprintAuthorityOnly, Category = "Inventory")
 	FInventoryItemRemove InventoryItemRemove;
 
-	UFUNCTION(BlueprintCallable, Category = "Neverquest|Inventory")
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	int32 GetItemAtIndex(EBagSlot ConsideredBag, int32 ID) const;
 
-	UFUNCTION(Server, reliable, BlueprintCallable, Category = "Neverquest|Inventory")
+	UFUNCTION(Server, reliable, BlueprintCallable, Category = "Inventory")
 	void AddItemAt(EBagSlot ConsideredBag, int32 ItemID, int32 TopLeftIndex);
 
-	UFUNCTION(Server, reliable, BlueprintCallable, Category = "Neverquest|Inventory")
+	UFUNCTION(Server, reliable, BlueprintCallable, Category = "Inventory")
 	void RemoveItem(EBagSlot ConsideredBag, int32 TopLeftIndex);
 
-	UFUNCTION(BlueprintCallable, Category = "Neverquest|Inventory")
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	const TArray<FMinimalItemStorage>& GetBagConst(EBagSlot WantedBagSlot) const;
 
 	//Setup bag info
-	UFUNCTION(BlueprintCallable, Category = "Neverquest|Inventory")
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	void BagSet(EBagSlot ConsideredBag, bool InputValidity = false, int32 InputWidth = 0, int32 InputHeight = 0,
 	            EItemSize InputMaxStoreSize = EItemSize::Giant);
 
-	UFUNCTION(BlueprintCallable, Category = "Neverquest|Inventory")
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	float GetTotalWeight() const;
 
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	bool HasItem(int32 ItemID);
+
 	//Find and return an empty slot for the item or BagSlot::Unknown
-	UFUNCTION(BlueprintCallable, Category = "Neverquest|Inventory")
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	EBagSlot FindSuitableSlot(const FInventoryItem& Item, int32& OutputTopLeftID) const;
 
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Neverquest|Inventory")
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Inventory")
 	static EEquipmentSlot GetInventorySlotFromBagSlot(EBagSlot ConsideredBag);
 
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Neverquest|Inventory")
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Inventory")
 	static EBagSlot GetBagSlotFromInventory(EEquipmentSlot ConsideredInventory);
 };

@@ -115,4 +115,7 @@ public:
 	float GetBagWeight() const { return BagWeight; }
 
 	GridBagSolver GetSolver() const;
+
+	UFUNCTION(BlueprintCallable, Category="Inventory|Bag")
+	bool HasItem(int32 ItemID);
 };

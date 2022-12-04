@@ -133,6 +133,18 @@ float UInventoryComponent::GetTotalWeight() const
 
 //----------------------------------------------------------------------------------------------------------------------
 
+bool UInventoryComponent::HasItem(int32 ItemID)
+{
+	for (auto& BagData : VariableBags)
+	{
+		if(BagData.Bag->HasItem(ItemID))
+			return true;
+	}
+	return false;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 EBagSlot UInventoryComponent::FindSuitableSlot(const FInventoryItem& Item, int32& OutputTopLeftID) const
 {
 	for (const auto& Bag : VariableBags)

@@ -127,6 +127,13 @@ bool IInventoryPlayerInterface::PlayerTryAutoLootFunction(int32 InItemId, EEquip
 
 //----------------------------------------------------------------------------------------------------------------------
 
+bool IInventoryPlayerInterface::PlayerHasItem(int32 ItemId)
+{
+	return GetInventoryComponent()->HasItem(ItemId);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 void IInventoryPlayerInterface::PlayerAddItem(int32 InTopLeft, EBagSlot InSlot, int32 InItemId)
 {
 	if (!GetInventoryOwningActor()->HasAuthority())

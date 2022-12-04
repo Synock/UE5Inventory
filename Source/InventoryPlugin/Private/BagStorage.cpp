@@ -139,6 +139,19 @@ GridBagSolver UBagStorage::GetSolver() const
 
 //----------------------------------------------------------------------------------------------------------------------
 
+bool UBagStorage::HasItem(int32 ItemID)
+{
+	for(auto& Item : Items)
+	{
+		if(Item.ItemID == ItemID)
+			return true;
+	}
+
+	return false;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 int32 UBagStorage::GetItemAtIndex(int32 ID) const
 {
 	for (auto& Item : Items)

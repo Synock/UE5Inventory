@@ -80,16 +80,16 @@ public:
 	// Helpers
 	//------------------------------------------------------------------------------------------------------------------
 
-	UFUNCTION(BlueprintCallable, Category = "Neverquest|Inventory")
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	virtual bool PlayerCanPutItemSomewhere(int32 ItemID) const;
 
-	UFUNCTION(BlueprintCallable, Category = "Neverquest|Inventory")
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	virtual bool PlayerCanPayAmount(const FCoinValue& CoinValue) const;
 
-	UFUNCTION(BlueprintCallable, Category = "Neverquest|Inventory")
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	virtual bool PlayerTryAutoEquip(int32 InItemId, EEquipmentSlot& PossibleEquipment);
 
-	UFUNCTION(BlueprintCallable, Category = "Neverquest|Inventory")
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	virtual void PlayerAutoEquipItem(int32 InTopLeft, EBagSlot InSlot, int32 InItemId);
 
 	void ResetTransaction();
@@ -102,18 +102,21 @@ public:
 	// Inventory
 	//------------------------------------------------------------------------------------------------------------------
 
-	UFUNCTION(BlueprintCallable, Category = "Neverquest|Inventory")
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	virtual TArray<FInventoryItem> GetAllItems() const;
 
-	UFUNCTION(BlueprintCallable, Category = "Neverquest|Inventory")
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	virtual const TArray<FMinimalItemStorage>& GetAllItemsInBag(EBagSlot Slot) const;
 
-	UFUNCTION(BlueprintCallable, Category = "Neverquest|Inventory")
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	virtual bool CanUnequipBag(EEquipmentSlot Slot) const;
 
 	UFUNCTION()
 	virtual bool PlayerTryAutoLootFunction(int32 InItemId, EEquipmentSlot& PossibleEquipment, int32& InTopLeft,
 	                                       EBagSlot& PossibleBag) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	virtual bool PlayerHasItem(int32 ItemId);
 
 	UFUNCTION()
 	virtual void PlayerAddItem(int32 InTopLeft, EBagSlot InSlot, int32 InItemId);
@@ -220,7 +223,7 @@ protected:
 	virtual void Server_PlayerSellToMerchant(EBagSlot OutSlot, int32 ItemId, int32 TopLeft, const FCoinValue& Price) =
 	0;
 
-	//UFUNCTION(Server, Reliable, WithValidation, Category = "Neverquest|Inventory")
+	//UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory")
 	virtual void Server_PlayerAutoEquipItem(int32 InTopLeft, EBagSlot InSlot, int32 InItemId) = 0;
 
 	//------------------------------------------------------------------------------------------------------------------
