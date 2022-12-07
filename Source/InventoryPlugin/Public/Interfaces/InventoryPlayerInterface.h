@@ -118,6 +118,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	virtual bool PlayerHasItem(int32 ItemId);
 
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	virtual bool PlayerRemoveItemIfPossible(int32 ItemID);
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	virtual bool PlayerRemoveAnyItemIfPossible(const TArray<int32>& ItemID);
+
 	UFUNCTION()
 	virtual void PlayerAddItem(int32 InTopLeft, EBagSlot InSlot, int32 InItemId);
 

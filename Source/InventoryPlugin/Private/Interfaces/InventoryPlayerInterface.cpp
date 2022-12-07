@@ -134,6 +134,18 @@ bool IInventoryPlayerInterface::PlayerHasItem(int32 ItemId)
 
 //----------------------------------------------------------------------------------------------------------------------
 
+bool IInventoryPlayerInterface::PlayerRemoveItemIfPossible(int32 ItemID)
+{
+	return GetInventoryComponent()->RemoveItemIfPossible(ItemID);
+}
+
+bool IInventoryPlayerInterface::PlayerRemoveAnyItemIfPossible(const TArray<int32>& ItemID)
+{
+	return GetInventoryComponent()->PlayerRemoveAnyItemIfPossible(ItemID);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 void IInventoryPlayerInterface::PlayerAddItem(int32 InTopLeft, EBagSlot InSlot, int32 InItemId)
 {
 	if (!GetInventoryOwningActor()->HasAuthority())

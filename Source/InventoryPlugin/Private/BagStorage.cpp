@@ -152,6 +152,23 @@ bool UBagStorage::HasItem(int32 ItemID)
 
 //----------------------------------------------------------------------------------------------------------------------
 
+int32 UBagStorage::GetFirstTopLeftID(int32 ItemID)
+{
+	volatile int32 TopLeftID = -1;
+	for(auto& Item : Items)
+	{
+		if(Item.ItemID == ItemID)
+		{
+			TopLeftID = Item.TopLeftID;
+			break;
+		}
+	}
+
+	return TopLeftID;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 int32 UBagStorage::GetItemAtIndex(int32 ID) const
 {
 	for (auto& Item : Items)

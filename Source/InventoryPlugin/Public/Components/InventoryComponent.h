@@ -99,6 +99,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	bool HasItem(int32 ItemID);
 
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	bool RemoveItemIfPossible(int32 ItemID);
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	bool PlayerRemoveAnyItemIfPossible(const TArray<int32>& ItemID);
+
 	//Find and return an empty slot for the item or BagSlot::Unknown
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	EBagSlot FindSuitableSlot(const FInventoryItem& Item, int32& OutputTopLeftID) const;

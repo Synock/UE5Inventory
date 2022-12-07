@@ -89,7 +89,7 @@ int32 UInventoryComponent::GetItemAtIndex(EBagSlot ConsideredBag, int32 ID) cons
 void UInventoryComponent::RemoveItem_Implementation(EBagSlot ConsideredBag, int32 TopLeftIndex)
 {
 	GetRelatedBag(ConsideredBag)->RemoveItem(TopLeftIndex);
-	InventoryItemRemove.Broadcast(ConsideredBag,TopLeftIndex);
+	InventoryItemRemove.Broadcast(ConsideredBag, TopLeftIndex);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -97,7 +97,7 @@ void UInventoryComponent::RemoveItem_Implementation(EBagSlot ConsideredBag, int3
 void UInventoryComponent::AddItemAt_Implementation(EBagSlot ConsideredBag, int32 ItemID, int32 TopLeftIndex)
 {
 	GetRelatedBag(ConsideredBag)->AddItemAt(ItemID, TopLeftIndex);
-	InventoryItemAdd.Broadcast(ConsideredBag,ItemID,TopLeftIndex);
+	InventoryItemAdd.Broadcast(ConsideredBag, ItemID, TopLeftIndex);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -137,7 +137,35 @@ bool UInventoryComponent::HasItem(int32 ItemID)
 {
 	for (auto& BagData : VariableBags)
 	{
-		if(BagData.Bag->HasItem(ItemID))
+		if (BagData.Bag->HasItem(ItemID))
+			return true;
+	}
+	return false;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+bool UInventoryComponent::RemoveItemIfPossible(int32 ItemID)
+{
+	for (auto& BagData : VariableBags)
+	{
+		if (const int32 TopLeftItemID = BagData.Bag->GetFirstTopLeftID(ItemID); TopLeftItemID >= 0)
+		{
+			RemoveItem(BagData.Bag->GetBagSlot(), TopLeftItemID);
+			return true;
+		}
+	}
+	return false;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+bool UInventoryComponent::PlayerRemoveAnyItemIfPossible(const TArray<int32>& ItemID)
+{
+
+	for(int32 ID : ItemID)
+	{
+		if(RemoveItemIfPossible(ID))
 			return true;
 	}
 	return false;
