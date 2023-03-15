@@ -28,7 +28,7 @@ UWorld* IEquipmentInterface::EquipmentGetWorldContext() const
 //----------------------------------------------------------------------------------------------------------------------
 
 // Add default functionality here for any IEquipmentInterface functions that are not pure virtual.
-TArray<const UInventoryItemEquipable*> IEquipmentInterface::GetAllEquipment() const
+ const TArray<const UInventoryItemEquipable*>& IEquipmentInterface::GetAllEquipment() const
 {
 	return GetEquipmentComponentConst()->GetAllEquipment();
 }

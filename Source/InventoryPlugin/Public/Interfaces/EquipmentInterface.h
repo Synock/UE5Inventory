@@ -37,8 +37,7 @@ public:
 	// Equipment
 	//------------------------------------------------------------------------------------------------------------------
 
-	UFUNCTION(BlueprintCallable, Category = "Inventory|Equipment")
-	virtual TArray<const UInventoryItemEquipable*> GetAllEquipment() const;
+	virtual const TArray<const UInventoryItemEquipable*>& GetAllEquipment() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Equipment")
 	virtual const UInventoryItemEquipable* GetEquippedItem(EEquipmentSlot Slot) const;

@@ -103,7 +103,6 @@ public:
 	// Inventory
 	//------------------------------------------------------------------------------------------------------------------
 
-	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	virtual TArray<const UInventoryItemBase*> GetAllItems() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory")

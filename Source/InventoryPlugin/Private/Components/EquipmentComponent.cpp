@@ -330,7 +330,7 @@ bool UEquipmentComponent::IsSlotEmpty(EEquipmentSlot InSlot)
 
 //----------------------------------------------------------------------------------------------------------------------
 
-TArray<const UInventoryItemEquipable*> UEquipmentComponent::GetAllEquipment() const
+const TArray<const UInventoryItemEquipable*>& UEquipmentComponent::GetAllEquipment() const
 {
 	return Equipment;
 }

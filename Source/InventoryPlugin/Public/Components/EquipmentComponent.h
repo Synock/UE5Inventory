@@ -103,8 +103,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Equipment")
 	bool IsSlotEmpty(EEquipmentSlot InSlot);
 
-	UFUNCTION(BlueprintCallable, Category = "Inventory|Equipment")
-	TArray<const UInventoryItemEquipable*> GetAllEquipment() const;
+	const TArray<const UInventoryItemEquipable*>& GetAllEquipment() const;
 
 	//Return the item equipped at the given slot
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Equipment")

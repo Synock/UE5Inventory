@@ -90,7 +90,7 @@ enum class EBagSlot : uint8
 };
 
 UENUM(BlueprintType)
-enum class EItemSize : uint8
+enum struct EItemSize : uint8
 {
 	Tiny UMETA(DisplayName = "Tiny"),
 	Small UMETA(DisplayName = "Small"),
