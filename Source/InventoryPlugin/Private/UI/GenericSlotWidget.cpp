@@ -11,14 +11,14 @@
 void UGenericSlotWidget::UpdateItemImageVisibility()
 {
 	if (ItemImagePointer)
-		ItemImagePointer->SetVisibility(Item.ItemID >= 0 ? ESlateVisibility::Visible : ESlateVisibility::Hidden);
+		ItemImagePointer->SetVisibility(Item ? ESlateVisibility::Visible : ESlateVisibility::Hidden);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
 
 void UGenericSlotWidget::UpdateSlotState()
 {
-	EnabledSlot = Item.ItemID != 0;
+	EnabledSlot = true;//Item.ItemID != 0;
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -54,15 +54,15 @@ void UGenericSlotWidget::ResetTransaction()
 
 void UGenericSlotWidget::HideItem()
 {
-	Item.ItemID = -1;
+	Item = nullptr;
 	UGenericSlotWidget::InnerRefresh();
 }
 
 //----------------------------------------------------------------------------------------------------------------------
 
-bool UGenericSlotWidget::CanDropItem(const FInventoryItem& InputItem) const
+bool UGenericSlotWidget::CanDropItem(const UInventoryItemBase* InputItem) const
 {
-	if (Item.ItemID >= 0 || !EnabledSlot)
+	if (Item || !EnabledSlot)
 	{
 		UE_LOG(LogTemp, Log, TEXT("Slot is currently unvailable"));
 		return false;

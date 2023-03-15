@@ -8,6 +8,7 @@
 #include "Interfaces/InventoryPlayerInterface.h"
 #include "Kismet/KismetInputLibrary.h"
 #include "TimerManager.h"
+#include "Items/InventoryItemEquipable.h"
 
 FReply UItemBaseWidget::NativeOnMouseButtonUp(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
 {
@@ -49,9 +50,9 @@ FReply UItemBaseWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, con
 
 void UItemBaseWidget::DisplayDescription(const FPointerEvent& InMouseEvent)
 {
-	if (Item.ItemID <= 0)
+	if (!Item)
 		return;
-	
+
 	if (IInventoryPlayerInterface* PC = Cast<IInventoryPlayerInterface>(GetOwningPlayer()))
 	{
 		PC->GetInventoryHUDInterface()->Execute_DisplayItemDescription(PC->GetInventoryHUDObject(), Item,
@@ -64,14 +65,14 @@ void UItemBaseWidget::DisplayDescription(const FPointerEvent& InMouseEvent)
 
 void UItemBaseWidget::DisplayBookText(const FPointerEvent& InMouseEvent)
 {
-	if (Item.ItemID <= 0)
+	if (!Item)
 		return;
 
 	if (IInventoryPlayerInterface* PC = Cast<IInventoryPlayerInterface>(GetOwningPlayer()))
 	{
 		PC->GetInventoryHUDInterface()->Execute_DisplayBookText(PC->GetInventoryHUDObject(), Item,
-																   InMouseEvent.GetScreenSpacePosition().X,
-																   InMouseEvent.GetScreenSpacePosition().Y);
+		                                                        InMouseEvent.GetScreenSpacePosition().X,
+		                                                        InMouseEvent.GetScreenSpacePosition().Y);
 	}
 }
 
@@ -90,9 +91,9 @@ void UItemBaseWidget::ResetSell()
 
 void UItemBaseWidget::UpdateItemImage()
 {
-	if (Item.ItemID >= 0 && !Item.IconName.IsEmpty())
+	if (Item && Item->Icon)
 	{
-		UTexture2D* Tex = UInventoryUtilities::LoadTexture2D(Item.IconName);
+		UTexture2D* Tex = Item->Icon;
 		ItemImagePointer->SetDesiredSizeOverride({TileSize, TileSize});
 		ItemImagePointer->SetBrushFromTexture(Tex);
 	}
@@ -109,7 +110,7 @@ void UItemBaseWidget::RightClickTimerFunction()
 
 //----------------------------------------------------------------------------------------------------------------------
 
-void UItemBaseWidget::InitBareData(const FInventoryItem& InputItem, AActor* InputOwner, float InputTileSize)
+void UItemBaseWidget::InitBareData(const UInventoryItemBase* InputItem, AActor* InputOwner, float InputTileSize)
 {
 	Item = InputItem;
 	Owner = InputOwner;

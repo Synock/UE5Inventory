@@ -7,6 +7,7 @@
 #include "UObject/Interface.h"
 #include "EquipmentInterface.generated.h"
 
+class UInventoryItemEquipable;
 class UEquipmentComponent;
 
 // This class does not need to be modified.
@@ -37,10 +38,10 @@ public:
 	//------------------------------------------------------------------------------------------------------------------
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Equipment")
-	virtual TArray<FInventoryItem> GetAllEquipment() const;
+	virtual TArray<const UInventoryItemEquipable*> GetAllEquipment() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Equipment")
-	virtual const FInventoryItem& GetEquippedItem(EEquipmentSlot Slot) const;
+	virtual const UInventoryItemEquipable* GetEquippedItem(EEquipmentSlot Slot) const;
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Equipment")
 	virtual void EquipItem(EEquipmentSlot InSlot, int32 InItemId);
@@ -54,16 +55,16 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Equipment")
 	virtual void SwapEquipment(EEquipmentSlot InSlot, EEquipmentSlot OutSlot);
 
-	virtual EEquipmentSlot FindSuitableSlot(const FInventoryItem& Item) const;
+	virtual EEquipmentSlot FindSuitableSlot(const UInventoryItemEquipable* Item) const;
 
-	virtual void HandleTwoSlotItemEquip(const FInventoryItem& Item, EEquipmentSlot& InSlot);
-	virtual void HandleTwoSlotItemUnequip(const FInventoryItem& Item, EEquipmentSlot InSlot);
-
-	UFUNCTION()
-	virtual void HandleEquipmentEffect(EEquipmentSlot InSlot, const FInventoryItem& LocalItem);
+	virtual void HandleTwoSlotItemEquip(const UInventoryItemEquipable* Item, EEquipmentSlot& InSlot);
+	virtual void HandleTwoSlotItemUnequip(const UInventoryItemEquipable* Item, EEquipmentSlot InSlot);
 
 	UFUNCTION()
-	virtual void HandleUnEquipmentEffect(EEquipmentSlot InSlot, const FInventoryItem& LocalItem);
+	virtual void HandleEquipmentEffect(EEquipmentSlot InSlot, const UInventoryItemEquipable* LocalItem);
+
+	UFUNCTION()
+	virtual void HandleUnEquipmentEffect(EEquipmentSlot InSlot, const UInventoryItemEquipable* LocalItem);
 	
 	float GetTotalWeight() const;
 

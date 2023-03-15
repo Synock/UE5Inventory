@@ -27,9 +27,9 @@ public:
 	virtual void SpawnItemFromActor(AActor* Actor, uint32 ItemID, bool ClampOnGround = true);
 
 	UFUNCTION(BlueprintCallable)
-	virtual FInventoryItem FetchItemFromID(int32 ID) = 0;
+	virtual UInventoryItemBase* FetchItemFromID(int32 ID) = 0;
 
 	UFUNCTION(BlueprintCallable)
-	virtual void RegisterItem(const FInventoryItem& NewItem) = 0;
+	virtual void RegisterItem(UInventoryItemBase* NewItem) = 0;
 	
 };

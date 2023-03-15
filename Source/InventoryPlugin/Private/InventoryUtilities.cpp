@@ -7,6 +7,7 @@
 #include "GameFramework/GameStateBase.h"
 #include "Engine/World.h"
 #include "Engine/Texture2D.h"
+#include "Interfaces/InventoryGameInstanceInterface.h"
 #include "Interfaces/InventoryGameModeInterface.h"
 #include "Interfaces/InventoryGameStateInterface.h"
 #include "Kismet/GameplayStatics.h"
@@ -98,12 +99,20 @@ FString UInventoryUtilities::GetSlotName(EEquipmentSlot Slot)
 
 //----------------------------------------------------------------------------------------------------------------------
 
-FInventoryItem UInventoryUtilities::GetItemFromID(int32 ItemID, UWorld* WorldContext)
+UInventoryItemBase* UInventoryUtilities::GetItemFromID(int32 ItemID, UWorld* WorldContext)
 {
 	check(WorldContext);
-	IInventoryGameModeInterface* GM = Cast<IInventoryGameModeInterface>(UGameplayStatics::GetGameMode(WorldContext));
-	FInventoryItem LocalItem;
-	if (GM)
+
+	UInventoryItemBase* LocalItem = nullptr;
+
+	if (IInventoryGameInstanceInterface* GI = Cast<IInventoryGameInstanceInterface>(
+		UGameplayStatics::GetGameInstance(WorldContext)); GI)
+	{
+		LocalItem = GI->FetchItemFromID(ItemID);
+	}
+	else if (IInventoryGameModeInterface* GM = Cast<IInventoryGameModeInterface>(
+			UGameplayStatics::GetGameMode(WorldContext))
+		; GM)
 	{
 		LocalItem = GM->FetchItemFromID(ItemID);
 	}

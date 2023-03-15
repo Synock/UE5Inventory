@@ -4,6 +4,7 @@
 #include "UI/ItemWidget.h"
 
 #include "Interfaces/InventoryPlayerInterface.h"
+#include "Items/InventoryItemBase.h"
 #include "UI/InventoryGridWidget.h"
 
 void UItemWidget::HandleAutoEquip()
@@ -11,17 +12,17 @@ void UItemWidget::HandleAutoEquip()
 	IInventoryPlayerInterface* PC = GetInventoryPlayerInterface();
 	if (!PC)
 		return;
-	
-	if(!IsBelongingToSelf())
+
+	if (!IsBelongingToSelf())
 	{
-		PC->PlayerAutoLootItem(Item.ItemID, TopLeftID);
+		PC->PlayerAutoLootItem(Item->ItemID, TopLeftID);
 	}
 	else
 	{
 		EEquipmentSlot TargetSlot;
-		if(PC->PlayerTryAutoEquip(Item.ItemID,TargetSlot))
+		if (PC->PlayerTryAutoEquip(Item->ItemID, TargetSlot))
 		{
-			PC->PlayerAutoEquipItem(GetTopLeftID(),GetBagID(),Item.ItemID);
+			PC->PlayerAutoEquipItem(GetTopLeftID(), GetBagID(), Item->ItemID);
 			ParentGrid->UnRegisterItem(this);
 			RemoveFromParent();
 		}
@@ -36,9 +37,9 @@ void UItemWidget::HandleAutoLoot()
 	if (!PC)
 		return;
 
-	if(!IsBelongingToSelf())
+	if (!IsBelongingToSelf())
 	{
-		PC->PlayerAutoLootItem(Item.ItemID, TopLeftID);
+		PC->PlayerAutoLootItem(Item->ItemID, TopLeftID);
 	}
 }
 
@@ -50,23 +51,23 @@ void UItemWidget::HandleSellClick()
 	if (!PC)
 		return;
 
-	if(!PC->IsTrading())
+	if (!PC->IsTrading())
 		return;
-	
-	PC->TryPresentSellItem(ParentGrid->GetBagID(),Item.ItemID, TopLeftID);
+
+	PC->TryPresentSellItem(ParentGrid->GetBagID(), Item->ItemID, TopLeftID);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
 
 void UItemWidget::HandleActivation()
 {
-	if (Item.ItemID <= 0)
+	if (Item->ItemID <= 0)
 		return;
 
 	if (IInventoryPlayerInterface* PC = Cast<IInventoryPlayerInterface>(GetOwningPlayer()))
-		PC->HandleActivation(Item.ItemID, TopLeftID, BagID);
-
+		PC->HandleActivation(Item->ItemID, TopLeftID, BagID);
 }
+
 //----------------------------------------------------------------------------------------------------------------------
 
 IInventoryPlayerInterface* UItemWidget::GetInventoryPlayerInterface() const
@@ -76,7 +77,8 @@ IInventoryPlayerInterface* UItemWidget::GetInventoryPlayerInterface() const
 
 //----------------------------------------------------------------------------------------------------------------------
 
-void UItemWidget::InitData(const FInventoryItem& InputItem, AActor* InputOwner, float InputTileSize, int32 InputTopLeftID,
+void UItemWidget::InitData(const UInventoryItemBase* InputItem, AActor* InputOwner, float InputTileSize,
+                           int32 InputTopLeftID,
                            EBagSlot InputBagID, EEquipmentSlot InputOriginalSlotID)
 {
 	InitBareData(InputItem, InputOwner, InputTileSize);
@@ -84,7 +86,7 @@ void UItemWidget::InitData(const FInventoryItem& InputItem, AActor* InputOwner, 
 	BagID = InputBagID;
 	OriginalSlotID = InputOriginalSlotID;
 
-	SetToolTipText(FText::FromString(InputItem.Name));
+	SetToolTipText(FText::FromString(InputItem->Name));
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -97,7 +99,7 @@ void UItemWidget::StopDrag()
 	if (OriginalSlotID != EEquipmentSlot::Unknown)
 	{
 		IInventoryPlayerInterface* PC = GetInventoryPlayerInterface();
-			PC->GetInventoryHUDInterface()->Execute_ForceRefreshInventory(PC->GetInventoryHUDObject());
+		PC->GetInventoryHUDInterface()->Execute_ForceRefreshInventory(PC->GetInventoryHUDObject());
 	}
 	else if (BagID != EBagSlot::Unknown)
 	{
@@ -114,8 +116,8 @@ void UItemWidget::StopDrag()
 
 void UItemWidget::GetSizeInPixels(float& WidthP, float& HeightP)
 {
-	WidthP = TileSize * Item.Width;
-	HeightP = TileSize * Item.Height;
+	WidthP = TileSize * Item->Width;
+	HeightP = TileSize * Item->Height;
 }
 
 //----------------------------------------------------------------------------------------------------------------------

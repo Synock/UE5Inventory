@@ -7,6 +7,9 @@
 #include "Components/EquipmentComponent.h"
 #include "Interfaces/InventoryPlayerInterface.h"
 #include "GenericPlatform/GenericPlatformMath.h"
+#include "Items/InventoryItemBag.h"
+#include "Items/InventoryItemBase.h"
+
 void UEquipmentSlotWidget::InitData()
 {
 	Refresh();
@@ -21,10 +24,6 @@ void UEquipmentSlotWidget::InitData()
 	EquipmentComponent->EquipmentDispatcher.AddUniqueDynamic(this, &UEquipmentSlotWidget::ResetTransaction);
 }
 
-
-
-
-
 //----------------------------------------------------------------------------------------------------------------------
 
 bool UEquipmentSlotWidget::HandleItemDrop(UItemWidget* InputItem)
@@ -32,10 +31,13 @@ bool UEquipmentSlotWidget::HandleItemDrop(UItemWidget* InputItem)
 	if (!InputItem)
 		return false;
 
+	if (!InputItem->GetReferencedItem())
+		return false;
+
 	if (!CanEquipItem(InputItem->GetReferencedItem()))
 		return false;
 
-	const int32 ItemID = InputItem->GetReferencedItem().ItemID;
+	const int32 ItemID = InputItem->GetReferencedItem()->ItemID;
 
 	IInventoryPlayerInterface* PC = GetInventoryPlayerInterface();
 	if (!PC)
@@ -51,7 +53,7 @@ bool UEquipmentSlotWidget::HandleItemDrop(UItemWidget* InputItem)
 		{
 			if (CanEquipItemAtSlot(Item, InputItem->GetOriginalSlot()))
 			{
-				PC->PlayerSwapEquipment(ItemID, SlotID, Item.ItemID, InputItem->GetOriginalSlot());
+				PC->PlayerSwapEquipment(ItemID, SlotID, Item->ItemID, InputItem->GetOriginalSlot());
 			}
 			else //We cannot swap equipment
 			{
@@ -104,7 +106,7 @@ void UEquipmentSlotWidget::OpenBag() const
 
 bool UEquipmentSlotWidget::IsBag() const
 {
-	return Item.ItemID >= 0 && Item.Bag;
+	return Item && Cast<UInventoryItemBag>(Item);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -123,10 +125,10 @@ void UEquipmentSlotWidget::InnerRefresh()
 
 void UEquipmentSlotWidget::HideItem()
 {
-	Item.ItemID = -1;
+	Item = nullptr;
 	UGenericSlotWidget::InnerRefresh();
 
-	if (Item.TwoSlotsItem && SisterSlot)
+	if (const UInventoryItemEquipable* Equipable = Cast<UInventoryItemEquipable>(Item); Equipable->TwoSlotsItem && SisterSlot)
 	{
 		SisterSlot->HideItem();
 	}
@@ -153,7 +155,7 @@ void UEquipmentSlotWidget::SetSisterSlot(UEquipmentSlotWidget* NewSisterSlot)
 
 //----------------------------------------------------------------------------------------------------------------------
 
-bool UEquipmentSlotWidget::CanEquipItem(const FInventoryItem& InputItem) const
+bool UEquipmentSlotWidget::CanEquipItem(const UInventoryItemBase* InputItem) const
 {
 	if(!CanDropItem(InputItem))
 		return false;
@@ -167,23 +169,24 @@ bool UEquipmentSlotWidget::CanEquipItem(const FInventoryItem& InputItem) const
 
 //----------------------------------------------------------------------------------------------------------------------
 
-bool UEquipmentSlotWidget::CanEquipItemAtSlot(const FInventoryItem& InputItem, EEquipmentSlot InputSlot)
+bool UEquipmentSlotWidget::CanEquipItemAtSlot(const UInventoryItemBase* InputItem, EEquipmentSlot InputSlot)
 {
-	if (InputItem.ItemID < 0)
+	if (InputItem)
 	{
 		UE_LOG(LogTemp, Log, TEXT("item is not equippable as it is not a valid item"));
 		return false;
 	}
 
-	if (!InputItem.Equipable)
+	const UInventoryItemEquipable* Equipable = Cast<UInventoryItemEquipable>(InputItem);
+	if (!Equipable)
 	{
-		UE_LOG(LogTemp, Log, TEXT("%s cannot be equipped"), *InputItem.Name);
+		UE_LOG(LogTemp, Log, TEXT("%s cannot be equipped"), *(InputItem->Name));
 		return false;
 	}
 
 	const int32 LocalAcceptableBitMask = FMath::Pow(2., static_cast<double>(InputSlot));
 
-	if (InputItem.TwoSlotsItem)
+	if (Equipable->TwoSlotsItem)
 	{
 		if (InputSlot == EEquipmentSlot::WaistBag2 || InputSlot == EEquipmentSlot::BackPack2)
 		{
@@ -191,7 +194,7 @@ bool UEquipmentSlotWidget::CanEquipItemAtSlot(const FInventoryItem& InputItem, E
 		}
 	}
 
-	if (InputItem.EquipableSlotBitMask & LocalAcceptableBitMask)
+	if (Equipable->EquipableSlotBitMask & LocalAcceptableBitMask)
 	{
 		return true;
 	}

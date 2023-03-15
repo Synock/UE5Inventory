@@ -23,7 +23,7 @@ protected :
 	AActor* Owner = nullptr;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Inventory|Item")
-	FInventoryItem Item;
+	const UInventoryItemBase* Item = nullptr;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Inventory|UI|Click")
 	float RightClickMaxDuration = 0.5f;
@@ -51,7 +51,7 @@ protected :
 
 	UFUNCTION()
 	void RightClickTimerFunction();
-	
+
 	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable, BlueprintCosmetic)
 	bool RightClickLongEffect();
 
@@ -64,8 +64,8 @@ protected :
 	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable, BlueprintCosmetic)
 	void SetupUI();
 
-	virtual FReply NativeOnMouseButtonUp( const FGeometry& InGeometry, const FPointerEvent& InMouseEvent ) override;
-	virtual FReply NativeOnMouseButtonDown( const FGeometry& InGeometry, const FPointerEvent& InMouseEvent ) override;
+	virtual FReply NativeOnMouseButtonUp(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+	virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
 
 	UFUNCTION(BlueprintCallable)
 	void DisplayDescription(const FPointerEvent& InMouseEvent);
@@ -81,13 +81,13 @@ protected :
 
 public:
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic)
-	void InitBareData(const FInventoryItem& InputItem, AActor* InputOwner, float InputTileSize);
+	void InitBareData(const UInventoryItemBase* InputItem, AActor* InputOwner, float InputTileSize);
 
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic)
 	virtual void StopDrag();
 
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic)
-	const FInventoryItem& GetReferencedItem() const { return Item; }
+	const UInventoryItemBase* GetReferencedItem() const { return Item; }
 
 	UFUNCTION(BlueprintImplementableEvent, BlueprintCosmetic)
 	void Refresh();

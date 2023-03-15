@@ -9,7 +9,6 @@
 #include "InventoryGridWidget.generated.h"
 
 class IInventoryPlayerInterface;
-struct FInventoryItem;
 
 USTRUCT(BlueprintType)
 struct FInventoryLine
@@ -139,7 +138,7 @@ public:
 
 protected:
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Inventory|UI")
-	bool IsRoomAvailable(const FInventoryItem& ItemObject, int TopLeftIndex) const;
+	bool IsRoomAvailable(const UInventoryItemBase* ItemObject, int TopLeftIndex) const;
 
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Inventory|UI")
 	bool IsItself(UItemWidget* IncomingItem, int TopLeftIndex) const;

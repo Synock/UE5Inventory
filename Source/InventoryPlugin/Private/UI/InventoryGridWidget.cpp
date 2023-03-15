@@ -9,13 +9,14 @@
 #include "Components/LootPoolComponent.h"
 #include "Interfaces/InventoryPlayerInterface.h"
 #include "Interfaces/LootableInterface.h"
+#include "Items/InventoryItemBag.h"
 
 FVector2D UInventoryGridWidget::GetItemScreenFootprint(UItemWidget* Item) const
 {
 	if (!Item)
 		return {};
 
-	return {Item->GetReferencedItem().Width * TileSize, Item->GetReferencedItem().Height * TileSize};
+	return {Item->GetReferencedItem()->Width * TileSize, Item->GetReferencedItem()->Height * TileSize};
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -33,6 +34,9 @@ bool UInventoryGridWidget::HandleItemDrop(UItemWidget* IncomingItem)
 	if (!IncomingItem)
 		return false;
 
+	if(!IncomingItem->GetReferencedItem())
+		return false;
+
 	if (!CanProcessItemDrop(IncomingItem))
 	{
 		DraggedItemTopLeftID = -1;
@@ -44,22 +48,22 @@ bool UInventoryGridWidget::HandleItemDrop(UItemWidget* IncomingItem)
 	if (!PC)
 		return false;
 
-	const FInventoryItem& Item = IncomingItem->GetReferencedItem();
+	const UInventoryItemBase* Item = IncomingItem->GetReferencedItem();
 	if (IncomingItem->IsBelongingToSelf())
 	{
 		if (IncomingItem->IsFromEquipment())
 		{
-			PC->PlayerUnequipItem(DraggedItemTopLeftID, BagID, Item.ItemID, IncomingItem->GetOriginalSlot());
+			PC->PlayerUnequipItem(DraggedItemTopLeftID, BagID, Item->ItemID, IncomingItem->GetOriginalSlot());
 		}
 		else
 		{
-			PC->PlayerMoveItem(DraggedItemTopLeftID, BagID, Item.ItemID, IncomingItem->GetTopLeftID(),
+			PC->PlayerMoveItem(DraggedItemTopLeftID, BagID, Item->ItemID, IncomingItem->GetTopLeftID(),
 			                   IncomingItem->GetBagID());
 		}
 	}
 	else
 	{
-		PC->PlayerLootItem(DraggedItemTopLeftID, BagID, Item.ItemID, IncomingItem->GetTopLeftID());
+		PC->PlayerLootItem(DraggedItemTopLeftID, BagID, Item->ItemID, IncomingItem->GetTopLeftID());
 	}
 
 
@@ -73,8 +77,8 @@ bool UInventoryGridWidget::UpdateDraggedItemTopLeft(UItemWidget* IncomingItem, f
 	if (!IncomingItem)
 		return false;
 
-	DraggedItemTopLeftID = GetActualTopLeftCorner(X, Y, IncomingItem->GetReferencedItem().Width,
-	                                              IncomingItem->GetReferencedItem().Height);
+	DraggedItemTopLeftID = GetActualTopLeftCorner(X, Y, IncomingItem->GetReferencedItem()->Width,
+	                                              IncomingItem->GetReferencedItem()->Height);
 
 	return true;
 }
@@ -98,7 +102,7 @@ void UInventoryGridWidget::AddItemWidgetToGrid(UCanvasPanel* GridCanvasPanel, UW
 
 void UInventoryGridWidget::CreateNewItem(UCanvasPanel* GridCanvasPanel, const FMinimalItemStorage& ItemStorage)
 {
-	FInventoryItem Item = UInventoryUtilities::GetItemFromID(ItemStorage.ItemID, GetWorld());
+	const UInventoryItemBase* Item = UInventoryUtilities::GetItemFromID(ItemStorage.ItemID, GetWorld());
 
 	UItemWidget* ItemWidget = Cast<UItemWidget>(CreateWidget(GetOwningPlayer(), ItemWidgetClass));
 
@@ -195,11 +199,11 @@ void UInventoryGridWidget::InitData(AActor* Owner, EBagSlot InputBagSlot)
 	{
 		const EEquipmentSlot RelatedSlot = UInventoryComponent::GetInventorySlotFromBagSlot(BagID);
 
-		const FInventoryItem BagItem = PC->GetEquipmentForInventory()->GetEquippedItem(RelatedSlot);
+		const UInventoryItemBag* BagItem = Cast<UInventoryItemBag>(PC->GetEquipmentForInventory()->GetEquippedItem(RelatedSlot));
 
-		ensure(BagItem.Bag);
-		ResizeBagArea(BagItem.BagWidth, BagItem.BagHeight);
-		MaximumBagSize = BagItem.BagSize;
+		ensure(BagItem);
+		ResizeBagArea(BagItem->BagWidth, BagItem->BagHeight);
+		MaximumBagSize = BagItem->BagSize;
 		PC->GetInventoryComponent()->FullInventoryDispatcher.AddDynamic(this, &UInventoryGridWidget::Refresh);
 	}
 
@@ -303,7 +307,7 @@ bool UInventoryGridWidget::HasItemLocally(const FMinimalItemStorage& ItemData) c
 {
 	for (auto& Elm : ItemList)
 	{
-		if (Elm->GetTopLeftID() == ItemData.TopLeftID && Elm->GetReferencedItem().ItemID == ItemData.ItemID)
+		if (Elm->GetTopLeftID() == ItemData.TopLeftID && Elm->GetReferencedItem()->ItemID == ItemData.ItemID)
 			return true;
 	}
 
@@ -317,7 +321,7 @@ UItemWidget* UInventoryGridWidget::GetLocalItem(const FMinimalItemStorage& ItemD
 	Found = false;
 	for (auto& Elm : ItemList)
 	{
-		if (Elm->GetTopLeftID() == ItemData.TopLeftID && Elm->GetReferencedItem().ItemID == ItemData.ItemID)
+		if (Elm->GetTopLeftID() == ItemData.TopLeftID && Elm->GetReferencedItem()->ItemID == ItemData.ItemID)
 		{
 			Found = true;
 			return Elm;
@@ -350,18 +354,18 @@ void UInventoryGridWidget::DeInitData()
 
 //----------------------------------------------------------------------------------------------------------------------
 
-bool UInventoryGridWidget::IsRoomAvailable(const FInventoryItem& ItemObject, int TopLeftIndex) const
+bool UInventoryGridWidget::IsRoomAvailable(const UInventoryItemBase* ItemObject, int TopLeftIndex) const
 {
 	const int32 MaxIndex = Width * Height;
 
 	if (TopLeftIndex < 0 || TopLeftIndex > MaxIndex)
 		return false;
 
-	if (ItemObject.Size > MaximumBagSize)
+	if (ItemObject->ItemSize > MaximumBagSize)
 		return false;
 
-	const int32 ItemWidth = ItemObject.Width;
-	const int32 ItemHeight = ItemObject.Height;
+	const int32 ItemWidth = ItemObject->Width;
+	const int32 ItemHeight = ItemObject->Height;
 	const int32 sx = TopLeftIndex % Width;
 	const int32 sy = TopLeftIndex / Width;
 
@@ -384,7 +388,7 @@ bool UInventoryGridWidget::IsRoomAvailable(const FInventoryItem& ItemObject, int
 
 			if (ItemGrid[ID] != nullptr) //only look for empty stuff
 			{
-				UE_LOG(LogTemp, Log, TEXT("Cannot copy because %d %d %d (%d) is not empty"), x, y, ID);
+				UE_LOG(LogTemp, Log, TEXT("Cannot copy because %d %d %d is not empty"), x, y, ID);
 				return false;
 			}
 		}
@@ -408,8 +412,8 @@ void UInventoryGridWidget::RegisterNewItem(int32 TopLeft, UItemWidget* NewItem)
 	ItemList.Add(NewItem);
 
 	//assign item to the map
-	const int ItemWidth = NewItem->GetReferencedItem().Width;
-	const int ItemHeight = NewItem->GetReferencedItem().Height;
+	const int ItemWidth = NewItem->GetReferencedItem()->Width;
+	const int ItemHeight = NewItem->GetReferencedItem()->Height;
 	const int32 Sx = TopLeft % Width;
 	const int32 Sy = TopLeft / Width;
 

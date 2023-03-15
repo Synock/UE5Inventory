@@ -173,7 +173,7 @@ bool UInventoryComponent::PlayerRemoveAnyItemIfPossible(const TArray<int32>& Ite
 
 //----------------------------------------------------------------------------------------------------------------------
 
-EBagSlot UInventoryComponent::FindSuitableSlot(const FInventoryItem& Item, int32& OutputTopLeftID) const
+EBagSlot UInventoryComponent::FindSuitableSlot(const UInventoryItemBase* Item, int32& OutputTopLeftID) const
 {
 	for (const auto& Bag : VariableBags)
 	{

@@ -4,6 +4,7 @@
 #include "UI/StagingAreaSlotWidget.h"
 
 #include "Interfaces/InventoryPlayerInterface.h"
+#include "Items/InventoryItemBase.h"
 #include "UI/ItemWidget.h"
 
 bool UStagingAreaSlotWidget::HandleItemDrop(UItemWidget* InputItem)
@@ -14,7 +15,7 @@ bool UStagingAreaSlotWidget::HandleItemDrop(UItemWidget* InputItem)
 	if (!EnabledSlot)
 		return false;
 
-	const int32 ItemID = InputItem->GetReferencedItem().ItemID;
+	const int32 ItemID = InputItem->GetReferencedItem()->ItemID;
 
 	IInventoryPlayerInterface* PC = GetInventoryPlayerInterface();
 	if (!PC)

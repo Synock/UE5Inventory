@@ -11,6 +11,7 @@
 #include "Components/StagingAreaComponent.h"
 #include "UI/WeightWidget.h"
 #include "UObject/Interface.h"
+#include "Items/InventoryItemBase.h"
 #include "InventoryPlayerInterface.generated.h"
 
 class UBankComponent;
@@ -95,7 +96,7 @@ public:
 	void ResetTransaction();
 
 	IEquipmentInterface* GetEquipmentForInventory();
-	
+
 	virtual FOnWeightChanged& GetWeightChangedDelegate() = 0;
 
 	//------------------------------------------------------------------------------------------------------------------
@@ -103,7 +104,7 @@ public:
 	//------------------------------------------------------------------------------------------------------------------
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
-	virtual TArray<FInventoryItem> GetAllItems() const;
+	virtual TArray<const UInventoryItemBase*> GetAllItems() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	virtual const TArray<FMinimalItemStorage>& GetAllItemsInBag(EBagSlot Slot) const;
@@ -138,7 +139,7 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	virtual void TransferCoinTo(UCoinComponent* GivingComponent, UCoinComponent* ReceivingComponent,
-		const FCoinValue& RemovedCoinValue, const FCoinValue& AddedCoinValue);
+	                            const FCoinValue& RemovedCoinValue, const FCoinValue& AddedCoinValue);
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	virtual void CancelStagingArea();
@@ -271,7 +272,7 @@ protected:
 
 	//UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory")
 	virtual void Server_TransferCoinTo(UCoinComponent* GivingComponent, UCoinComponent* ReceivingComponent,
-		const FCoinValue& RemovedCoinValue, const FCoinValue& AddedCoinValue) = 0;
+	                                   const FCoinValue& RemovedCoinValue, const FCoinValue& AddedCoinValue) = 0;
 
 	//------------------------------------------------------------------------------------------------------------------
 	// Staging -- Server
@@ -287,5 +288,5 @@ protected:
 	virtual void Server_MoveEquipmentToStagingArea(int32 InItemId, EEquipmentSlot OutSlot) = 0;
 
 	//UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory|Staging")
-	virtual void Server_MoveInventoryItemToStagingArea( int32 InItemId, int32 OutTopLeft, EBagSlot OutSlot) = 0;
+	virtual void Server_MoveInventoryItemToStagingArea(int32 InItemId, int32 OutTopLeft, EBagSlot OutSlot) = 0;
 };

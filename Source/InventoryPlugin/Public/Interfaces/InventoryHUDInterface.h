@@ -76,10 +76,10 @@ public:
 	void ResetSellItem();
 
 	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, BlueprintCosmetic, Category = "Inventory")
-	void DisplayItemDescription(const FInventoryItem& Item, float X, float Y);
+	void DisplayItemDescription(const UInventoryItemBase* Item, float X, float Y);
 
 	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, BlueprintCosmetic, Category = "Inventory")
-	void DisplayBookText(const FInventoryItem& Item, float X, float Y);
+	void DisplayBookText(const UInventoryItemBase* Item, float X, float Y);
 
 	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable, Category = "Inventory")
 	void ForceRefreshStagingAreaPossibilities();

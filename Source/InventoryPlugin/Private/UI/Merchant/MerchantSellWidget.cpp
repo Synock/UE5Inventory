@@ -5,6 +5,7 @@
 #include "InventoryUtilities.h"
 #include "Interfaces/InventoryPlayerInterface.h"
 #include "Components/MerchantComponent.h"
+#include "Items/InventoryItemBase.h"
 
 //----------------------------------------------------------------------------------------------------------------------
 
@@ -122,9 +123,9 @@ void UMerchantSellWidget::UpdateItemPreview()
 		return;
 	}
 
-	FInventoryItem LocalBareItem = UInventoryUtilities::GetItemFromID(SelectedItemId, GetWorld());
+	const UInventoryItemBase* LocalBareItem = UInventoryUtilities::GetItemFromID(SelectedItemId, GetWorld());
 
-	UTexture2D* Image = UInventoryUtilities::LoadTexture2D(LocalBareItem.IconName);
+	UTexture2D* Image = LocalBareItem->Icon;
 
 	if (Image)
 	{
@@ -133,7 +134,7 @@ void UMerchantSellWidget::UpdateItemPreview()
 	}
 
 
-	CurrentItemNamePointer->SetText(FText::FromString(LocalBareItem.Name));
+	CurrentItemNamePointer->SetText(FText::FromString(LocalBareItem->Name));
 	CurrentItemNamePointer->SetVisibility(ESlateVisibility::Visible);
 
 	UpdatePricePreview();
@@ -197,11 +198,11 @@ TArray<FMerchantItemDataStruct> UMerchantSellWidget::GetStaticDataDisplayable()
 	{
 		for (const auto& Item : MerchantActor->GetStaticItemsConst())
 		{
-			FInventoryItem LocalBareItem = UInventoryUtilities::GetItemFromID(Item, GetWorld());
+			const UInventoryItemBase* LocalBareItem = UInventoryUtilities::GetItemFromID(Item, GetWorld());
 			Out.Add({
-				LocalBareItem.ItemID, UInventoryUtilities::LoadTexture2D(LocalBareItem.IconName), LocalBareItem.Name,
+				LocalBareItem->ItemID, LocalBareItem->Icon, LocalBareItem->Name,
 				-1,
-				MerchantActor->AdjustPriceSell({LocalBareItem.BaseValue})
+				MerchantActor->AdjustPriceSell({LocalBareItem->BaseValue})
 			});
 		}
 	}
@@ -219,12 +220,12 @@ TArray<FMerchantItemDataStruct> UMerchantSellWidget::GetDynamicDataDisplayable()
 	{
 		for (const auto& Item : MerchantActor->GetDynamicItemsConst())
 		{
-			if (FInventoryItem LocalBareItem = UInventoryUtilities::GetItemFromID(Item.ItemID, GetWorld()); LocalBareItem.ItemID >= 0)
+			if (const UInventoryItemBase* LocalBareItem = UInventoryUtilities::GetItemFromID(Item.ItemID, GetWorld()); LocalBareItem->ItemID >= 0)
 			{
 				Out.Add({
-				   LocalBareItem.ItemID, UInventoryUtilities::LoadTexture2D(LocalBareItem.IconName),
-				   LocalBareItem.Name, Item.Quantity,
-				   MerchantActor->AdjustPriceSell({LocalBareItem.BaseValue})
+				   LocalBareItem->ItemID, LocalBareItem->Icon,
+				   LocalBareItem->Name, Item.Quantity,
+				   MerchantActor->AdjustPriceSell({LocalBareItem->BaseValue})
 			   });
 			}
 		}
@@ -237,8 +238,8 @@ TArray<FMerchantItemDataStruct> UMerchantSellWidget::GetDynamicDataDisplayable()
 
 FCoinValue UMerchantSellWidget::GetSelectedItemPrice() const
 {
-	const FInventoryItem LocalBareItem = UInventoryUtilities::GetItemFromID(SelectedItemId, GetWorld());
-	const FCoinValue TransactionValue = GetCorrectPrice(LocalBareItem.BaseValue);
+	const UInventoryItemBase* LocalBareItem = UInventoryUtilities::GetItemFromID(SelectedItemId, GetWorld());
+	const FCoinValue TransactionValue = GetCorrectPrice(LocalBareItem->BaseValue);
 
 	return TransactionValue;
 }

@@ -5,6 +5,7 @@
 
 #include "BagStorage.h"
 #include "InventoryUtilities.h"
+#include "Items/InventoryItemBase.h"
 #include "Net/UnrealNetwork.h"
 
 UBankComponent::UBankComponent()
@@ -35,29 +36,38 @@ int32 UBankComponent::GetItemAtIndex(int32 ID) const
 
 void UBankComponent::Reorganize_Implementation()
 {
-	TArray<FInventoryItem> ItemArray;
+	struct ItemSorter
+	{
+		int32 ItemId;
+		uint8 ItemSize;
+	};
+	TArray<ItemSorter> ItemArray;
 	ItemArray.Reserve(Items.Num());
 
 	for (FMinimalItemStorage& Item : Items)
 	{
-		ItemArray.Add(UInventoryUtilities::GetItemFromID(Item.ItemID, GetWorld()));
+		ItemArray.Add({
+			Item.ItemID, static_cast<uint8>(UInventoryUtilities::GetItemFromID(Item.ItemID, GetWorld())->ItemSize)
+		});
 	}
 
-	ItemArray.Sort([](const FInventoryItem& Item1, const FInventoryItem& Item2) {
-				return  Item1.Size >  Item2.Size;
-			});
+	ItemArray.Sort([](const ItemSorter& Item1, const ItemSorter& Item2)
+	{
+		return Item1.ItemSize > Item2.ItemSize;
+	});
 
 	Items.Empty();
 
 	GridBagSolver Solver(Width, Height);
 	for (auto& Item : ItemArray)
 	{
-		const int32 TopLeft = Solver.GetFirstValidTopLeft(Item);
+		auto ActualItem = UInventoryUtilities::GetItemFromID(Item.ItemId, GetWorld());
+		const int32 TopLeft = Solver.GetFirstValidTopLeft(ActualItem);
 
 		if (TopLeft >= 0)
 		{
-			Items.Add({Item.ItemID, TopLeft});
-			Solver.RecordData(Item, TopLeft);
+			Items.Add({Item.ItemId, TopLeft});
+			Solver.RecordData(ActualItem, TopLeft);
 		}
 	}
 }

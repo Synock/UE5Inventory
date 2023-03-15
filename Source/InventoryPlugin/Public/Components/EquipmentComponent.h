@@ -5,16 +5,15 @@
 #include <CoreMinimal.h>
 #include <Components/ActorComponent.h>
 
-#include "Definitions.h"
-#include "InventoryItem.h"
+#include "Items/InventoryItemEquipable.h"
 #include "EquipmentComponent.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnEquipmentChanged);
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnEquipmentChanged_Server);
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnItemEquiped_Server, EEquipmentSlot, Slot, const FInventoryItem&, Item);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnItemUnEquiped_Server, EEquipmentSlot, Slot, const FInventoryItem&, Item);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnItemEquiped_Server, EEquipmentSlot, Slot, const UInventoryItemEquipable*, Item);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnItemUnEquiped_Server, EEquipmentSlot, Slot, const UInventoryItemEquipable*, Item);
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class INVENTORYPLUGIN_API UEquipmentComponent : public UActorComponent
@@ -30,7 +29,7 @@ protected:
 	virtual void BeginPlay() override;
 
 	UPROPERTY(ReplicatedUsing = OnRep_ItemList)
-	TArray<FInventoryItem> Equipment;
+	TArray<const UInventoryItemEquipable*> Equipment;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Neverquest|Weapon")
 	UStaticMeshComponent* PrimaryWeaponComponent;
@@ -70,11 +69,11 @@ protected:
 
 	
 
-	bool Equip(const FInventoryItem& Item, EEquipmentSlot EquipSlot);
+	bool Equip(const UInventoryItemEquipable* Item, EEquipmentSlot EquipSlot);
 
-	bool UnEquip(const FInventoryItem& Item, EEquipmentSlot EquipSlot);
+	bool UnEquip(const UInventoryItemEquipable* Item, EEquipmentSlot EquipSlot);
 
-	static EEquipmentSocket FindBestSocketForItem(const FInventoryItem& Item, EEquipmentSlot EquipSlot);
+	static EEquipmentSocket FindBestSocketForItem(const UInventoryItemEquipable* Item, EEquipmentSlot EquipSlot);
 
 	void Unsheath(EEquipmentSlot SlotToUnsheath);
 	void Sheath();
@@ -99,17 +98,17 @@ public:
 	void OnRep_ItemList();
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Equipment")
-	void EquipItem(const FInventoryItem& Item, EEquipmentSlot InSlot);
+	void EquipItem(const UInventoryItemEquipable* Item, EEquipmentSlot InSlot);
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Equipment")
 	bool IsSlotEmpty(EEquipmentSlot InSlot);
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Equipment")
-	TArray<FInventoryItem> GetAllEquipment() const;
+	TArray<const UInventoryItemEquipable*> GetAllEquipment() const;
 
 	//Return the item equipped at the given slot
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Equipment")
-	const FInventoryItem& GetItemAtSlot(EEquipmentSlot InSlot) const;
+	const UInventoryItemEquipable* GetItemAtSlot(EEquipmentSlot InSlot) const;
 
 	//Remove the item equipped at the given slot
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Equipment")
@@ -121,7 +120,7 @@ public:
 
 	//Find and return an empty slot for the item or InventorySlot::Unknown
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Equipment")
-	EEquipmentSlot FindSuitableSlot(const FInventoryItem& Item) const;
+	EEquipmentSlot FindSuitableSlot(const UInventoryItemEquipable* Item) const;
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Equipment")
 	void UnsheathMelee();

@@ -46,10 +46,10 @@ protected:
 	public:
 
 	UFUNCTION(BlueprintCallable)
-	bool CanDropItem(const FInventoryItem& InputItem) const;
+	bool CanDropItem(const UInventoryItemBase* InputItem) const;
 
 	UFUNCTION(BlueprintCallable)
-	bool IsItemEquipped() const { return Item.ItemID > 0; }
+	bool IsItemEquipped() const { return Item != nullptr; }
 
 
 

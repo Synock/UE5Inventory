@@ -5,6 +5,7 @@
 
 #include "InventoryUtilities.h"
 #include "Interfaces/InventoryPlayerInterface.h"
+#include "Items/InventoryItemBase.h"
 #include "UI/StagingAreaSlotWidget.h"
 
 void UStagingAreaWidget::InitData()
@@ -29,7 +30,7 @@ void UStagingAreaWidget::Refresh()
 	{
 		int32 LocalID = SID++;
 		GetItemSlotFromID(LocalID)->InitBareData(UInventoryUtilities::GetItemFromID(StagingItem, GetWorld()),GetOwningPlayer(), 40.f);
-		GetItemSlotFromID(LocalID)->SetToolTipText(FText::FromString(GetItemSlotFromID(LocalID)->GetReferencedItem().Name));
+		GetItemSlotFromID(LocalID)->SetToolTipText(FText::FromString(GetItemSlotFromID(LocalID)->GetReferencedItem()->Name));
 		GetItemSlotFromID(LocalID)->Refresh();
 	}
 

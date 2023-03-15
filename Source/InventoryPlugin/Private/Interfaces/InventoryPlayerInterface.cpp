@@ -8,6 +8,7 @@
 #include "GameFramework/Actor.h"
 #include "Interfaces/InventoryHUDInterface.h"
 #include "Interfaces/LootableInterface.h"
+#include "Items/InventoryItemEquipable.h"
 
 UCoinComponent* IInventoryPlayerInterface::GetBankCoin() const
 {
@@ -56,16 +57,16 @@ void IInventoryPlayerInterface::PlayerSwapEquipment(int32 DroppedItemId, EEquipm
 //----------------------------------------------------------------------------------------------------------------------
 
 // Add default functionality here for any IInventoryPlayerInterface functions that are not pure virtual.
-TArray<FInventoryItem> IInventoryPlayerInterface::GetAllItems() const
+TArray<const UInventoryItemBase*> IInventoryPlayerInterface::GetAllItems() const
 {
-	TArray<FInventoryItem> ItemsList;
+	TArray<const UInventoryItemBase*> ItemsList;
 	for (unsigned int BagID = 1; BagID < static_cast<unsigned int>(EBagSlot::LastValidBag); ++BagID)
 	{
 		const TArray<FMinimalItemStorage>& Items = GetInventoryComponentConst()->GetBagConst(
 			static_cast<EBagSlot>(BagID));
 		for (auto& Item : Items)
 		{
-			FInventoryItem LocalItem = UInventoryUtilities::GetItemFromID(Item.ItemID,
+			const UInventoryItemBase* LocalItem = UInventoryUtilities::GetItemFromID(Item.ItemID,
 			                                                              GetInventoryOwningActorConst()->GetWorld());
 			ItemsList.Add(LocalItem);
 		}
@@ -105,13 +106,13 @@ bool IInventoryPlayerInterface::PlayerTryAutoLootFunction(int32 InItemId, EEquip
 	PossibleBag = EBagSlot::Unknown;
 	InTopLeft = -1;
 
-	const FInventoryItem LocalItem = UInventoryUtilities::GetItemFromID(
+	const UInventoryItemBase* LocalItem = UInventoryUtilities::GetItemFromID(
 		InItemId, GetInventoryOwningActorConst()->GetWorld());
 
 	if (const IEquipmentInterface* EquipmentInterface = Cast<IEquipmentInterface>(GetInventoryOwningActorConst()))
 	{
-		if (LocalItem.Equipable)
-			PossibleEquipment = EquipmentInterface->FindSuitableSlot(LocalItem);
+		if (const UInventoryItemEquipable* Equipable = Cast<UInventoryItemEquipable>(LocalItem))
+			PossibleEquipment = EquipmentInterface->FindSuitableSlot(Equipable);
 
 		if (PossibleEquipment != EEquipmentSlot::Unknown)
 			return true;

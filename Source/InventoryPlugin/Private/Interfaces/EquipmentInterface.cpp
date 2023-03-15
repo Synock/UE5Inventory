@@ -8,6 +8,9 @@
 #include "Components/InventoryComponent.h"
 #include "GameFramework/Character.h"
 #include "Interfaces/InventoryPlayerInterface.h"
+#include "Items/InventoryItemBag.h"
+#include "Items/InventoryItemBase.h"
+#include "Items/InventoryItemEquipable.h"
 
 
 bool IEquipmentInterface::EquipmentHasAuthority()
@@ -25,14 +28,14 @@ UWorld* IEquipmentInterface::EquipmentGetWorldContext() const
 //----------------------------------------------------------------------------------------------------------------------
 
 // Add default functionality here for any IEquipmentInterface functions that are not pure virtual.
-TArray<FInventoryItem> IEquipmentInterface::GetAllEquipment() const
+TArray<const UInventoryItemEquipable*> IEquipmentInterface::GetAllEquipment() const
 {
 	return GetEquipmentComponentConst()->GetAllEquipment();
 }
 
 //----------------------------------------------------------------------------------------------------------------------
 
-const FInventoryItem& IEquipmentInterface::GetEquippedItem(EEquipmentSlot Slot) const
+const UInventoryItemEquipable* IEquipmentInterface::GetEquippedItem(EEquipmentSlot Slot) const
 {
 	check(GetEquipmentComponentConst());
 	return GetEquipmentComponentConst()->GetItemAtSlot(Slot);
@@ -45,7 +48,11 @@ void IEquipmentInterface::EquipItem(EEquipmentSlot InSlot, int32 InItemId)
 	if (!EquipmentHasAuthority())
 		return;
 
-	const FInventoryItem LocalItem = UInventoryUtilities::GetItemFromID(InItemId, EquipmentGetWorldContext());
+	const UInventoryItemEquipable* LocalItem = Cast<UInventoryItemEquipable>(
+		UInventoryUtilities::GetItemFromID(InItemId, EquipmentGetWorldContext()));
+
+	if (!LocalItem)
+		return;
 
 	GetEquipmentComponent()->EquipItem(LocalItem, InSlot);
 	HandleEquipmentEffect(InSlot, LocalItem);
@@ -55,10 +62,11 @@ void IEquipmentInterface::EquipItem(EEquipmentSlot InSlot, int32 InItemId)
 
 bool IEquipmentInterface::TryAutoEquip(int32 InItemId, EEquipmentSlot& PossibleEquipment) const
 {
-	const FInventoryItem LocalItem = UInventoryUtilities::GetItemFromID(InItemId, EquipmentGetWorldContext());
+	const UInventoryItemEquipable* LocalItem = Cast<UInventoryItemEquipable>(
+		UInventoryUtilities::GetItemFromID(InItemId, EquipmentGetWorldContext()));
 	PossibleEquipment = EEquipmentSlot::Unknown;
 
-	if (LocalItem.Equipable)
+	if (LocalItem)
 		PossibleEquipment = GetEquipmentComponentConst()->FindSuitableSlot(LocalItem);
 
 	if (PossibleEquipment != EEquipmentSlot::Unknown)
@@ -84,8 +92,8 @@ void IEquipmentInterface::SwapEquipment(EEquipmentSlot DroppedInSlot, EEquipment
 	if (!EquipmentHasAuthority())
 		return;
 
-	FInventoryItem ItemToMove = GetEquippedItem(DroppedInSlot);
-	FInventoryItem DroppedItem = GetEquippedItem(DraggedOutSlot);
+	const UInventoryItemEquipable* ItemToMove = GetEquippedItem(DroppedInSlot);
+	const UInventoryItemEquipable* DroppedItem = GetEquippedItem(DraggedOutSlot);
 
 	GetEquipmentComponent()->RemoveItem(DroppedInSlot);
 	HandleUnEquipmentEffect(DroppedInSlot, ItemToMove);
@@ -98,14 +106,14 @@ void IEquipmentInterface::SwapEquipment(EEquipmentSlot DroppedInSlot, EEquipment
 	HandleEquipmentEffect(DraggedOutSlot, ItemToMove);
 }
 
-EEquipmentSlot IEquipmentInterface::FindSuitableSlot(const FInventoryItem& Item) const
+EEquipmentSlot IEquipmentInterface::FindSuitableSlot(const UInventoryItemEquipable* Item) const
 {
 	return GetEquipmentComponentConst()->FindSuitableSlot(Item);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
 
-void IEquipmentInterface::HandleEquipmentEffect(EEquipmentSlot InSlot, const FInventoryItem& LocalItem)
+void IEquipmentInterface::HandleEquipmentEffect(EEquipmentSlot InSlot, const UInventoryItemEquipable* LocalItem)
 {
 	if (!EquipmentHasAuthority())
 		return;
@@ -115,7 +123,7 @@ void IEquipmentInterface::HandleEquipmentEffect(EEquipmentSlot InSlot, const FIn
 	//do equipment specific stuff here
 	// such as computing new damage output, edit armor, stuff like that
 
-	if (LocalItem.Bag)
+	if (const UInventoryItemBag* LocalBag = Cast<UInventoryItemBag>(LocalItem); LocalBag)
 	{
 		const ACharacter* Chara = Cast<ACharacter>(GetEquipmentOwningActor());
 		if (!Chara)
@@ -123,14 +131,14 @@ void IEquipmentInterface::HandleEquipmentEffect(EEquipmentSlot InSlot, const FIn
 
 		const EBagSlot AffectedSlot = UInventoryComponent::GetBagSlotFromInventory(InSlot);
 		if (IInventoryPlayerInterface* Inventory = Cast<IInventoryPlayerInterface>(Chara->GetController()))
-			Inventory->GetInventoryComponent()->BagSet(AffectedSlot, true, LocalItem.BagWidth, LocalItem.BagHeight,
-			                                           LocalItem.BagSize);
+			Inventory->GetInventoryComponent()->BagSet(AffectedSlot, true, LocalBag->BagWidth, LocalBag->BagHeight,
+			                                           LocalBag->BagSize);
 	}
 }
 
 //----------------------------------------------------------------------------------------------------------------------
 
-void IEquipmentInterface::HandleUnEquipmentEffect(EEquipmentSlot InSlot, const FInventoryItem& LocalItem)
+void IEquipmentInterface::HandleUnEquipmentEffect(EEquipmentSlot InSlot, const UInventoryItemEquipable* LocalItem)
 {
 	if (!EquipmentHasAuthority())
 		return;
@@ -138,7 +146,7 @@ void IEquipmentInterface::HandleUnEquipmentEffect(EEquipmentSlot InSlot, const F
 	HandleTwoSlotItemUnequip(LocalItem, InSlot);
 	//do equipment specific stuff here
 
-	if (LocalItem.Bag)
+	if (const UInventoryItemBag* LocalBag = Cast<UInventoryItemBag>(LocalItem); LocalBag)
 	{
 		const ACharacter* Chara = Cast<ACharacter>(GetEquipmentOwningActor());
 		if (!Chara)
@@ -155,11 +163,11 @@ void IEquipmentInterface::HandleUnEquipmentEffect(EEquipmentSlot InSlot, const F
 float IEquipmentInterface::GetTotalWeight() const
 {
 	float Sum = 0.f;
-	for(const auto& Item :  GetAllEquipment())
+	for (const auto& Item : GetAllEquipment())
 	{
-		if(Item.ItemID > 0)
+		if (Item)
 		{
-			Sum+= Item.Weight;
+			Sum += Item->Weight;
 		}
 	}
 
@@ -168,12 +176,12 @@ float IEquipmentInterface::GetTotalWeight() const
 
 //----------------------------------------------------------------------------------------------------------------------
 
-void IEquipmentInterface::HandleTwoSlotItemEquip(const FInventoryItem& Item, EEquipmentSlot& InSlot)
+void IEquipmentInterface::HandleTwoSlotItemEquip(const UInventoryItemEquipable* Item, EEquipmentSlot& InSlot)
 {
 	if (!EquipmentHasAuthority())
 		return;
 
-	if (Item.TwoSlotsItem)
+	if (Item->TwoSlotsItem)
 	{
 		EEquipmentSlot PrimarySlot = InSlot;
 		EEquipmentSlot SecondarySlot = InSlot;
@@ -188,24 +196,20 @@ void IEquipmentInterface::HandleTwoSlotItemEquip(const FInventoryItem& Item, EEq
 			PrimarySlot = EEquipmentSlot::WaistBag1;
 			SecondarySlot = EEquipmentSlot::WaistBag2;
 		}
-
-		FInventoryItem GhostItem;
-		GhostItem.ItemID = 0;
-		GhostItem.IconName = Item.IconName;
-
-		GetEquipmentComponent()->EquipItem(GhostItem, SecondarySlot);
+		//fix here
+		//GetEquipmentComponent()->EquipItem(nullptr, SecondarySlot);
 		InSlot = PrimarySlot;
 	}
 }
 
 //----------------------------------------------------------------------------------------------------------------------
 
-void IEquipmentInterface::HandleTwoSlotItemUnequip(const FInventoryItem& Item, EEquipmentSlot InSlot)
+void IEquipmentInterface::HandleTwoSlotItemUnequip(const UInventoryItemEquipable* Item, EEquipmentSlot InSlot)
 {
 	if (!EquipmentHasAuthority())
 		return;
 
-	if (Item.TwoSlotsItem)
+	if (Item->TwoSlotsItem)
 	{
 		const EEquipmentSlot PrimarySlot = InSlot;
 		EEquipmentSlot SecondarySlot = InSlot;

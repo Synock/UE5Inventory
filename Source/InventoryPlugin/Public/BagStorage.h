@@ -11,6 +11,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FBagStorageModified);
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FBagStorageDispatcher_Server);
 
+class UInventoryItemBase;
 /**
  * @brief Helper class to find out what slot is available
  */
@@ -19,15 +20,15 @@ class GridBagSolver
 public:
 	GridBagSolver(int32 InputWidth, int32 InputHeight);
 
-	void RecordData(const FInventoryItem& Item, int32 TopLeft);
+	void RecordData(const UInventoryItemBase* Item, int32 TopLeft);
 
-	bool IsRoomAvailable(const FInventoryItem& Item, int TopLeftIndex);
+	bool IsRoomAvailable(const UInventoryItemBase* Item, int TopLeftIndex);
 
-	int32 GetFirstValidTopLeft(const FInventoryItem& Item);
+	int32 GetFirstValidTopLeft(const  UInventoryItemBase* Item);
 private:
 	int32 Width = 1;
 	int32 Height = 1;
-	TArray<const FInventoryItem*> Grid;
+	TArray<const  UInventoryItemBase*> Grid;
 };
 
 /**

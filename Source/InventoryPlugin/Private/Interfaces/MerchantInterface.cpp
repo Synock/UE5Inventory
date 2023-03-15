@@ -6,6 +6,7 @@
 #include "InventoryUtilities.h"
 #include "Components/CoinComponent.h"
 #include "Components/MerchantComponent.h"
+#include "Items/InventoryItemBase.h"
 
 void IMerchantInterface::InitMerchantData(const TArray<int32>& StaticItems,
                                           const TArray<FMerchantDynamicItemStorage>& DynamicItems,
@@ -88,7 +89,7 @@ FCoinValue IMerchantInterface::AdjustPriceSell(const FCoinValue& CoinValue) cons
 
 FCoinValue IMerchantInterface::GetItemPriceBuy(int32 ItemID) const
 {
-	const FCoinValue Price(UInventoryUtilities::GetItemFromID(ItemID, GetMerchantWorldContext()).BaseValue);
+	const FCoinValue Price(UInventoryUtilities::GetItemFromID(ItemID, GetMerchantWorldContext())->BaseValue);
 	return AdjustPriceBuy(Price);
 }
 
@@ -96,7 +97,7 @@ FCoinValue IMerchantInterface::GetItemPriceBuy(int32 ItemID) const
 
 FCoinValue IMerchantInterface::GetItemPriceSell(int32 ItemID) const
 {
-	const FCoinValue Price(UInventoryUtilities::GetItemFromID(ItemID, GetMerchantWorldContext()).BaseValue);
+	const FCoinValue Price(UInventoryUtilities::GetItemFromID(ItemID, GetMerchantWorldContext())->BaseValue);
 	return AdjustPriceSell(Price);
 }
 

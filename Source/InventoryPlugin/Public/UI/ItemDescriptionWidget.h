@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
-#include "InventoryItem.h"
+#include "Items/InventoryItemBase.h"
 #include "ItemDescriptionWidget.generated.h"
 
 /**
@@ -21,7 +21,7 @@ protected:
 	UUserWidget* Parent = nullptr;
 
 	UPROPERTY(BlueprintReadWrite)
-	FInventoryItem ObservedItem;
+	UInventoryItemBase* ObservedItem;
 	
 	UFUNCTION(BlueprintCallable)
 	bool IsLore() const;

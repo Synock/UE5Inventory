@@ -45,7 +45,7 @@ protected:
 	
 public:
 	UFUNCTION(BlueprintCallable)
-	void InitData(const FInventoryItem& InputItem, AActor* InputOwner, float InputTileSize,
+	void InitData(const UInventoryItemBase* InputItem, AActor* InputOwner, float InputTileSize,
 	              int32 InputTopLeftID = 0, EBagSlot InputBagID = EBagSlot::Unknown,
 	              EEquipmentSlot InputOriginalSlotID = EEquipmentSlot::Unknown);
 

@@ -7,6 +7,7 @@
 #include "Kismet/KismetSystemLibrary.h"
 #include "Engine/StaticMesh.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Items/InventoryItemEquipable.h"
 
 namespace
 {
@@ -43,7 +44,7 @@ UStaticMeshComponent* UEquipmentComponent::GetMeshComponentFromSocket(EEquipment
 
 //----------------------------------------------------------------------------------------------------------------------
 
-bool UEquipmentComponent::Equip(const FInventoryItem& Item, EEquipmentSlot EquipSlot)
+bool UEquipmentComponent::Equip(const UInventoryItemEquipable* Item, EEquipmentSlot EquipSlot)
 {
 	const EEquipmentSocket PossibleSocket = FindBestSocketForItem(Item, EquipSlot);
 
@@ -55,7 +56,7 @@ bool UEquipmentComponent::Equip(const FInventoryItem& Item, EEquipmentSlot Equip
 	if (!WantedSocket)
 		return false;
 
-	UStaticMesh* StaticMesh = LoadStaticMeshFromPath(*Item.MeshName);
+	UStaticMesh* StaticMesh = Item->Mesh;
 	if (!StaticMesh)
 		return false;
 
@@ -64,14 +65,14 @@ bool UEquipmentComponent::Equip(const FInventoryItem& Item, EEquipmentSlot Equip
 
 //----------------------------------------------------------------------------------------------------------------------
 
-bool UEquipmentComponent::UnEquip(const FInventoryItem& Item, EEquipmentSlot EquipSlot)
+bool UEquipmentComponent::UnEquip(const UInventoryItemEquipable* Item, EEquipmentSlot EquipSlot)
 {
 	const EEquipmentSocket PossibleSocket = FindBestSocketForItem(Item, EquipSlot);
 
 	if (PossibleSocket == EEquipmentSocket::Unknown)
 		return false;
 
-	UStaticMesh* StaticMesh = LoadStaticMeshFromPath(*Item.MeshName);
+	UStaticMesh* StaticMesh = Item->Mesh;
 
 	if (!StaticMesh)
 		return false;
@@ -86,20 +87,20 @@ bool UEquipmentComponent::UnEquip(const FInventoryItem& Item, EEquipmentSlot Equ
 
 //----------------------------------------------------------------------------------------------------------------------
 
-EEquipmentSocket UEquipmentComponent::FindBestSocketForItem(const FInventoryItem& Item, EEquipmentSlot EquipSlot)
+EEquipmentSocket UEquipmentComponent::FindBestSocketForItem(const UInventoryItemEquipable* Item, EEquipmentSlot EquipSlot)
 {
 	switch (EquipSlot)
 	{
 	case EEquipmentSlot::Primary:
 		{
-			if (!Item.Weapon)
+			if (!Item->Weapon)
 				return EEquipmentSocket::Primary;
 
 			return EEquipmentSocket::PrimarySheath;
 		}
 	case EEquipmentSlot::Secondary:
 		{
-			if (!Item.Weapon)
+			if (!Item->Weapon)
 				return EEquipmentSocket::Secondary;
 
 			return EEquipmentSocket::SecondarySheath;
@@ -115,13 +116,13 @@ EEquipmentSocket UEquipmentComponent::FindBestSocketForItem(const FInventoryItem
 	case EEquipmentSlot::WaistBag2: return EEquipmentSocket::WaistBag2;
 	case EEquipmentSlot::BackPack1:
 		{
-			if (Item.TwoSlotsItem)
+			if (Item->TwoSlotsItem)
 				return EEquipmentSocket::Backpack;
 			return EEquipmentSocket::ShoulderBag1;
 		}
 	case EEquipmentSlot::BackPack2:
 		{
-			if (Item.TwoSlotsItem)
+			if (Item->TwoSlotsItem)
 				return EEquipmentSocket::Backpack;
 			return EEquipmentSocket::ShoulderBag2;
 		}
@@ -135,7 +136,7 @@ EEquipmentSocket UEquipmentComponent::FindBestSocketForItem(const FInventoryItem
 
 void UEquipmentComponent::Unsheath(EEquipmentSlot SlotToUnsheath)
 {
-	const FInventoryItem& Item = Equipment[static_cast<int>(SlotToUnsheath)];
+	const UInventoryItemEquipable* Item = Equipment[static_cast<int>(SlotToUnsheath)];
 	const EEquipmentSocket SheathSocket = FindBestSocketForItem(Item, SlotToUnsheath);
 
 	if (SheathSocket != EEquipmentSocket::PrimarySheath && SheathSocket != EEquipmentSocket::SecondarySheath &&
@@ -222,9 +223,7 @@ UEquipmentComponent::UEquipmentComponent()
 	// off to improve performance if you don't need them.
 	PrimaryComponentTick.bCanEverTick = false;
 
-	FInventoryItem InvalidItem;
-	InvalidItem.ItemID = -1;
-	Equipment.Init(InvalidItem, 32);
+	Equipment.Init(nullptr, 32);
 
 	PrimaryWeaponComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("PrimaryWeaponComponentMesh"));
 	PrimaryWeaponComponent->SetIsReplicated(true);
@@ -308,9 +307,9 @@ void UEquipmentComponent::OnRep_ItemList()
 
 //----------------------------------------------------------------------------------------------------------------------
 
-void UEquipmentComponent::EquipItem(const FInventoryItem& Item, EEquipmentSlot InSlot)
+void UEquipmentComponent::EquipItem(const UInventoryItemEquipable* Item, EEquipmentSlot InSlot)
 {
-	if (Equipment[static_cast<int>(InSlot)].ItemID < 0)
+	if (Equipment[static_cast<int>(InSlot)] != nullptr)
 	{
 		Equipment[static_cast<int>(InSlot)] = Item;
 		Equip(Item, InSlot);
@@ -323,7 +322,7 @@ void UEquipmentComponent::EquipItem(const FInventoryItem& Item, EEquipmentSlot I
 
 bool UEquipmentComponent::IsSlotEmpty(EEquipmentSlot InSlot)
 {
-	if (Equipment[static_cast<int>(InSlot)].ItemID < 0)
+	if (!Equipment[static_cast<int>(InSlot)])
 		return true;
 
 	return false;
@@ -331,14 +330,14 @@ bool UEquipmentComponent::IsSlotEmpty(EEquipmentSlot InSlot)
 
 //----------------------------------------------------------------------------------------------------------------------
 
-TArray<FInventoryItem> UEquipmentComponent::GetAllEquipment() const
+TArray<const UInventoryItemEquipable*> UEquipmentComponent::GetAllEquipment() const
 {
 	return Equipment;
 }
 
 //----------------------------------------------------------------------------------------------------------------------
 
-const FInventoryItem& UEquipmentComponent::GetItemAtSlot(EEquipmentSlot InSlot) const
+const UInventoryItemEquipable* UEquipmentComponent::GetItemAtSlot(EEquipmentSlot InSlot) const
 {
 	return Equipment[static_cast<int>(InSlot)];
 }
@@ -353,9 +352,7 @@ bool UEquipmentComponent::RemoveItem(EEquipmentSlot InSlot)
 	UnEquip(Equipment[static_cast<int>(InSlot)], InSlot);
 	ItemUnEquipedDispatcher_Server.Broadcast(InSlot, Equipment[static_cast<int>(InSlot)]);
 
-	FInventoryItem InvalidItem;
-	InvalidItem.ItemID = -1;
-	Equipment[static_cast<int>(InSlot)] = InvalidItem;
+	Equipment[static_cast<int>(InSlot)] = nullptr;
 	EquipmentDispatcher_Server.Broadcast();
 	return true;
 }
@@ -367,25 +364,25 @@ float UEquipmentComponent::GetTotalWeight() const
 	float TotalWeight = 0.f;
 	for (const auto& Item : Equipment)
 	{
-		if (Item.ItemID >= 0)
-			TotalWeight += Item.Weight;
+		if (Item)
+			TotalWeight += Item->Weight;
 	}
 	return TotalWeight;
 }
 
 //----------------------------------------------------------------------------------------------------------------------
 
-EEquipmentSlot UEquipmentComponent::FindSuitableSlot(const FInventoryItem& Item) const
+EEquipmentSlot UEquipmentComponent::FindSuitableSlot(const UInventoryItemEquipable* Item) const
 {
 	for (size_t i = 1; i < Equipment.Num(); ++i)
 	{
-		if (Equipment[i].ItemID < 0)
+		if (Equipment[i])
 		{
 			const int32 LocalAcceptableBitMask = std::pow(2., static_cast<double>(i));
 			const EEquipmentSlot CurrentSlot = static_cast<EEquipmentSlot>(i);
-			if (Item.EquipableSlotBitMask & LocalAcceptableBitMask)
+			if (Item->EquipableSlotBitMask & LocalAcceptableBitMask)
 			{
-				if (Item.TwoSlotsItem)
+				if (Item->TwoSlotsItem)
 				{
 					if (CurrentSlot == EEquipmentSlot::WaistBag1 || CurrentSlot == EEquipmentSlot::BackPack1)
 						return CurrentSlot;

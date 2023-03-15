@@ -107,7 +107,7 @@ public:
 
 	//Find and return an empty slot for the item or BagSlot::Unknown
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
-	EBagSlot FindSuitableSlot(const FInventoryItem& Item, int32& OutputTopLeftID) const;
+	EBagSlot FindSuitableSlot(const UInventoryItemBase* Item, int32& OutputTopLeftID) const;
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Inventory")
 	static EEquipmentSlot GetInventorySlotFromBagSlot(EBagSlot ConsideredBag);

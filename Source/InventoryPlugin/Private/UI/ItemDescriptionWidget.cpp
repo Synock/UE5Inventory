@@ -4,39 +4,42 @@
 #include "UI/ItemDescriptionWidget.h"
 #include "InventoryUtilities.h"
 #include "Definitions.h"
+#include "Items/InventoryItemActionnable.h"
+#include "Items/InventoryItemBag.h"
+#include "Items/InventoryItemWeapon.h"
 
 bool UItemDescriptionWidget::IsLore() const
 {
-	return ObservedItem.LoreItem;
+	return ObservedItem->LoreItem;
 }
 
 //----------------------------------------------------------------------------------------------------------------------
 
 bool UItemDescriptionWidget::IsMagic() const
 {
-	return ObservedItem.MagicItem;
+	return ObservedItem->MagicItem;
 }
 
 //----------------------------------------------------------------------------------------------------------------------
 
 FString UItemDescriptionWidget::GetItemName() const
 {
-	return ObservedItem.Name;
+	return ObservedItem->Name;
 }
 
 //----------------------------------------------------------------------------------------------------------------------
 
 FString UItemDescriptionWidget::GetItemDescription() const
 {
-	return ObservedItem.Description;
+	return ObservedItem->Description;
 }
 
 //----------------------------------------------------------------------------------------------------------------------
 
 FString UItemDescriptionWidget::GetGeneralString() const
 {
-	return "Weight: " + FString::SanitizeFloat(ObservedItem.Weight) + "\n" + "Size: " +
-		UInventoryUtilities::GetItemSizeString(ObservedItem.Size);
+	return "Weight: " + FString::SanitizeFloat(ObservedItem->Weight) + "\n" + "Size: " +
+		UInventoryUtilities::GetItemSizeString(ObservedItem->ItemSize);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -44,12 +47,16 @@ FString UItemDescriptionWidget::GetGeneralString() const
 FString UItemDescriptionWidget::GetSlotString() const
 {
 	FString Out = "Slot:";
+	const UInventoryItemEquipable* Equipable = Cast<UInventoryItemEquipable>(ObservedItem);
+
+	if(!Equipable)
+		return {};
 
 	for (size_t i = 1; i < static_cast<size_t>(EEquipmentSlot::Last); ++i)
 	{
 		const int32 LocalAcceptableBitMask = std::pow(2., static_cast<double>(i));
 		const EEquipmentSlot CurrentSlot = static_cast<EEquipmentSlot>(i);
-		if (ObservedItem.EquipableSlotBitMask & LocalAcceptableBitMask)
+		if (Equipable->EquipableSlotBitMask & LocalAcceptableBitMask)
 		{
 			if (CurrentSlot == EEquipmentSlot::WaistBag2 || CurrentSlot == EEquipmentSlot::BackPack2)
 				continue;
@@ -79,9 +86,12 @@ FString UItemDescriptionWidget::GetClassString() const
 
 FString UItemDescriptionWidget::GetACString() const
 {
-	return "Blunt AC: " + FString::FormatAsNumber(ObservedItem.BluntAC) + " Slash AC: " +
-		FString::FormatAsNumber(ObservedItem.SlashAC) + " Pierce AC: " + FString::FormatAsNumber(ObservedItem.
+	/*
+	return "Blunt AC: " + FString::FormatAsNumber(ObservedItem->BluntAC) + " Slash AC: " +
+		FString::FormatAsNumber(ObservedItem->SlashAC) + " Pierce AC: " + FString::FormatAsNumber(ObservedItem->
 			PierceAC);
+	*/
+	return {};
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -89,21 +99,23 @@ FString UItemDescriptionWidget::GetACString() const
 FString UItemDescriptionWidget::GetAttributesString() const
 {
 	FString Out;
-	if (ObservedItem.ModifiedAttributes.Str)
-		Out += "STR: " + FString::FormatAsNumber(ObservedItem.ModifiedAttributes.Str) + " ";
-	if (ObservedItem.ModifiedAttributes.Sta)
-		Out += "STA: " + FString::FormatAsNumber(ObservedItem.ModifiedAttributes.Sta) + " ";
-	if (ObservedItem.ModifiedAttributes.Dex)
-		Out += "DEX: " + FString::FormatAsNumber(ObservedItem.ModifiedAttributes.Dex) + " ";
-	if (ObservedItem.ModifiedAttributes.Agi)
-		Out += "AGI: " + FString::FormatAsNumber(ObservedItem.ModifiedAttributes.Agi) + " ";
-	if (ObservedItem.ModifiedAttributes.Str)
-		Out += "WIS: " + FString::FormatAsNumber(ObservedItem.ModifiedAttributes.Wis) + " ";
-	if (ObservedItem.ModifiedAttributes.Int)
-		Out += "INT: " + FString::FormatAsNumber(ObservedItem.ModifiedAttributes.Int) + " ";
-	if (ObservedItem.ModifiedAttributes.Cha)
-		Out += "CHA: " + FString::FormatAsNumber(ObservedItem.ModifiedAttributes.Cha) + " ";
 
+	/*
+	if (ObservedItem->ModifiedAttributes.Str)
+		Out += "STR: " + FString::FormatAsNumber(ObservedItem->ModifiedAttributes.Str) + " ";
+	if (ObservedItem->ModifiedAttributes.Sta)
+		Out += "STA: " + FString::FormatAsNumber(ObservedItem->ModifiedAttributes.Sta) + " ";
+	if (ObservedItem->ModifiedAttributes.Dex)
+		Out += "DEX: " + FString::FormatAsNumber(ObservedItem->ModifiedAttributes.Dex) + " ";
+	if (ObservedItem->ModifiedAttributes.Agi)
+		Out += "AGI: " + FString::FormatAsNumber(ObservedItem->ModifiedAttributes.Agi) + " ";
+	if (ObservedItem->ModifiedAttributes.Str)
+		Out += "WIS: " + FString::FormatAsNumber(ObservedItem->ModifiedAttributes.Wis) + " ";
+	if (ObservedItem->ModifiedAttributes.Int)
+		Out += "INT: " + FString::FormatAsNumber(ObservedItem->ModifiedAttributes.Int) + " ";
+	if (ObservedItem->ModifiedAttributes.Cha)
+		Out += "CHA: " + FString::FormatAsNumber(ObservedItem->ModifiedAttributes.Cha) + " ";
+	*/
 	return Out;
 }
 
@@ -119,47 +131,56 @@ FString UItemDescriptionWidget::GetEquipableString() const
 
 FString UItemDescriptionWidget::GetDamageString() const
 {
-	return "Blunt Dmg: " + FString::FormatAsNumber(ObservedItem.BluntDamage) + " Slash Dmg: " +
-		FString::FormatAsNumber(ObservedItem.SlashDamage) + " Pierce Dmg: " + FString::FormatAsNumber(ObservedItem.
-			PierceDamage) + "\n";
+	/*return "Blunt Dmg: " + FString::FormatAsNumber(ObservedItem->BluntDamage) + " Slash Dmg: " +
+		FString::FormatAsNumber(ObservedItem->SlashDamage) + " Pierce Dmg: " + FString::FormatAsNumber(ObservedItem->
+			PierceDamage) + "\n";*/
+	return {};
 }
 
 //----------------------------------------------------------------------------------------------------------------------
 
 FString UItemDescriptionWidget::GetWeaponString() const
 {
-	return GetDamageString() + "\n" +
-		"Delay: " + FString::SanitizeFloat(ObservedItem.Delay);
+	/*return GetDamageString() + "\n" +
+		"Delay: " + FString::SanitizeFloat(ObservedItem->Delay);*/
+	return {};
 }
 
 //----------------------------------------------------------------------------------------------------------------------
 
 FString UItemDescriptionWidget::GetContainerString() const
 {
-	return "Capacity: " + FString::FormatAsNumber(ObservedItem.BagWidth) + "x" +
-		FString::FormatAsNumber(ObservedItem.Height) + " Size capacity:" + UInventoryUtilities::GetItemSizeString(
-			ObservedItem.BagSize);
+	const UInventoryItemBag* Bag = Cast<UInventoryItemBag>(ObservedItem);
+
+	return "Capacity: " + FString::FormatAsNumber(Bag->BagWidth) + "x" +
+		FString::FormatAsNumber(Bag->BagHeight) + " Size capacity:" + UInventoryUtilities::GetItemSizeString(
+			Bag->BagSize);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
 
 FString UItemDescriptionWidget::GetFoodString() const
 {
-	if (ObservedItem.HungerValue <= 0)
+	const UInventoryItemActionnable* Actionnable = Cast<UInventoryItemActionnable>(ObservedItem);
+
+	if(!Actionnable)
+		return {};
+/*
+	if (ObservedItem->HungerValue <= 0)
 		return {};
 
-	if (ObservedItem.HungerValue <= 120)
+	if (ObservedItem->HungerValue <= 120)
 		return "This is a snack";
 
-	if (ObservedItem.HungerValue <= 240)
+	if (ObservedItem->HungerValue <= 240)
 		return "This is a light meal";
 
-	if (ObservedItem.HungerValue <= 480)
+	if (ObservedItem->HungerValue <= 480)
 		return "This is a meal";
 
-	if (ObservedItem.HungerValue <= 960)
+	if (ObservedItem->HungerValue <= 960)
 		return "This is a heavy meal";
-
+	*/
 	return "This is a feast";
 }
 
@@ -167,21 +188,27 @@ FString UItemDescriptionWidget::GetFoodString() const
 
 FString UItemDescriptionWidget::GetDrinkString() const
 {
-	if (ObservedItem.HungerValue <= 0)
+
+	const UInventoryItemActionnable* Actionnable = Cast<UInventoryItemActionnable>(ObservedItem);
+
+	if(!Actionnable)
+		return {};
+/*
+	if (ObservedItem->HungerValue <= 0)
 		return {};
 
-	if (ObservedItem.HungerValue <= 120)
+	if (ObservedItem->HungerValue <= 120)
 		return "This is a tiny beverage";
 
-	if (ObservedItem.HungerValue <= 240)
+	if (ObservedItem->HungerValue <= 240)
 		return "This is a small beverage";
 
-	if (ObservedItem.HungerValue <= 480)
+	if (ObservedItem->HungerValue <= 480)
 		return "This is a beverage";
 
-	if (ObservedItem.HungerValue <= 960)
+	if (ObservedItem->HungerValue <= 960)
 		return "This is a refreshing beverage";
-
+	*/
 	return "This is a hydrating beverage";
 }
 
@@ -219,28 +246,28 @@ FString UItemDescriptionWidget::GetGlobalString() const
 	FString Out =
 		GetItemDescription() + "\n" +
 		GetGeneralString() + "\n";
-	if (ObservedItem.Equipable)
+
+
+
+	if (const UInventoryItemEquipable* Equipable = Cast<UInventoryItemEquipable>(ObservedItem))
 		Out += GetEquipableString() + "\n";
 
-	if (ObservedItem.Weapon)
+	if (const UInventoryItemWeapon* Weapon = Cast<UInventoryItemWeapon>(ObservedItem))
 		Out += GetWeaponString() + "\n";
 
-	if (ObservedItem.Bag)
+	if (const UInventoryItemBag* Bag = Cast<UInventoryItemBag>(ObservedItem))
 		Out += GetContainerString() + "\n";
 
-	if (ObservedItem.Activable)
+	if (const UInventoryItemActionnable* Actionnable = Cast<UInventoryItemActionnable>(ObservedItem))
 		Out += GetUsableString() + "\n";
 
-	if (ObservedItem.SpellID != 0)
-		Out += GetSpellString();
+	/*if (ObservedItem->SpellID != 0)
+		Out += GetSpellString();*/
 
 	return Out;
 }
 
 UTexture2D* UItemDescriptionWidget::GetTextureIcon() const
 {
-	if (ObservedItem.IconName.IsEmpty())
-		return nullptr;
-
-	return UInventoryUtilities::LoadTexture2D(ObservedItem.IconName);
+	return ObservedItem->Icon;
 }

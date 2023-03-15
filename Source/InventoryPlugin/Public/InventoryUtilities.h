@@ -27,7 +27,7 @@ public:
 
 	//@brief Return a BareItem from its ID
 	UFUNCTION(BlueprintCallable, Category="Inventory|Item")
-	static FInventoryItem GetItemFromID(int32 ItemID, UWorld* WorldContext);
+	static UInventoryItemBase* GetItemFromID(int32 ItemID, UWorld* WorldContext);
 
 	//@brief Convert a float value to a CoinValue
 	UFUNCTION(BlueprintCallable, Category="Inventory|Coins")

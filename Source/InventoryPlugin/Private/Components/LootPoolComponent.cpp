@@ -5,6 +5,7 @@
 
 #include "InventoryUtilities.h"
 #include "BagStorage.h"
+#include "Items/InventoryItemBase.h"
 
 // Sets default values for this component's properties
 ULootPoolComponent::ULootPoolComponent()
@@ -16,7 +17,7 @@ ULootPoolComponent::ULootPoolComponent()
 
 void ULootPoolComponent::Init_Implementation(const TArray<int32>& LootableItems)
 {
-	TArray<FInventoryItem> ItemArray;
+	TArray<const UInventoryItemBase*> ItemArray;
 	ItemArray.Reserve(LootableItems.Num());
 	for (int32 ItemID : LootableItems)
 	{
@@ -33,7 +34,7 @@ void ULootPoolComponent::Init_Implementation(const TArray<int32>& LootableItems)
 
 		if (TopLeft >= 0)
 		{
-			Items.Add({Item.ItemID, TopLeft});
+			Items.Add({Item->ItemID, TopLeft});
 			Solver.RecordData(Item, TopLeft);
 		}
 	}

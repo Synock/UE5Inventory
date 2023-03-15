@@ -4,6 +4,7 @@
 #include "UI/InventoryEquipmentWidget.h"
 
 #include "Interfaces/InventoryPlayerInterface.h"
+#include "Items/InventoryItemBase.h"
 #include "UI/ItemWidget.h"
 
 bool UInventoryEquipmentWidget::HandleItemDrop(UItemWidget* InputItem)
@@ -15,7 +16,7 @@ bool UInventoryEquipmentWidget::HandleItemDrop(UItemWidget* InputItem)
 	if (!PC)
 		return false;
 
-	const int32 ItemID = InputItem->GetReferencedItem().ItemID;
+	const int32 ItemID = InputItem->GetReferencedItem()->ItemID;
 
 	if (!InputItem->IsBelongingToSelf())
 	{

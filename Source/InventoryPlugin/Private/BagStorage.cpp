@@ -6,6 +6,8 @@
 #include "InventoryUtilities.h"
 #include <Net/UnrealNetwork.h>
 
+#include "Items/InventoryItemBase.h"
+
 
 GridBagSolver::GridBagSolver(int32 InputWidth, int32 InputHeight): Width(InputWidth), Height(InputHeight)
 {
@@ -14,18 +16,18 @@ GridBagSolver::GridBagSolver(int32 InputWidth, int32 InputHeight): Width(InputWi
 
 //----------------------------------------------------------------------------------------------------------------------
 
-void GridBagSolver::RecordData(const FInventoryItem& Item, int32 TopLeft)
+void GridBagSolver::RecordData(const UInventoryItemBase* Item, int32 TopLeft)
 {
 	if (TopLeft >= 0)
 	{
 		const int SX = TopLeft % Width;
 		const int SY = TopLeft / Width;
 
-		for (int y = SY; y < SY + Item.Height; ++y)
+		for (int y = SY; y < SY + Item->Height; ++y)
 		{
-			for (int x = SX; x < SX + Item.Width; ++x)
+			for (int x = SX; x < SX + Item->Width; ++x)
 			{
-				Grid[x + y * Width] = &Item;
+				Grid[x + y * Width] = Item;
 			}
 		}
 	}
@@ -33,14 +35,14 @@ void GridBagSolver::RecordData(const FInventoryItem& Item, int32 TopLeft)
 
 //----------------------------------------------------------------------------------------------------------------------
 
-bool GridBagSolver::IsRoomAvailable(const FInventoryItem& Item, int TopLeftIndex)
+bool GridBagSolver::IsRoomAvailable(const UInventoryItemBase* Item, int TopLeftIndex)
 {
 	const int SX = TopLeftIndex % Width;
 	const int SY = TopLeftIndex / Width;
 
-	for (int y = SY; y < SY + Item.Height; ++y)
+	for (int y = SY; y < SY + Item->Height; ++y)
 	{
-		for (int x = SX; x < SX + Item.Width; ++x)
+		for (int x = SX; x < SX + Item->Width; ++x)
 		{
 			if (x >= Width || x < 0)
 				return false;
@@ -65,7 +67,7 @@ bool GridBagSolver::IsRoomAvailable(const FInventoryItem& Item, int TopLeftIndex
 
 //----------------------------------------------------------------------------------------------------------------------
 
-int32 GridBagSolver::GetFirstValidTopLeft(const FInventoryItem& Item)
+int32 GridBagSolver::GetFirstValidTopLeft(const UInventoryItemBase* Item)
 {
 	for (int32 i = 0; i < Grid.Num(); ++i)
 	{
@@ -129,7 +131,7 @@ GridBagSolver UBagStorage::GetSolver() const
 
 	for (auto& Item : Items)
 	{
-		FInventoryItem LocalItem = UInventoryUtilities::GetItemFromID(Item.ItemID, GetWorld());
+		 const UInventoryItemBase* LocalItem = UInventoryUtilities::GetItemFromID(Item.ItemID, GetWorld());
 
 		Solver.RecordData(LocalItem, Item.TopLeftID); //we don't care about pointer validity
 	}
@@ -155,7 +157,7 @@ bool UBagStorage::HasItem(int32 ItemID)
 int32 UBagStorage::GetFirstTopLeftID(int32 ItemID)
 {
 	volatile int32 TopLeftID = -1;
-	for(auto& Item : Items)
+	for(const auto& Item : Items)
 	{
 		if(Item.ItemID == ItemID)
 		{
@@ -199,7 +201,7 @@ void UBagStorage::RemoveItem_Implementation(int32 TopLeftIndex)
 	}
 
 	//update the weight
-	BagWeight -= UInventoryUtilities::GetItemFromID(ItemID, GetWorld()).Weight;
+	BagWeight -= UInventoryUtilities::GetItemFromID(ItemID, GetWorld())->Weight;
 	BagStorageDispatcher_Server.Broadcast();
 }
 
@@ -210,7 +212,7 @@ void UBagStorage::AddItemAt_Implementation(int32 ItemID, int32 TopLeftIndex)
 	Items.Add({ItemID, TopLeftIndex});
 
 	//update the weight
-	BagWeight += UInventoryUtilities::GetItemFromID(ItemID, GetWorld()).Weight;
+	BagWeight += UInventoryUtilities::GetItemFromID(ItemID, GetWorld())->Weight;
 	BagStorageDispatcher_Server.Broadcast();
 }
 

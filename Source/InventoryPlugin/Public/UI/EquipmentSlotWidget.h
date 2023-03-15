@@ -61,10 +61,10 @@ public:
 	void SetSisterSlot(UEquipmentSlotWidget* NewSisterSlot);
 	
 	UFUNCTION(BlueprintCallable)
-	bool CanEquipItem(const FInventoryItem& InputItem) const;
+	bool CanEquipItem(const UInventoryItemBase* InputItem) const;
 
 	UFUNCTION(BlueprintCallable)
-	static bool CanEquipItemAtSlot(const FInventoryItem& InputItem, EEquipmentSlot InputSlot);
+	static bool CanEquipItemAtSlot(const UInventoryItemBase* InputItem, EEquipmentSlot InputSlot);
 
 	UFUNCTION(BlueprintCallable)
 	bool TryEquipItem(class UItemWidget* InputItem);

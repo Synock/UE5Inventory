@@ -30,9 +30,9 @@ struct FMinimalItemStorage
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Item")
 	int32 TopLeftID = 0;
 };
-
+/*
 USTRUCT(BlueprintType)
-struct FInventoryItem
+struct FInventoryItem : public FTableRowBase
 {
 	GENERATED_BODY()
 
@@ -184,3 +184,4 @@ struct FInventoryItem
 	int32 SpellID = 0;
 
 };
+*/
