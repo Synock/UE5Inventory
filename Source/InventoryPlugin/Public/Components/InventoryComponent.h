@@ -5,6 +5,7 @@
 #include <CoreMinimal.h>
 #include <Components/ActorComponent.h>
 #include "InventoryItem.h"
+#include "Items/InventoryItemBase.h"
 #include "InventoryComponent.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnWeightChanged);

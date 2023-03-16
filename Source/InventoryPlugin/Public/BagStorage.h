@@ -5,6 +5,7 @@
 #include <CoreMinimal.h>
 #include "InventoryItem.h"
 #include "Components/ActorComponent.h"
+#include "Items/InventoryItemBase.h"
 #include "BagStorage.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FBagStorageModified);

@@ -3,9 +3,18 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Definitions.h"
 #include "Engine/DataAsset.h"
 #include "InventoryItemBase.generated.h"
+
+UENUM(BlueprintType)
+enum class EItemSize : uint8
+{
+	Tiny UMETA(DisplayName = "Tiny"),
+	Small UMETA(DisplayName = "Small"),
+	Medium UMETA(DisplayName = "Medium"),
+	Large UMETA(DisplayName = "Large"),
+	Giant UMETA(DisplayName = "Giant")
+};
 
 class UTexture2D;
 class UStaticMesh;
@@ -13,7 +22,7 @@ class UStaticMesh;
  * 
  */
 UCLASS()
-class INVENTORYPLUGIN_API UInventoryItemBase : public UDataAsset
+class INVENTORYPLUGIN_API UInventoryItemBase : public UPrimaryDataAsset
 {
 public:
 	GENERATED_BODY()
@@ -36,7 +45,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Visual")
 	UStaticMesh* Mesh = nullptr;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|ItemData")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|ItemData")
 	EItemSize ItemSize = EItemSize::Tiny;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|ItemData")
