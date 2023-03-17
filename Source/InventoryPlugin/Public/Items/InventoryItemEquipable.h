@@ -19,7 +19,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Equipable")
 	bool Equipable = false;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Meta = (Bitmask, BitmaskEnum = "EEquipmentSlot"),
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Meta = (Bitmask, BitmaskEnum = "/Script/InventoryPlugin.EEquipmentSlot"),
 		Category = "Inventory|Equipable")
 	int32 EquipableSlotBitMask = 0;
 

@@ -15,14 +15,14 @@
 
 bool IEquipmentInterface::EquipmentHasAuthority()
 {
-	return GetEquipmentOwningActor()->HasAuthority();
+	return GetEquipmentComponent()->GetOwner()->HasAuthority();
 }
 
 //----------------------------------------------------------------------------------------------------------------------
 
 UWorld* IEquipmentInterface::EquipmentGetWorldContext() const
 {
-	return GetEquipmentOwningActorConst()->GetWorld();
+	return GetEquipmentComponentConst()->GetOwner()->GetWorld();
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -120,12 +120,9 @@ void IEquipmentInterface::HandleEquipmentEffect(EEquipmentSlot InSlot, const UIn
 
 	HandleTwoSlotItemEquip(LocalItem, InSlot);
 
-	//do equipment specific stuff here
-	// such as computing new damage output, edit armor, stuff like that
-
 	if (const UInventoryItemBag* LocalBag = Cast<UInventoryItemBag>(LocalItem); LocalBag)
 	{
-		const ACharacter* Chara = Cast<ACharacter>(GetEquipmentOwningActor());
+		const ACharacter* Chara = Cast<ACharacter>(GetEquipmentComponent()->GetOwner());
 		if (!Chara)
 			return;
 
@@ -134,6 +131,10 @@ void IEquipmentInterface::HandleEquipmentEffect(EEquipmentSlot InSlot, const UIn
 			Inventory->GetInventoryComponent()->BagSet(AffectedSlot, true, LocalBag->BagWidth, LocalBag->BagHeight,
 			                                           LocalBag->BagSize);
 	}
+
+	// Override this function do equipment specific stuff here
+	// such as computing new damage output, edit armor, stuff like that
+	// But call this one if you want internal stuff to work properly
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -148,7 +149,7 @@ void IEquipmentInterface::HandleUnEquipmentEffect(EEquipmentSlot InSlot, const U
 
 	if (const UInventoryItemBag* LocalBag = Cast<UInventoryItemBag>(LocalItem); LocalBag)
 	{
-		const ACharacter* Chara = Cast<ACharacter>(GetEquipmentOwningActor());
+		const ACharacter* Chara = Cast<ACharacter>(GetEquipmentComponent()->GetOwner());
 		if (!Chara)
 			return;
 

@@ -24,14 +24,9 @@ class INVENTORYPLUGIN_API IEquipmentInterface
 {
 	GENERATED_BODY()
 
-	// Add interface functions to this class. This is the class that will be inherited to implement this interface.
 public:
 	virtual UEquipmentComponent* GetEquipmentComponent() = 0;
-
 	virtual const UEquipmentComponent* GetEquipmentComponentConst() const = 0;
-
-	virtual AActor* GetEquipmentOwningActor() = 0;
-	virtual AActor const* GetEquipmentOwningActorConst() const = 0;
 
 	//------------------------------------------------------------------------------------------------------------------
 	// Equipment
