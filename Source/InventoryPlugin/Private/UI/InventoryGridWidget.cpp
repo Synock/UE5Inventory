@@ -34,7 +34,7 @@ bool UInventoryGridWidget::HandleItemDrop(UItemWidget* IncomingItem)
 	if (!IncomingItem)
 		return false;
 
-	if(!IncomingItem->GetReferencedItem())
+	if (!IncomingItem->GetReferencedItem())
 		return false;
 
 	if (!CanProcessItemDrop(IncomingItem))
@@ -91,7 +91,7 @@ void UInventoryGridWidget::AddItemWidgetToGrid(UCanvasPanel* GridCanvasPanel, UW
 		return;
 
 	UCanvasPanelSlot* PanelSlot = GridCanvasPanel->AddChildToCanvas(Content);
-	
+
 	const float XPos = (TopLeft % Width) * TileSize;
 	const float YPos = (TopLeft / Width) * TileSize;
 	PanelSlot->SetAutoSize(true);
@@ -117,14 +117,14 @@ void UInventoryGridWidget::CreateNewItem(UCanvasPanel* GridCanvasPanel, const FM
 
 void UInventoryGridWidget::FullRefresh(UCanvasPanel* GridCanvasPanel)
 {
-	for(int Id = ItemList.Num()-1; Id >=0; --Id)
+	for (int Id = ItemList.Num() - 1; Id >= 0; --Id)
 	{
 		UnRegisterItem(ItemList[Id]);
 	}
-	
+
 	GridCanvasPanel->ClearChildren();
-	
-	for(auto & NewItem : GetItemData())
+
+	for (auto& NewItem : GetItemData())
 	{
 		CreateNewItem(GridCanvasPanel, NewItem);
 	}
@@ -166,7 +166,7 @@ void UInventoryGridWidget::ResizeBagArea(int32 InputWidth, int32 InputHeight)
 
 //----------------------------------------------------------------------------------------------------------------------
 
-void UInventoryGridWidget::InitData(AActor* Owner, EBagSlot InputBagSlot)
+void UInventoryGridWidget::InitData(AActor* Owner, EBagSlot InputBagSlot, int32 Width, int32 Height)
 {
 	ActorOwner = Owner;
 	BagID = InputBagSlot;
@@ -180,26 +180,27 @@ void UInventoryGridWidget::InitData(AActor* Owner, EBagSlot InputBagSlot)
 	//these are internal bags of the inventory
 	if (BagID == EBagSlot::Pocket1 || BagID == EBagSlot::Pocket2)
 	{
-		ResizeBagArea(3, 2);
+		ResizeBagArea(Width > 0 ? Width : 3, Height > 0 ? Height : 2);
 		PC->GetInventoryComponent()->FullInventoryDispatcher.AddDynamic(this, &UInventoryGridWidget::Refresh);
 	}
 	else if (BagID == EBagSlot::LootPool)
 	{
-		ResizeBagArea(8, 8);
+		ResizeBagArea(Width > 0 ? Width : 8, Height > 0 ? Height : 8);
 
 		Cast<ILootableInterface>(ActorOwner)->GetLootPoolDelegate().
 		                                      AddDynamic(this, &UInventoryGridWidget::Refresh);
 	}
 	else if (BagID == EBagSlot::BankPool)
 	{
-		ResizeBagArea(8, 16);
-		PC->GetBankComponent()->BankPoolDispatcher. AddDynamic(this, &UInventoryGridWidget::Refresh);
+		ResizeBagArea(Width > 0 ? Width : 8, Height > 0 ? Height : 16);
+		PC->GetBankComponent()->BankPoolDispatcher.AddDynamic(this, &UInventoryGridWidget::Refresh);
 	}
 	else
 	{
 		const EEquipmentSlot RelatedSlot = UInventoryComponent::GetInventorySlotFromBagSlot(BagID);
 
-		const UInventoryItemBag* BagItem = Cast<UInventoryItemBag>(PC->GetEquipmentForInventory()->GetEquippedItem(RelatedSlot));
+		const UInventoryItemBag* BagItem = Cast<UInventoryItemBag>(
+			PC->GetEquipmentForInventory()->GetEquippedItem(RelatedSlot));
 
 		ensure(BagItem);
 		ResizeBagArea(BagItem->BagWidth, BagItem->BagHeight);

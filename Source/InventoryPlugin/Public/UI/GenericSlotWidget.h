@@ -17,7 +17,7 @@ class INVENTORYPLUGIN_API UGenericSlotWidget : public UItemBaseWidget
 
 protected:
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Inventory")
+	UPROPERTY(BlueprintReadWrite, Category = "Inventory")
 	UImage* BackgroundImagePointer = nullptr;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Inventory")

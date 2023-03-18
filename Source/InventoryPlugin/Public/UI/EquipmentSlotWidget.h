@@ -24,10 +24,10 @@ protected:
 	UFUNCTION(BlueprintCallable)
 	void InitData();
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Inventory|Equipment")
+	UPROPERTY(BlueprintReadWrite, Category = "Inventory|Equipment")
 	UTextBlock* TextSlot1 = nullptr;
 	
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Inventory|Equipment")
+	UPROPERTY(BlueprintReadWrite, Category = "Inventory|Equipment")
 	UTextBlock* TextSlot2 = nullptr;
 
 	//this is a pointer used to handle two slots items
