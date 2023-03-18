@@ -5,6 +5,7 @@
 #include <CoreMinimal.h>
 #include <Components/ActorComponent.h>
 
+#include "Definitions.h"
 #include "Items/InventoryItemEquipable.h"
 #include "EquipmentComponent.generated.h"
 
