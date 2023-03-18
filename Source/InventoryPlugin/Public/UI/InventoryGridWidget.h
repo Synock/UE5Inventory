@@ -93,11 +93,11 @@ public:
 	 * @brief Init the grid data for the inventory.
 	 * @param Owner Owning actor
 	 * @param InputBagSlot Considered bag slot
-	 * @param Width if the bag is not an item, the grid width may be overriden by this value
-	 * @param Height if the bag is not an item, the grid height may be overriden by this value
+	 * @param InputWidth if the bag is not an item, the grid width may be overriden by this value
+	 * @param InputHeight if the bag is not an item, the grid height may be overriden by this value
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Inventory|Data")
-	void InitData(AActor* Owner, EBagSlot InputBagSlot, int32 Width  = -1, int32 Height = -1);
+	void InitData(AActor* Owner, EBagSlot InputBagSlot, int32 InputWidth  = -1, int32 InputHeight = -1);
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Data")
 	EBagSlot GetBagID() const { return BagID; }
