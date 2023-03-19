@@ -15,8 +15,11 @@ ULootPoolComponent::ULootPoolComponent()
 
 //----------------------------------------------------------------------------------------------------------------------
 
-void ULootPoolComponent::Init_Implementation(const TArray<int32>& LootableItems)
+void ULootPoolComponent::Init(const TArray<int32>& LootableItems)
 {
+	if(!GetOwner()->HasAuthority())
+		return;
+
 	TArray<const UInventoryItemBase*> ItemArray;
 	ItemArray.Reserve(LootableItems.Num());
 	for (int32 ItemID : LootableItems)
@@ -24,10 +27,7 @@ void ULootPoolComponent::Init_Implementation(const TArray<int32>& LootableItems)
 		ItemArray.Add(UInventoryUtilities::GetItemFromID(ItemID, GetWorld()));
 	}
 
-	int32 W = 8;
-	int32 H = 8;
-
-	GridBagSolver Solver(W, H);
+	GridBagSolver Solver(Width, Height);
 	for (auto& Item : ItemArray)
 	{
 		int32 TopLeft = Solver.GetFirstValidTopLeft(Item);
@@ -86,7 +86,6 @@ void ULootPoolComponent::RemoveItem_Implementation(int32 TopLeftIndex)
 
 //----------------------------------------------------------------------------------------------------------------------
 
-// Called when the game starts
 void ULootPoolComponent::BeginPlay()
 {
 	Super::BeginPlay();

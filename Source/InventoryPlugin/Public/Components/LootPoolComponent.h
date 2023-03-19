@@ -27,8 +27,11 @@ protected:
 	UPROPERTY(ReplicatedUsing = OnRep_LootPool, BlueprintReadWrite, Category = "Inventory|LootPool")
 	TArray<FMinimalItemStorage> Items;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|LootPool")
+	UPROPERTY(BlueprintReadOnly, Category = "Inventory|LootPool")
 	EBagSlot LocalBagSlot = EBagSlot::LootPool;
+
+	uint32 Width = 8;
+	uint32 Height = 16;
 
 public:
 	UPROPERTY(BlueprintAssignable, Category = "Inventory|LootPool")
@@ -43,7 +46,7 @@ public:
 	UFUNCTION(Server, reliable, BlueprintCallable, Category = "Inventory|LootPool")
 	void RemoveItem(int32 TopLeftIndex);
 
-	UFUNCTION(Server, reliable, BlueprintCallable, Category = "Inventory|LootPool")
+	UFUNCTION(BlueprintCallable, Category = "Inventory|LootPool")
 	void Init(const TArray<int32>& LootableItems);
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory|LootPool")

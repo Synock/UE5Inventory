@@ -6,7 +6,7 @@
 #include <Kismet/BlueprintFunctionLibrary.h>
 #include "Definitions.h"
 #include "CoinValue.h"
-#include "InventoryItem.h"
+#include "Items/InventoryItemBase.h"
 #include "InventoryUtilities.generated.h"
 
 /**
