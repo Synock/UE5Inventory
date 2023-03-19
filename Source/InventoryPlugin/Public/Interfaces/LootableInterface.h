@@ -50,7 +50,7 @@ public:
 	virtual void DestroyLootActor() = 0;
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Loot")
-	virtual FString GetName() const = 0;
+	virtual FString GetLootActorName() const = 0;
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Loot")
 	virtual void InitLootPool(const TArray<int32>& LootableItems);

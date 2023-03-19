@@ -9,7 +9,7 @@ void ULootScreenWidget::InitLootData(AActor* InputLootedActor)
 	{
 		LootedActor.SetObject(InputLootedActor);
 		LootedActor.SetInterface(Interface);
-		LootName = Interface->GetName();
+		LootName = Interface->GetLootActorName();
 		LootedActor = InputLootedActor;
 	}
 }
