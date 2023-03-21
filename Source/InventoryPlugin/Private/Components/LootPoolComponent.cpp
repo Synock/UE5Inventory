@@ -24,7 +24,12 @@ void ULootPoolComponent::Init(const TArray<int32>& LootableItems)
 	ItemArray.Reserve(LootableItems.Num());
 	for (int32 ItemID : LootableItems)
 	{
-		ItemArray.Add(UInventoryUtilities::GetItemFromID(ItemID, GetWorld()));
+		const UInventoryItemBase* LocalItem = UInventoryUtilities::GetItemFromID(ItemID, GetWorld());
+
+		if(!LocalItem)
+			continue;
+
+		ItemArray.Add(LocalItem);
 	}
 
 	GridBagSolver Solver(Width, Height);
