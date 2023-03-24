@@ -220,7 +220,7 @@ TArray<FMerchantItemDataStruct> UMerchantSellWidget::GetDynamicDataDisplayable()
 	{
 		for (const auto& Item : MerchantActor->GetDynamicItemsConst())
 		{
-			if (const UInventoryItemBase* LocalBareItem = UInventoryUtilities::GetItemFromID(Item.ItemID, GetWorld()); LocalBareItem->ItemID >= 0)
+			if (const UInventoryItemBase* LocalBareItem = UInventoryUtilities::GetItemFromID(Item.ItemID, GetWorld()); LocalBareItem)
 			{
 				Out.Add({
 				   LocalBareItem->ItemID, LocalBareItem->Icon,
