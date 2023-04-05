@@ -309,7 +309,7 @@ void UEquipmentComponent::OnRep_ItemList()
 
 void UEquipmentComponent::EquipItem(const UInventoryItemEquipable* Item, EEquipmentSlot InSlot)
 {
-	if (Equipment[static_cast<int>(InSlot)] != nullptr)
+	if (Equipment[static_cast<int>(InSlot)] == nullptr)
 	{
 		Equipment[static_cast<int>(InSlot)] = Item;
 		Equip(Item, InSlot);
@@ -376,7 +376,7 @@ EEquipmentSlot UEquipmentComponent::FindSuitableSlot(const UInventoryItemEquipab
 {
 	for (size_t i = 1; i < Equipment.Num(); ++i)
 	{
-		if (Equipment[i])
+		if (!Equipment[i])
 		{
 			const int32 LocalAcceptableBitMask = std::pow(2., static_cast<double>(i));
 			const EEquipmentSlot CurrentSlot = static_cast<EEquipmentSlot>(i);

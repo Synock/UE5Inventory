@@ -199,6 +199,9 @@ TArray<FMerchantItemDataStruct> UMerchantSellWidget::GetStaticDataDisplayable()
 		for (const auto& Item : MerchantActor->GetStaticItemsConst())
 		{
 			const UInventoryItemBase* LocalBareItem = UInventoryUtilities::GetItemFromID(Item, GetWorld());
+			if(!LocalBareItem)
+				continue;
+
 			Out.Add({
 				LocalBareItem->ItemID, LocalBareItem->Icon, LocalBareItem->Name,
 				-1,
