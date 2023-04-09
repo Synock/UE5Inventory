@@ -352,16 +352,19 @@ void UMerchantSellWidget::AssignSellData(int32 ItemID, int32 TopLeft, EBagSlot O
 
 void UMerchantSellWidget::OnNotEnoughPlayerMoney()
 {
+	OnNotEnoughPlayerMoneyDelegate.Broadcast();
 }
 
 //----------------------------------------------------------------------------------------------------------------------
 
 void UMerchantSellWidget::OnNotEnoughPlayerSpace()
 {
+	OnNotEnoughPlayerSpaceDelegate.Broadcast();
 }
 
 //----------------------------------------------------------------------------------------------------------------------
 
 void UMerchantSellWidget::OnNotEnoughMerchantMoney()
 {
+	OnNotEnoughMerchantMoneyDelegate.Broadcast();
 }

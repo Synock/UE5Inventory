@@ -15,6 +15,13 @@
 #include "UI/PurseWidget.h"
 #include "MerchantSellWidget.generated.h"
 
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FNotEnoughPlayerMoney);
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FNotEnoughPlayerSpace);
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FNotEnoughMerchantMoney);
+
 UENUM(BlueprintType)
 enum class EMerchantWindowMode : uint8
 {
@@ -29,7 +36,7 @@ UCLASS()
 class INVENTORYPLUGIN_API UMerchantSellWidget : public UUserWidget
 {
 	GENERATED_BODY()
-	
+
 protected:
 	//------------------------------------------------------------------------------------------------------------------
 	// UI Elements
@@ -52,10 +59,10 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category="Inventory|Merchant|UI")
 	UTextBlock* MerchantNameTextPointer = nullptr;
 
-	UPROPERTY(BlueprintReadOnly, Category="Inventory|Merchant|UI" )
+	UPROPERTY(BlueprintReadOnly, Category="Inventory|Merchant|UI")
 	UMerchantItemListWidget* ListWidgetPointer = nullptr;
 
-	UPROPERTY(BlueprintReadOnly, Category="Inventory|Merchant|UI" )
+	UPROPERTY(BlueprintReadOnly, Category="Inventory|Merchant|UI")
 	UPurseWidget* MerchantPursePointer = nullptr;
 
 	//------------------------------------------------------------------------------------------------------------------
@@ -84,8 +91,9 @@ protected:
 
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Inventory|Merchant")
 	void InitUIInternal(UButton* BuySellButton, UImage* ImageIconPreview, UTextBlock* CurrentItemName,
-		UTextBlock* BuySellButtonText, UTextBlock* CurrentItemPrice, UMerchantItemListWidget* ItemListWidget,
-		UPurseWidget* MerchantPurseWidget, UTextBlock* MerchantNameText);
+	                    UTextBlock* BuySellButtonText, UTextBlock* CurrentItemPrice,
+	                    UMerchantItemListWidget* ItemListWidget,
+	                    UPurseWidget* MerchantPurseWidget, UTextBlock* MerchantNameText);
 	//------------------------------------------------------------------------------------------------------------------
 	// Internal Functions - Sell
 	//------------------------------------------------------------------------------------------------------------------
@@ -132,7 +140,6 @@ protected:
 	void StopTrading();
 
 public:
-	
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Inventory|Merchant")
 	void InitMerchantData(AActor* InputMerchantActor);
 
@@ -147,7 +154,7 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Merchant")
 	void ResetSellData();
-	
+
 	//------------------------------------------------------------------------------------------------------------------
 	// Buy
 	//------------------------------------------------------------------------------------------------------------------
@@ -160,5 +167,12 @@ public:
 	virtual void OnNotEnoughPlayerSpace();
 	virtual void OnNotEnoughMerchantMoney();
 
-	
+	UPROPERTY(BlueprintAssignable, Category = "Inventory|Merchant")
+	FNotEnoughPlayerMoney OnNotEnoughPlayerMoneyDelegate;
+
+	UPROPERTY(BlueprintAssignable, Category = "Inventory|Merchant")
+	FNotEnoughPlayerSpace OnNotEnoughPlayerSpaceDelegate;
+
+	UPROPERTY(BlueprintAssignable, Category = "Inventory|Merchant")
+	FNotEnoughMerchantMoney OnNotEnoughMerchantMoneyDelegate;
 };
