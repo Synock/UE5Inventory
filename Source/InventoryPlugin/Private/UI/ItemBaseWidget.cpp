@@ -94,6 +94,10 @@ void UItemBaseWidget::UpdateItemImage()
 	if (Item && Item->Icon)
 	{
 		UTexture2D* Tex = Item->Icon;
+
+		if(!ItemImagePointer)
+			return;
+
 		ItemImagePointer->SetDesiredSizeOverride({TileSize, TileSize});
 		ItemImagePointer->SetBrushFromTexture(Tex);
 	}

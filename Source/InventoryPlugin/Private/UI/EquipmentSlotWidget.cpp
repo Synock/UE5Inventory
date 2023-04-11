@@ -125,13 +125,13 @@ void UEquipmentSlotWidget::InnerRefresh()
 
 void UEquipmentSlotWidget::HideItem()
 {
-	Item = nullptr;
-	UGenericSlotWidget::InnerRefresh();
 
+	UGenericSlotWidget::InnerRefresh();
 	if (const UInventoryItemEquipable* Equipable = Cast<UInventoryItemEquipable>(Item); Equipable->TwoSlotsItem && SisterSlot)
 	{
 		SisterSlot->HideItem();
 	}
+	Item = nullptr;
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -171,7 +171,7 @@ bool UEquipmentSlotWidget::CanEquipItem(const UInventoryItemBase* InputItem) con
 
 bool UEquipmentSlotWidget::CanEquipItemAtSlot(const UInventoryItemBase* InputItem, EEquipmentSlot InputSlot)
 {
-	if (InputItem)
+	if (!InputItem)
 	{
 		UE_LOG(LogTemp, Log, TEXT("item is not equippable as it is not a valid item"));
 		return false;

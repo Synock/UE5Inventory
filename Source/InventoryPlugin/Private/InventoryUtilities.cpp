@@ -266,7 +266,7 @@ FString UInventoryUtilities::GetCoinValueAsString(const FCoinValue& CoinValue)
 	}
 	if (CoinValue.SilverPieces)
 	{
-		SilverString += FString::FormatAsNumber(CoinValue.PlatinumPieces) + " Silver";
+		SilverString += FString::FormatAsNumber(CoinValue.SilverPieces) + " Silver";
 	}
 	if (CoinValue.CopperPieces)
 	{
@@ -294,7 +294,7 @@ FString UInventoryUtilities::GetCoinValueAsString(const FCoinValue& CoinValue)
 	if (!CopperString.IsEmpty())
 		ResultString += CopperString;
 
-	ResultString += " Pieces.";
+	ResultString += " pieces";
 
 	return ResultString;
 }
