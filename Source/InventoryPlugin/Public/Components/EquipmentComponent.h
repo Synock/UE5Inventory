@@ -56,14 +56,24 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Bag")
 	UStaticMeshComponent* BackpackComponent;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Neverquest|Sheath")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Sheath")
 	UStaticMeshComponent* PrimaryWeaponSheath;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Neverquest|Sheath")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Sheath")
 	UStaticMeshComponent* SecondaryWeaponSheath;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Neverquest|Sheath")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Sheath")
 	UStaticMeshComponent* BackWeaponSheath;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Equipment")
+	UStaticMeshComponent* EarringLComponent;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Equipment")
+	UStaticMeshComponent* EarringRComponent;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Equipment")
+	UStaticMeshComponent* RingLComponent;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Equipment")
+	UStaticMeshComponent* RingRComponent;
 
 	EEquipmentSocket PrimaryWeaponOriginalSlot = EEquipmentSocket::Unknown;
 	EEquipmentSocket SecondaryWeaponOriginalSlot = EEquipmentSocket::Unknown;

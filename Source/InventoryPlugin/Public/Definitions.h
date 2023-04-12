@@ -37,7 +37,11 @@ enum class EEquipmentSocket : uint8
 	Backpack,
 	PrimarySheath,
 	SecondarySheath,
-	BackSheath
+	BackSheath,
+	EarL,
+	EarR,
+	RingL,
+	RingR,
 };
 
 UENUM(BlueprintType, Meta = (Bitflags))

@@ -38,6 +38,12 @@ UStaticMeshComponent* UEquipmentComponent::GetMeshComponentFromSocket(EEquipment
 	case EEquipmentSocket::Unknown: return nullptr;
 	case EEquipmentSocket::Primary: return PrimaryWeaponComponent;
 	case EEquipmentSocket::Secondary: return SecondaryWeaponComponent;
+
+	case EEquipmentSocket::EarL: return EarringLComponent;
+	case EEquipmentSocket::EarR: return EarringRComponent;
+	case EEquipmentSocket::RingR: return RingRComponent;
+	case EEquipmentSocket::RingL: return RingLComponent;
+
 	default: return nullptr;
 	}
 }
@@ -126,6 +132,18 @@ EEquipmentSocket UEquipmentComponent::FindBestSocketForItem(const UInventoryItem
 				return EEquipmentSocket::Backpack;
 			return EEquipmentSocket::ShoulderBag2;
 		}
+
+	case EEquipmentSlot::EarL :
+		return EEquipmentSocket::EarL;
+
+	case EEquipmentSlot::EarR :
+		return EEquipmentSocket::EarR;
+
+	case EEquipmentSlot::FingerL :
+		return EEquipmentSocket::EarL;
+
+	case EEquipmentSlot::FingerR :
+		return EEquipmentSocket::RingR;
 	default: ;
 	}
 
@@ -249,6 +267,15 @@ UEquipmentComponent::UEquipmentComponent()
 	SecondaryWeaponSheath->SetIsReplicated(true);
 	BackWeaponSheath = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("BackWeaponSheathComponentMesh"));
 	BackWeaponSheath->SetIsReplicated(true);
+
+	EarringLComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("EarringLComponent"));
+	EarringLComponent->SetIsReplicated(true);
+	EarringRComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("EarringRComponent"));
+	EarringRComponent->SetIsReplicated(true);
+	RingLComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("RingLComponent"));
+	RingLComponent->SetIsReplicated(true);
+	RingRComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("RingRComponent"));
+	RingRComponent->SetIsReplicated(true);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -283,9 +310,15 @@ void UEquipmentComponent::BeginPlay()
 	ShoulderBag2Component->AttachToComponent(PlayerMesh, AttachmentTransformRules,  FName("SOCKET_ShoulderBag2"));
 	BackpackComponent->AttachToComponent(PlayerMesh, AttachmentTransformRules,  FName("SOCKET_Backpack"));
 
-	PrimaryWeaponSheath->AttachToComponent(PlayerMesh, AttachmentTransformRules,  FName("SOCKET_PrimaryScabbard"));
-	SecondaryWeaponSheath->AttachToComponent(PlayerMesh, AttachmentTransformRules,  FName("SOCKET_SecondaryScabbard"));
-	BackWeaponSheath->AttachToComponent(PlayerMesh, AttachmentTransformRules,  FName("SOCKET_BackWeaponScabbard"));
+	PrimaryWeaponSheath->AttachToComponent(PlayerMesh, AttachmentTransformRules,  FName("PrimarySheath"));
+	SecondaryWeaponSheath->AttachToComponent(PlayerMesh, AttachmentTransformRules,  FName("SecondarySheath"));
+	BackWeaponSheath->AttachToComponent(PlayerMesh, AttachmentTransformRules,  FName("BackSheath"));
+
+	RingLComponent->AttachToComponent(PlayerMesh, AttachmentTransformRules,  FName("RingL"));
+	RingRComponent->AttachToComponent(PlayerMesh, AttachmentTransformRules,  FName("RingR"));
+
+	EarringLComponent->AttachToComponent(PlayerMesh, AttachmentTransformRules,  FName("EarR"));
+	EarringRComponent->AttachToComponent(PlayerMesh, AttachmentTransformRules,  FName("EarL"));
 	// ...
 }
 
