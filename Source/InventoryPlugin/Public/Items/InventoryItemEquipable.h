@@ -32,4 +32,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Weapon")
 	bool Weapon = false;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Visual")
+	USkeletalMesh* EquipmentMesh = nullptr;
+
 };

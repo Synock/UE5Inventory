@@ -140,7 +140,7 @@ EEquipmentSocket UEquipmentComponent::FindBestSocketForItem(const UInventoryItem
 		return EEquipmentSocket::EarR;
 
 	case EEquipmentSlot::FingerL :
-		return EEquipmentSocket::EarL;
+		return EEquipmentSocket::RingL;
 
 	case EEquipmentSlot::FingerR :
 		return EEquipmentSocket::RingR;
