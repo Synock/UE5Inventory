@@ -26,7 +26,7 @@ protected:
 
 	UPROPERTY(BlueprintReadWrite, Category = "Inventory|Equipment")
 	UTextBlock* TextSlot1 = nullptr;
-	
+
 	UPROPERTY(BlueprintReadWrite, Category = "Inventory|Equipment")
 	UTextBlock* TextSlot2 = nullptr;
 
@@ -34,7 +34,7 @@ protected:
 	// Only the first slot must reference the second to avoid cyclic calls
 	UPROPERTY(BlueprintReadOnly, Category = "Inventory|Equipment")
 	UEquipmentSlotWidget* SisterSlot = nullptr;
-	
+
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Inventory|Equipment")
 	EEquipmentSlot SlotID = EEquipmentSlot::Unknown;
 
@@ -54,14 +54,13 @@ protected:
 	virtual void HideItem() override;
 
 public:
-
 	virtual void StopDrag() override;
 
 	UFUNCTION(BlueprintCallable)
 	void SetSisterSlot(UEquipmentSlotWidget* NewSisterSlot);
-	
+
 	UFUNCTION(BlueprintCallable)
-	bool CanEquipItem(const UInventoryItemBase* InputItem) const;
+	virtual bool CanEquipItem(const UInventoryItemBase* InputItem) const;
 
 	UFUNCTION(BlueprintCallable)
 	static bool CanEquipItemAtSlot(const UInventoryItemBase* InputItem, EEquipmentSlot InputSlot);
