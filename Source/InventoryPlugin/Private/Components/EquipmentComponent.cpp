@@ -347,7 +347,7 @@ void UEquipmentComponent::EquipItem(const UInventoryItemEquipable* Item, EEquipm
 		Equipment[static_cast<int>(InSlot)] = Item;
 		Equip(Item, InSlot);
 		EquipmentDispatcher_Server.Broadcast();
-		ItemEquipedDispatcher_Server.Broadcast(InSlot, Item);
+		//ItemEquipedDispatcher_Server.Broadcast(InSlot, Item);
 	}
 }
 
@@ -383,7 +383,7 @@ bool UEquipmentComponent::RemoveItem(EEquipmentSlot InSlot)
 		return false;
 
 	UnEquip(Equipment[static_cast<int>(InSlot)], InSlot);
-	ItemUnEquipedDispatcher_Server.Broadcast(InSlot, Equipment[static_cast<int>(InSlot)]);
+	//ItemUnEquipedDispatcher_Server.Broadcast(InSlot, Equipment[static_cast<int>(InSlot)]);
 
 	Equipment[static_cast<int>(InSlot)] = nullptr;
 	EquipmentDispatcher_Server.Broadcast();
