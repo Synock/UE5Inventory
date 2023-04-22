@@ -32,10 +32,10 @@ protected:
 	UPROPERTY(ReplicatedUsing = OnRep_ItemList)
 	TArray<const UInventoryItemEquipable*> Equipment;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Neverquest|Weapon")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Weapon")
 	UStaticMeshComponent* PrimaryWeaponComponent;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Neverquest|Weapon")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Weapon")
 	UStaticMeshComponent* SecondaryWeaponComponent;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Bag")

@@ -1,11 +1,8 @@
 # Unreal Engine 5 Inventory proof of concept
 
-
-## Notice: This version of the repository will be updated to a more modern, plugin based approach which will completely break its current behavior.
 This repo is a proof of concept, grid based, fully replicated inventory and equipment system for unreal engine 5.
 
-For convenience, it also includes a separated money, merchant and loot system.
-
+You will find find the following feature included:
 * Grid based
 * Replicated
 * Extensible bag system
@@ -14,6 +11,16 @@ For convenience, it also includes a separated money, merchant and loot system.
 * Monetary system
 * Loot system
 * Merchant system
+* Banking system
+* Trading system
+
+Despite some effort to make this plugin a bit more generic, you'd better be off forking this repo and and tailoring it to you needs.
+
+## Integration tutorial:
+
+You can find a this plugin integrated and used, including an in depth explanation of the necessary integration steps in this repository : https://github.com/Synock/UE5PluginIntegration
+
+![Inventory Example](./Images/InventoryExample.png?raw=true "InventoryExample")
 
 ## Foreword and philosophy
 
@@ -75,9 +82,3 @@ ListWidget is a code adaptation from https://www.youtube.com/watch?v=JyMEAx8-nbY
 Players can loot specific actors to gain access to new items and money.
 This Looting system is replicated and allow a simple one player access to the items at once.
 An automatic looting button is present.
-
-## Example interaction
-* M - Alt-M Open merchant interface (merchant 1 and 2)
-* L - ALt+L Loot actor (actor 1 and 2)
-* T - Force refresh the inventory
-* Right click - Auto-equip or auto-loot item
