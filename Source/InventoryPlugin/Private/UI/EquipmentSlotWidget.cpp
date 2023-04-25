@@ -34,6 +34,10 @@ bool UEquipmentSlotWidget::HandleItemDrop(UItemWidget* InputItem)
 	if (!InputItem->GetReferencedItem())
 		return false;
 
+	//Can't swap itself
+	if(InputItem->GetOriginalSlot() == SlotID)
+		return false;
+
 	if (!CanEquipItem(InputItem->GetReferencedItem()))
 		return false;
 
@@ -51,7 +55,11 @@ bool UEquipmentSlotWidget::HandleItemDrop(UItemWidget* InputItem)
 	{
 		if (InputItem->IsFromEquipment())
 		{
-			if (CanEquipItemAtSlot(Item, InputItem->GetOriginalSlot()))
+			if(!Item)
+			{
+				PC->PlayerSwapEquipment(ItemID, SlotID, 0, InputItem->GetOriginalSlot());
+			}
+			else if (CanEquipItemAtSlot(Item, InputItem->GetOriginalSlot()))
 			{
 				PC->PlayerSwapEquipment(ItemID, SlotID, Item->ItemID, InputItem->GetOriginalSlot());
 			}
