@@ -55,7 +55,7 @@ void IEquipmentInterface::EquipItem(EEquipmentSlot InSlot, int32 InItemId)
 		return;
 
 	GetEquipmentComponent()->EquipItem(LocalItem, InSlot);
-	HandleEquipmentEffect(InSlot, LocalItem);
+	//HandleEquipmentEffect(InSlot, LocalItem);
 }
 
 //----------------------------------------------------------------------------------------------------------------------

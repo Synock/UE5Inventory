@@ -155,6 +155,10 @@ EEquipmentSocket UEquipmentComponent::FindBestSocketForItem(const UInventoryItem
 void UEquipmentComponent::Unsheath(EEquipmentSlot SlotToUnsheath)
 {
 	const UInventoryItemEquipable* Item = Equipment[static_cast<int>(SlotToUnsheath)];
+
+	if(!Item)
+		return;
+
 	const EEquipmentSocket SheathSocket = FindBestSocketForItem(Item, SlotToUnsheath);
 
 	if (SheathSocket != EEquipmentSocket::PrimarySheath && SheathSocket != EEquipmentSocket::SecondarySheath &&
@@ -209,7 +213,7 @@ void UEquipmentComponent::Sheath()
 	{
 		UStaticMeshComponent* ReturnSocket = GetMeshComponentFromSocket(PrimaryWeaponOriginalSlot);
 
-		if (!ReturnSocket || !ReturnSocket->GetStaticMesh())
+		if (!ReturnSocket || ReturnSocket->GetStaticMesh())
 			return;
 
 		UStaticMesh* MeshPointer = PrimaryWeaponComponent->GetStaticMesh();
@@ -221,7 +225,7 @@ void UEquipmentComponent::Sheath()
 	{
 		UStaticMeshComponent* ReturnSocket = GetMeshComponentFromSocket(SecondaryWeaponOriginalSlot);
 
-		if (!ReturnSocket || !ReturnSocket->GetStaticMesh())
+		if (!ReturnSocket || ReturnSocket->GetStaticMesh())
 			return;
 
 		UStaticMesh* MeshPointer = SecondaryWeaponComponent->GetStaticMesh();
@@ -347,7 +351,7 @@ void UEquipmentComponent::EquipItem(const UInventoryItemEquipable* Item, EEquipm
 		Equipment[static_cast<int>(InSlot)] = Item;
 		Equip(Item, InSlot);
 		EquipmentDispatcher_Server.Broadcast();
-		//ItemEquipedDispatcher_Server.Broadcast(InSlot, Item);
+		ItemEquipedDispatcher_Server.Broadcast(InSlot, Item);
 	}
 }
 
@@ -383,7 +387,7 @@ bool UEquipmentComponent::RemoveItem(EEquipmentSlot InSlot)
 		return false;
 
 	UnEquip(Equipment[static_cast<int>(InSlot)], InSlot);
-	//ItemUnEquipedDispatcher_Server.Broadcast(InSlot, Equipment[static_cast<int>(InSlot)]);
+	ItemUnEquipedDispatcher_Server.Broadcast(InSlot, Equipment[static_cast<int>(InSlot)]);
 
 	Equipment[static_cast<int>(InSlot)] = nullptr;
 	EquipmentDispatcher_Server.Broadcast();
