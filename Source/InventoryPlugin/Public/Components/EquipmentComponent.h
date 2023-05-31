@@ -38,6 +38,12 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Weapon")
 	UStaticMeshComponent* SecondaryWeaponComponent;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Weapon")
+	USkeletalMeshComponent* PrimaryWeaponComponentSkeletal;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Weapon")
+	USkeletalMeshComponent* SecondaryWeaponComponentSkeletal;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Bag")
 	UStaticMeshComponent* AmmoComponent;
 
@@ -92,6 +98,8 @@ protected:
 public:
 
 	UStaticMeshComponent* GetMeshComponentFromSocket(EEquipmentSocket Socket) const;
+
+	USkeletalMeshComponent* GetSkeletalMeshComponentFromSocket(EEquipmentSocket Socket) const;
 	
 	UPROPERTY(BlueprintAssignable, Category = "Inventory|Equipment")
 	FOnEquipmentChanged EquipmentDispatcher;
