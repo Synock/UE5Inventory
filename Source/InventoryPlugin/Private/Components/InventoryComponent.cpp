@@ -162,10 +162,9 @@ bool UInventoryComponent::RemoveItemIfPossible(int32 ItemID)
 
 bool UInventoryComponent::PlayerRemoveAnyItemIfPossible(const TArray<int32>& ItemID)
 {
-
-	for(int32 ID : ItemID)
+	for (int32 ID : ItemID)
 	{
-		if(RemoveItemIfPossible(ID))
+		if (RemoveItemIfPossible(ID))
 			return true;
 	}
 	return false;
@@ -216,6 +215,21 @@ EBagSlot UInventoryComponent::GetBagSlotFromInventory(EEquipmentSlot ConsideredI
 	case EEquipmentSlot::BackPack2: return EBagSlot::BackPack2;
 	default: return EBagSlot::Unknown;
 	}
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+TArray<int32> UInventoryComponent::GetAllItems() const
+{
+	TArray<int32> ItemList;
+	for (auto& Bag : VariableBags)
+	{
+		for (auto& BagItem : Bag.Bag->GetBagConst())
+		{
+			ItemList.Add(BagItem.ItemID);
+		}
+	}
+	return ItemList;
 }
 
 //----------------------------------------------------------------------------------------------------------------------

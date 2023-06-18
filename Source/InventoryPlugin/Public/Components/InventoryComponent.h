@@ -115,4 +115,7 @@ public:
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Inventory")
 	static EBagSlot GetBagSlotFromInventory(EEquipmentSlot ConsideredInventory);
+
+	UFUNCTION(BlueprintCallable,BlueprintPure, Category="Inventory")
+	TArray<int32> GetAllItems() const;
 };
