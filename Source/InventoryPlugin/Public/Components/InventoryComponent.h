@@ -118,4 +118,7 @@ public:
 
 	UFUNCTION(BlueprintCallable,BlueprintPure, Category="Inventory")
 	TArray<int32> GetAllItems() const;
+
+	UFUNCTION(BlueprintCallable, Category="Inventory")
+	void RemoveAllItems();
 };

@@ -234,6 +234,19 @@ TArray<int32> UInventoryComponent::GetAllItems() const
 
 //----------------------------------------------------------------------------------------------------------------------
 
+void UInventoryComponent::RemoveAllItems()
+{
+	for (auto& Bag : VariableBags)
+	{
+		for (auto& BagItem : Bag.Bag->GetBagConst())
+		{
+			RemoveItem(Bag.Slot, BagItem.TopLeftID);
+		}
+	}
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 UBagStorage* UInventoryComponent::GetRelatedBag(EBagSlot InputSlot) const
 {
 	if (BagLUT.Contains(InputSlot))

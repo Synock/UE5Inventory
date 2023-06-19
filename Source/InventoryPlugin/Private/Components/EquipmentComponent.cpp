@@ -474,6 +474,14 @@ bool UEquipmentComponent::RemoveItem(EEquipmentSlot InSlot)
 
 //----------------------------------------------------------------------------------------------------------------------
 
+void UEquipmentComponent::RemoveAll()
+{
+	for (uint32 SlotId = 0; SlotId < static_cast<uint32>(EEquipmentSlot::Last); ++SlotId)
+		RemoveItem(static_cast<EEquipmentSlot>(SlotId));
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 float UEquipmentComponent::GetTotalWeight() const
 {
 	float TotalWeight = 0.f;
@@ -493,7 +501,7 @@ EEquipmentSlot UEquipmentComponent::FindSuitableSlot(const UInventoryItemEquipab
 	{
 		if (!Equipment[i])
 		{
-			const int32 LocalAcceptableBitMask = std::pow(2., static_cast<double>(i));
+			const int32 LocalAcceptableBitMask = 1 << i;
 			const EEquipmentSlot CurrentSlot = static_cast<EEquipmentSlot>(i);
 			if (Item->EquipableSlotBitMask & LocalAcceptableBitMask)
 			{
