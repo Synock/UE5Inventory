@@ -238,7 +238,8 @@ void UInventoryComponent::RemoveAllItems()
 {
 	for (auto& Bag : VariableBags)
 	{
-		for (auto& BagItem : Bag.Bag->GetBagConst())
+		TArray<FMinimalItemStorage> LocalBagCopy =  Bag.Bag->GetBagConst();
+		for (auto& BagItem : LocalBagCopy)
 		{
 			RemoveItem(Bag.Slot, BagItem.TopLeftID);
 		}

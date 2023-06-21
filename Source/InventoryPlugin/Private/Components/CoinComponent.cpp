@@ -29,7 +29,6 @@ void UCoinComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
 void UCoinComponent::OnRep_PurseData()
 {
 	PurseDispatcher.Broadcast();
-	UE_LOG(LogTemp, Log, TEXT("CALL FROM ONREPURSE %s"), *GetName());
 }
 
 //----------------------------------------------------------------------------------------------------------------------
