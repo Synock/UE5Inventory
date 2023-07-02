@@ -107,15 +107,14 @@ bool UEquipmentComponent::UnEquip(const UInventoryItemEquipable* Item, EEquipmen
 	// skeletal mesh have precedence over static mesh
 	if (Item->EquipmentMesh)
 	{
-		USkeletalMeshComponent* SkeletalSocket = GetSkeletalMeshComponentFromSocket(PossibleSocket);
-		if (SkeletalSocket)
+		if (USkeletalMeshComponent* SkeletalSocket = GetSkeletalMeshComponentFromSocket(PossibleSocket))
 		{
 			SkeletalSocket->SetSkeletalMeshAsset(nullptr);
 			return true;
 		}
 	}
 
-	UStaticMesh* StaticMesh = Item->Mesh;
+	const UStaticMesh* StaticMesh = Item->Mesh;
 
 	if (!StaticMesh)
 		return false;
@@ -124,6 +123,18 @@ bool UEquipmentComponent::UnEquip(const UInventoryItemEquipable* Item, EEquipmen
 
 	if (!WantedSocket)
 		return false;
+
+	if(!WantedSocket->GetStaticMesh() || !WantedSocket->IsVisible())
+	{
+		if(PrimaryWeaponOriginalSlot == PossibleSocket)
+		{
+			return PrimaryWeaponComponent->SetStaticMesh(nullptr);
+		}
+		if(SecondaryWeaponOriginalSlot == PossibleSocket)
+		{
+			return SecondaryWeaponComponent->SetStaticMesh(nullptr);
+		}
+	}
 
 	return WantedSocket->SetStaticMesh(nullptr);
 }

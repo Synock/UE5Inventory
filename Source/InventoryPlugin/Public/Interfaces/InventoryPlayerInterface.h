@@ -166,7 +166,7 @@ public:
 	virtual void StartLooting(AActor* Actor);
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Loot")
-	virtual void StopLooting();
+	virtual void StopLooting(AActor* Actor = nullptr);
 
 	//Try to loot an items from the lootpool in equipment then in bags
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Loot")

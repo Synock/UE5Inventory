@@ -17,7 +17,7 @@ class INVENTORYPLUGIN_API UInventoryEquipmentWidget : public UUserWidget
 protected:
 
 	UFUNCTION(BlueprintCallable)
-	bool HandleItemDrop(class UItemWidget* InputItem);
+	virtual bool HandleItemDrop(class UItemWidget* InputItem);
 	
 public:
 

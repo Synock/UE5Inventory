@@ -257,9 +257,9 @@ void IInventoryPlayerInterface::StartLooting(AActor* Actor)
 
 //----------------------------------------------------------------------------------------------------------------------
 
-void IInventoryPlayerInterface::StopLooting()
+void IInventoryPlayerInterface::StopLooting(AActor* Actor )
 {
-	if (GetLootedActor())
+	if (GetLootedActor() && (GetLootedActor() == Actor || Actor == nullptr))
 		Server_StopLooting();
 }
 
