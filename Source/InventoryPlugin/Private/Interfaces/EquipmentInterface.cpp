@@ -197,9 +197,22 @@ void IEquipmentInterface::HandleTwoSlotItemEquip(const UInventoryItemEquipable* 
 			PrimarySlot = EEquipmentSlot::WaistBag1;
 			SecondarySlot = EEquipmentSlot::WaistBag2;
 		}
+		else if (PrimarySlot == EEquipmentSlot::Primary || PrimarySlot == EEquipmentSlot::Secondary)
+		{
+			PrimarySlot = EEquipmentSlot::Primary;
+			SecondarySlot = EEquipmentSlot::Secondary;
+		}
+		else if (PrimarySlot == EEquipmentSlot::Range || PrimarySlot == EEquipmentSlot::Ammo)
+		{
+			PrimarySlot = EEquipmentSlot::Range;
+			SecondarySlot = EEquipmentSlot::Ammo;
+		}
+
 		//fix here
 		//GetEquipmentComponent()->EquipItem(nullptr, SecondarySlot);
 		InSlot = PrimarySlot;
+		//GetEquipmentComponent()->EquipItem(Item->, InSlot);
+
 	}
 }
 
@@ -218,8 +231,12 @@ void IEquipmentInterface::HandleTwoSlotItemUnequip(const UInventoryItemEquipable
 		if (PrimarySlot == EEquipmentSlot::BackPack1)
 			SecondarySlot = EEquipmentSlot::BackPack2;
 
-		if (PrimarySlot == EEquipmentSlot::WaistBag1)
+		else if (PrimarySlot == EEquipmentSlot::WaistBag1)
 			SecondarySlot = EEquipmentSlot::WaistBag2;
+		else if (PrimarySlot == EEquipmentSlot::Primary)
+			SecondarySlot = EEquipmentSlot::Secondary;
+		else if (PrimarySlot == EEquipmentSlot::Range)
+			SecondarySlot = EEquipmentSlot::Ammo;
 
 		GetEquipmentComponent()->RemoveItem(SecondarySlot);
 	}

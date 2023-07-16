@@ -178,6 +178,9 @@ EBagSlot UInventoryComponent::FindSuitableSlot(const UInventoryItemBase* Item, i
 	{
 		if (Bag.Bag->IsValidBag())
 		{
+			if(Item->ItemSize > Bag.Bag->GetMaxStoreSize())
+				continue;
+
 			GridBagSolver Solver = Bag.Bag->GetSolver();
 			OutputTopLeftID = Solver.GetFirstValidTopLeft(Item);
 
@@ -256,6 +259,13 @@ UBagStorage* UInventoryComponent::GetRelatedBag(EBagSlot InputSlot) const
 	check(false);
 	UE_LOG(LogTemp, Error, TEXT("Cannot find related bag"));
 	return nullptr;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+const UBagStorage* UInventoryComponent::GetRelatedBagConst(EBagSlot InputSlot) const
+{
+	return GetRelatedBag(InputSlot);
 }
 
 //----------------------------------------------------------------------------------------------------------------------

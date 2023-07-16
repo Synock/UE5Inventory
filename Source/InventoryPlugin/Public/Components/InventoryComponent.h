@@ -64,6 +64,11 @@ protected:
 	UBagStorage* GetRelatedBag(EBagSlot InputSlot) const;
 
 public:
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Bag")
+	const UBagStorage* GetRelatedBagConst(EBagSlot InputSlot) const;
+
+
 	UPROPERTY(BlueprintAssignable, Category = "Inventory") //this is public because its a dispatcher
 	FOnFullInventoryComponentChanged FullInventoryDispatcher;
 
