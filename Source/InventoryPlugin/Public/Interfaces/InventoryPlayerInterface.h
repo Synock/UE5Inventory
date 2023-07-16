@@ -273,6 +273,9 @@ protected:
 	virtual void Server_TransferCoinTo(UCoinComponent* GivingComponent, UCoinComponent* ReceivingComponent,
 	                                   const FCoinValue& RemovedCoinValue, const FCoinValue& AddedCoinValue) = 0;
 
+	//UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory")
+	virtual void Server_DropItem(int32 TopLeft, EBagSlot Slot) = 0;
+
 	//------------------------------------------------------------------------------------------------------------------
 	// Staging -- Server
 	//------------------------------------------------------------------------------------------------------------------

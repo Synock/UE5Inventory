@@ -56,7 +56,6 @@ void IInventoryPlayerInterface::PlayerSwapEquipment(int32 DroppedItemId, EEquipm
 
 //----------------------------------------------------------------------------------------------------------------------
 
-// Add default functionality here for any IInventoryPlayerInterface functions that are not pure virtual.
 TArray<const UInventoryItemBase*> IInventoryPlayerInterface::GetAllItems() const
 {
 	TArray<const UInventoryItemBase*> ItemsList;
