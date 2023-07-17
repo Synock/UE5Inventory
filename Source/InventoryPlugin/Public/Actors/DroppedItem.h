@@ -6,6 +6,8 @@
 #include "GameFramework/Actor.h"
 #include "DroppedItem.generated.h"
 
+class UInventoryItemBase;
+
 UCLASS()
 class INVENTORYPLUGIN_API ADroppedItem : public AActor
 {
@@ -24,5 +26,7 @@ protected:
 public:
 
 	ADroppedItem();
+
+	virtual void InitializeFromItem(UInventoryItemBase* Item);
 
 };

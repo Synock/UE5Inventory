@@ -274,7 +274,10 @@ protected:
 	                                   const FCoinValue& RemovedCoinValue, const FCoinValue& AddedCoinValue) = 0;
 
 	//UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory")
-	virtual void Server_DropItem(int32 TopLeft, EBagSlot Slot) = 0;
+	virtual void Server_DropItemFromInventory(int32 TopLeft, EBagSlot Slot) = 0;
+
+	//UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory")
+	virtual void Server_DropItemFromEquipment(EEquipmentSlot Slot) = 0;
 
 	//------------------------------------------------------------------------------------------------------------------
 	// Staging -- Server
