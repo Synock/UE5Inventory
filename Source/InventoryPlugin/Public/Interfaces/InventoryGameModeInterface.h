@@ -26,9 +26,9 @@ class INVENTORYPLUGIN_API IInventoryGameModeInterface
 	// Add interface functions to this class. This is the class that will be inherited to implement this interface.
 public:
 
-	virtual ADroppedItem* SpawnItemFromActor(AActor* SpawningActor, uint32 ItemID, bool ClampOnGround = true) = 0;
+	virtual ADroppedItem* SpawnItemFromActor(AActor* SpawningActor, uint32 ItemID, const FVector& DesiredDropLocation, bool ClampOnGround = true) = 0;
 
-	virtual FVector GetItemSpawnLocation(AActor* SpawningActor, bool ClampOnGround = true);
+	virtual FVector GetItemSpawnLocation(AActor* SpawningActor,const FVector& DesiredDropLocation, bool ClampOnGround = true);
 
 	UFUNCTION(BlueprintCallable)
 	virtual UInventoryItemBase* FetchItemFromID(int32 ID) = 0;

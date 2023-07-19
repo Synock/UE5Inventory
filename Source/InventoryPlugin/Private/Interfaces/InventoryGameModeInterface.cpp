@@ -5,16 +5,21 @@
 #include "GameFramework/Actor.h"
 #include "Engine/World.h"
 
-FVector IInventoryGameModeInterface::GetItemSpawnLocation(AActor* SpawningActor, bool ClampOnGround)
+FVector IInventoryGameModeInterface::GetItemSpawnLocation(AActor* SpawningActor, const FVector& DesiredDropLocation, bool ClampOnGround)
 {
 	if (!SpawningActor)
-		return {};
+		return DesiredDropLocation;
 
-	const FVector Location = SpawningActor->GetActorLocation();
+	FVector SpawnLocation = DesiredDropLocation;
 
-	const FVector Forward = SpawningActor->GetActorForwardVector() * 0.2;
+	if(SpawnLocation.IsNearlyZero())
+	{
+		const FVector Location = SpawningActor->GetActorLocation();
 
-	FVector SpawnLocation = Location + Forward;
+		const FVector Forward = SpawningActor->GetActorForwardVector() * 0.2;
+
+		SpawnLocation = Location + Forward;
+	}
 
 	if (ClampOnGround)
 	{
@@ -22,8 +27,8 @@ FVector IInventoryGameModeInterface::GetItemSpawnLocation(AActor* SpawningActor,
 		FCollisionQueryParams QueryParams;
 		QueryParams.bDebugQuery = true;
 		QueryParams.bTraceComplex = true;
-		if (SpawningActor->GetWorld()->LineTraceSingleByChannel(HitResult, Location + FVector(0, 0, 50),
-		                                                        Location - FVector(0, 0, 1000),
+		if (SpawningActor->GetWorld()->LineTraceSingleByChannel(HitResult, SpawnLocation + FVector(0, 0, 50),
+		                                                        SpawnLocation - FVector(0, 0, 1000),
 		                                                        ECollisionChannel::ECC_Visibility, QueryParams))
 		{
 			SpawnLocation = HitResult.Location;

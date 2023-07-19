@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Components/CapsuleComponent.h"
 #include "DroppedItem.generated.h"
 
 class UInventoryItemBase;
@@ -22,6 +23,9 @@ protected:
 
 	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly)
 	int32 ItemID = 0;
+
+	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly)
+	TObjectPtr<UCapsuleComponent> CapsuleComponent = nullptr;
 
 public:
 

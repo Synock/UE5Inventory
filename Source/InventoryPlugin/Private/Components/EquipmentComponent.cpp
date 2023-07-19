@@ -518,7 +518,7 @@ EEquipmentSlot UEquipmentComponent::FindSuitableSlot(const UInventoryItemEquipab
 			{
 				if (Item->TwoSlotsItem)
 				{
-					if (CurrentSlot == EEquipmentSlot::WaistBag1 || CurrentSlot == EEquipmentSlot::BackPack1)
+					if (CurrentSlot == EEquipmentSlot::WaistBag1 || CurrentSlot == EEquipmentSlot::BackPack1 || CurrentSlot == EEquipmentSlot::Primary)
 						return CurrentSlot;
 				}
 				else
