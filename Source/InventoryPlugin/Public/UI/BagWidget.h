@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Definitions.h"
 #include "Blueprint/UserWidget.h"
+#include "Items/InventoryItemBase.h"
 #include "BagWidget.generated.h"
 
 /**

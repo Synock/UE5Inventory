@@ -61,7 +61,7 @@ void UBankComponent::Reorganize_Implementation()
 	GridBagSolver Solver(Width, Height);
 	for (auto& Item : ItemArray)
 	{
-		auto ActualItem = UInventoryUtilities::GetItemFromID(Item.ItemId, GetWorld());
+		const auto ActualItem = UInventoryUtilities::GetItemFromID(Item.ItemId, GetWorld());
 		const int32 TopLeft = Solver.GetFirstValidTopLeft(ActualItem);
 
 		if (TopLeft >= 0)
@@ -87,6 +87,8 @@ void UBankComponent::RemoveItem_Implementation(int32 TopLeftIndex)
 
 		++ID;
 	}
+
+	BankItemRemoveDispatcher.Broadcast(TopLeftIndex);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -94,6 +96,7 @@ void UBankComponent::RemoveItem_Implementation(int32 TopLeftIndex)
 void UBankComponent::AddItem_Implementation(int32 ItemID, int32 TopLeftIndex)
 {
 	Items.Add({ItemID, TopLeftIndex});
+	BankItemAddDispatcher.Broadcast(ItemID, TopLeftIndex);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
