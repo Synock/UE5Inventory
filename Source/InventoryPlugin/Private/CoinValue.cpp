@@ -76,6 +76,13 @@ float FCoinValue::ToFloat() const
 
 //----------------------------------------------------------------------------------------------------------------------
 
+bool FCoinValue::IsEmpty() const
+{
+	return CopperPieces == 0 && SilverPieces == 0 && GoldPieces == 0 && PlatinumPieces == 0;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 void MakeChange(int32& AvailableLow, const int32& NeededLow, int32& AvailableCurrent, const int32& NeededCurrent,
                 int32& NeededHigher)
 {

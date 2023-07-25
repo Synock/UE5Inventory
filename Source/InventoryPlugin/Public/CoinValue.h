@@ -46,6 +46,9 @@ struct INVENTORYPLUGIN_API FCoinValue
 	//@brief Convert coins to float.
 	float ToFloat() const;
 
+	//@brief return if the coin value is empty.
+	bool IsEmpty() const;
+
 	//@brief Adjust both AvailableCoins and NeededCoins to allow for a payment without changing the actual value.
 	static bool RetrieveValue(FCoinValue& AvailableCoins, FCoinValue& NeededCoins);
 

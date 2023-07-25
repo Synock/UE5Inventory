@@ -4,27 +4,24 @@
 
 #include "CoreMinimal.h"
 #include "AbstractDroppedItem.h"
+#include "CoinValue.h"
 #include "GameFramework/Actor.h"
-#include "DroppedItem.generated.h"
-
-class UInventoryItemBase;
+#include "DroppedCoins.generated.h"
 
 UCLASS()
-class INVENTORYPLUGIN_API ADroppedItem : public AAbstractDroppedItem
+class INVENTORYPLUGIN_API ADroppedCoins : public AAbstractDroppedItem
 {
 	GENERATED_BODY()
 
 protected:
-
 	virtual void BeginPlay() override;
 
 	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly)
-	int32 ItemID = 0;
+	FCoinValue InsideValue;
 
 public:
+	ADroppedCoins();
 
-	ADroppedItem();
-
-	virtual void InitializeFromItem(UInventoryItemBase* Item);
+	virtual void InitializeFromCoinValue(const FCoinValue& Value);
 
 };
