@@ -41,6 +41,7 @@ void UBankComponent::Reorganize_Implementation()
 		int32 ItemId;
 		uint8 ItemSize;
 	};
+
 	TArray<ItemSorter> ItemArray;
 	ItemArray.Reserve(Items.Num());
 
@@ -70,6 +71,8 @@ void UBankComponent::Reorganize_Implementation()
 			Solver.RecordData(ActualItem, TopLeft);
 		}
 	}
+
+	BankReorganizeDispatcher.Broadcast();
 }
 
 //----------------------------------------------------------------------------------------------------------------------
