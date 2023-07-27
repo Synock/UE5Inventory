@@ -30,9 +30,9 @@ protected:
 	UPROPERTY(BlueprintReadWrite, Category = "Inventory|Equipment")
 	UTextBlock* TextSlot2 = nullptr;
 
-	//this is a pointer used to handle two slots items
-	// Only the first slot must reference the second to avoid cyclic calls
-	UPROPERTY(BlueprintReadOnly, Category = "Inventory|Equipment")
+	// This is a pointer used to handle two slots items.
+	// Only the first slot must reference the second to avoid cyclic calls.
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Inventory|Equipment")
 	UEquipmentSlotWidget* SisterSlot = nullptr;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Inventory|Equipment")

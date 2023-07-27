@@ -37,9 +37,13 @@ IInventoryPlayerInterface* UGenericSlotWidget::GetInventoryPlayerInterface() con
 
 void UGenericSlotWidget::InnerRefresh()
 {
-	UpdateItemImageVisibility();
-	UpdateItemImage();
-	UpdateSlotState();
+	if(EnabledSlot)
+	{
+		UpdateItemImageVisibility();
+		UpdateItemImage();
+		UpdateSlotState();
+	}
+
 }
 
 //----------------------------------------------------------------------------------------------------------------------

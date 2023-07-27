@@ -99,7 +99,7 @@ bool IInventoryPlayerInterface::CanUnequipBag(EEquipmentSlot Slot) const
 //----------------------------------------------------------------------------------------------------------------------
 
 bool IInventoryPlayerInterface::PlayerTryAutoLootFunction(int32 InItemId, EEquipmentSlot& PossibleEquipment,
-                                                          int32& InTopLeft, EBagSlot& PossibleBag) const
+                                                          int32& InTopLeft, EBagSlot& PossibleBag)
 {
 	PossibleEquipment = EEquipmentSlot::Unknown;
 	PossibleBag = EBagSlot::Unknown;
@@ -319,7 +319,7 @@ void IInventoryPlayerInterface::PlayerEquipItemFromLoot(int32 InItemId, EEquipme
 
 //----------------------------------------------------------------------------------------------------------------------
 
-bool IInventoryPlayerInterface::PlayerCanPutItemSomewhere(int32 ItemID) const
+bool IInventoryPlayerInterface::PlayerCanPutItemSomewhere(int32 ItemID)
 {
 	EEquipmentSlot TriedSlot = EEquipmentSlot::Unknown;
 	EBagSlot TriedBag = EBagSlot::Unknown;
