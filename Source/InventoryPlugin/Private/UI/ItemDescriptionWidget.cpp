@@ -54,7 +54,7 @@ FString UItemDescriptionWidget::GetSlotString() const
 
 	for (size_t i = 1; i < static_cast<size_t>(EEquipmentSlot::Last); ++i)
 	{
-		const int32 LocalAcceptableBitMask = std::pow(2., static_cast<double>(i));
+		const int32 LocalAcceptableBitMask = 1 << static_cast<uint8_t>(i);
 		const EEquipmentSlot CurrentSlot = static_cast<EEquipmentSlot>(i);
 		if (Equipable->EquipableSlotBitMask & LocalAcceptableBitMask)
 		{
