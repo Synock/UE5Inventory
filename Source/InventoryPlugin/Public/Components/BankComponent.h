@@ -9,6 +9,11 @@
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnBankPoolChangedDelegate);
 
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FBankItemAdd, int32, ItemID, int32, TopLeftIndex);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FBankItemRemove, int32, TopLeftIndex);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnBankReorganize);
+
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class INVENTORYPLUGIN_API UBankComponent : public UActorComponent
 {
@@ -33,6 +38,15 @@ public:
 
 	UPROPERTY(BlueprintAssignable)
 	FOnBankPoolChangedDelegate BankPoolDispatcher;
+
+	UPROPERTY(BlueprintAssignable, BlueprintAuthorityOnly)
+	FBankItemAdd BankItemAddDispatcher;
+
+	UPROPERTY(BlueprintAssignable, BlueprintAuthorityOnly)
+	FBankItemRemove BankItemRemoveDispatcher;
+
+	UPROPERTY(BlueprintAssignable, BlueprintAuthorityOnly)
+	FOnBankReorganize BankReorganizeDispatcher;
 
 	UFUNCTION()
 	void OnRep_BankPool();

@@ -38,6 +38,12 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Weapon")
 	UStaticMeshComponent* SecondaryWeaponComponent;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Weapon")
+	USkeletalMeshComponent* PrimaryWeaponComponentSkeletal;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Weapon")
+	USkeletalMeshComponent* SecondaryWeaponComponentSkeletal;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Bag")
 	UStaticMeshComponent* AmmoComponent;
 
@@ -92,7 +98,9 @@ protected:
 public:
 
 	UStaticMeshComponent* GetMeshComponentFromSocket(EEquipmentSocket Socket) const;
-	
+
+	USkeletalMeshComponent* GetSkeletalMeshComponentFromSocket(EEquipmentSocket Socket) const;
+
 	UPROPERTY(BlueprintAssignable, Category = "Inventory|Equipment")
 	FOnEquipmentChanged EquipmentDispatcher;
 
@@ -123,6 +131,9 @@ public:
 	//Remove the item equipped at the given slot
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Equipment")
 	bool RemoveItem(EEquipmentSlot InSlot);
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Equipment")
+	void RemoveAll();
 
 	//Return the total weight of the equipped items
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Equipment")

@@ -82,7 +82,7 @@ public:
 	//------------------------------------------------------------------------------------------------------------------
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
-	virtual bool PlayerCanPutItemSomewhere(int32 ItemID) const;
+	virtual bool PlayerCanPutItemSomewhere(int32 ItemID);
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	virtual bool PlayerCanPayAmount(const FCoinValue& CoinValue) const;
@@ -113,7 +113,7 @@ public:
 
 	UFUNCTION()
 	virtual bool PlayerTryAutoLootFunction(int32 InItemId, EEquipmentSlot& PossibleEquipment, int32& InTopLeft,
-	                                       EBagSlot& PossibleBag) const;
+	                                       EBagSlot& PossibleBag);
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	virtual bool PlayerHasItem(int32 ItemId);
@@ -166,7 +166,7 @@ public:
 	virtual void StartLooting(AActor* Actor);
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Loot")
-	virtual void StopLooting();
+	virtual void StopLooting(AActor* Actor = nullptr);
 
 	//Try to loot an items from the lootpool in equipment then in bags
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Loot")
@@ -272,6 +272,12 @@ protected:
 	//UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory")
 	virtual void Server_TransferCoinTo(UCoinComponent* GivingComponent, UCoinComponent* ReceivingComponent,
 	                                   const FCoinValue& RemovedCoinValue, const FCoinValue& AddedCoinValue) = 0;
+
+	//UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory")
+	virtual void Server_DropItemFromInventory(int32 TopLeft, EBagSlot Slot, FVector DropLocation = {}) = 0;
+
+	//UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory")
+	virtual void Server_DropItemFromEquipment(EEquipmentSlot Slot, FVector DropLocation = {}) = 0;
 
 	//------------------------------------------------------------------------------------------------------------------
 	// Staging -- Server

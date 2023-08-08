@@ -4,20 +4,22 @@
 #include "Interfaces/InventoryGameModeInterface.h"
 #include "GameFramework/Actor.h"
 #include "Engine/World.h"
-// Add default functionality here for any IInventoryGameModeInterface functions that are not pure virtual.
-void IInventoryGameModeInterface::SpawnItemFromActor(AActor* Actor, uint32 ItemID, bool ClampOnGround)
+
+FVector IInventoryGameModeInterface::GetItemSpawnLocation(AActor* SpawningActor, const FVector& DesiredDropLocation, bool ClampOnGround)
 {
-	if (!Actor)
-		return;
+	if (!SpawningActor)
+		return DesiredDropLocation;
 
-	if (ItemID == 0)
-		return;
+	FVector SpawnLocation = DesiredDropLocation;
 
-	const FVector Location = Actor->GetActorLocation();
+	if(SpawnLocation.IsNearlyZero())
+	{
+		const FVector Location = SpawningActor->GetActorLocation();
 
-	//const FVector Forward = Actor->GetActorForwardVector();//maybe 1m ahead?
+		const FVector Forward = SpawningActor->GetActorForwardVector() * 0.2;
 
-	FVector SpawnLocation = Location;
+		SpawnLocation = Location + Forward;
+	}
 
 	if (ClampOnGround)
 	{
@@ -25,12 +27,13 @@ void IInventoryGameModeInterface::SpawnItemFromActor(AActor* Actor, uint32 ItemI
 		FCollisionQueryParams QueryParams;
 		QueryParams.bDebugQuery = true;
 		QueryParams.bTraceComplex = true;
-		if (Actor->GetWorld()->LineTraceSingleByChannel(HitResult, Location, Location - FVector(0, 0, 1000),
-		                                                ECollisionChannel::ECC_Visibility, QueryParams))
+		if (SpawningActor->GetWorld()->LineTraceSingleByChannel(HitResult, SpawnLocation + FVector(0, 0, 50),
+		                                                        SpawnLocation - FVector(0, 0, 1000),
+		                                                        ECollisionChannel::ECC_Visibility, QueryParams))
 		{
 			SpawnLocation = HitResult.Location;
 		}
 	}
 
-	//spawn actor here
+	return SpawnLocation;
 }

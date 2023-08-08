@@ -56,7 +56,6 @@ void IInventoryPlayerInterface::PlayerSwapEquipment(int32 DroppedItemId, EEquipm
 
 //----------------------------------------------------------------------------------------------------------------------
 
-// Add default functionality here for any IInventoryPlayerInterface functions that are not pure virtual.
 TArray<const UInventoryItemBase*> IInventoryPlayerInterface::GetAllItems() const
 {
 	TArray<const UInventoryItemBase*> ItemsList;
@@ -100,7 +99,7 @@ bool IInventoryPlayerInterface::CanUnequipBag(EEquipmentSlot Slot) const
 //----------------------------------------------------------------------------------------------------------------------
 
 bool IInventoryPlayerInterface::PlayerTryAutoLootFunction(int32 InItemId, EEquipmentSlot& PossibleEquipment,
-                                                          int32& InTopLeft, EBagSlot& PossibleBag) const
+                                                          int32& InTopLeft, EBagSlot& PossibleBag)
 {
 	PossibleEquipment = EEquipmentSlot::Unknown;
 	PossibleBag = EBagSlot::Unknown;
@@ -257,9 +256,9 @@ void IInventoryPlayerInterface::StartLooting(AActor* Actor)
 
 //----------------------------------------------------------------------------------------------------------------------
 
-void IInventoryPlayerInterface::StopLooting()
+void IInventoryPlayerInterface::StopLooting(AActor* Actor )
 {
-	if (GetLootedActor())
+	if (GetLootedActor() && (GetLootedActor() == Actor || Actor == nullptr))
 		Server_StopLooting();
 }
 
@@ -320,7 +319,7 @@ void IInventoryPlayerInterface::PlayerEquipItemFromLoot(int32 InItemId, EEquipme
 
 //----------------------------------------------------------------------------------------------------------------------
 
-bool IInventoryPlayerInterface::PlayerCanPutItemSomewhere(int32 ItemID) const
+bool IInventoryPlayerInterface::PlayerCanPutItemSomewhere(int32 ItemID)
 {
 	EEquipmentSlot TriedSlot = EEquipmentSlot::Unknown;
 	EBagSlot TriedBag = EBagSlot::Unknown;

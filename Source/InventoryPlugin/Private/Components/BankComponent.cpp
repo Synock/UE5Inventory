@@ -41,6 +41,7 @@ void UBankComponent::Reorganize_Implementation()
 		int32 ItemId;
 		uint8 ItemSize;
 	};
+
 	TArray<ItemSorter> ItemArray;
 	ItemArray.Reserve(Items.Num());
 
@@ -61,7 +62,7 @@ void UBankComponent::Reorganize_Implementation()
 	GridBagSolver Solver(Width, Height);
 	for (auto& Item : ItemArray)
 	{
-		auto ActualItem = UInventoryUtilities::GetItemFromID(Item.ItemId, GetWorld());
+		const auto ActualItem = UInventoryUtilities::GetItemFromID(Item.ItemId, GetWorld());
 		const int32 TopLeft = Solver.GetFirstValidTopLeft(ActualItem);
 
 		if (TopLeft >= 0)
@@ -70,6 +71,8 @@ void UBankComponent::Reorganize_Implementation()
 			Solver.RecordData(ActualItem, TopLeft);
 		}
 	}
+
+	BankReorganizeDispatcher.Broadcast();
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -87,6 +90,8 @@ void UBankComponent::RemoveItem_Implementation(int32 TopLeftIndex)
 
 		++ID;
 	}
+
+	BankItemRemoveDispatcher.Broadcast(TopLeftIndex);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -94,6 +99,7 @@ void UBankComponent::RemoveItem_Implementation(int32 TopLeftIndex)
 void UBankComponent::AddItem_Implementation(int32 ItemID, int32 TopLeftIndex)
 {
 	Items.Add({ItemID, TopLeftIndex});
+	BankItemAddDispatcher.Broadcast(ItemID, TopLeftIndex);
 }
 
 //----------------------------------------------------------------------------------------------------------------------

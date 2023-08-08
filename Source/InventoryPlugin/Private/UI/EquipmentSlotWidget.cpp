@@ -35,7 +35,7 @@ bool UEquipmentSlotWidget::HandleItemDrop(UItemWidget* InputItem)
 		return false;
 
 	//Can't swap itself
-	if(InputItem->GetOriginalSlot() == SlotID)
+	if (InputItem->GetOriginalSlot() == SlotID)
 		return false;
 
 	if (!CanEquipItem(InputItem->GetReferencedItem()))
@@ -46,7 +46,7 @@ bool UEquipmentSlotWidget::HandleItemDrop(UItemWidget* InputItem)
 	IInventoryPlayerInterface* PC = GetInventoryPlayerInterface();
 	if (!PC)
 		return false;
-	
+
 	if (!InputItem->IsBelongingToSelf()) //Equip from loot
 	{
 		PC->PlayerEquipItemFromLoot(ItemID, SlotID, InputItem->GetTopLeftID());
@@ -55,7 +55,7 @@ bool UEquipmentSlotWidget::HandleItemDrop(UItemWidget* InputItem)
 	{
 		if (InputItem->IsFromEquipment())
 		{
-			if(!Item)
+			if (!Item)
 			{
 				PC->PlayerSwapEquipment(ItemID, SlotID, 0, InputItem->GetOriginalSlot());
 			}
@@ -71,7 +71,7 @@ bool UEquipmentSlotWidget::HandleItemDrop(UItemWidget* InputItem)
 		else
 		{
 			PC->PlayerEquipItemFromInventory(ItemID, SlotID, InputItem->GetTopLeftID(),
-			                                                    InputItem->GetBagID());
+			                                 InputItem->GetBagID());
 		}
 	}
 
@@ -85,7 +85,7 @@ bool UEquipmentSlotWidget::UnEquipBagSpecific()
 	IInventoryPlayerInterface* PC = GetInventoryPlayerInterface();
 	if (!PC)
 		return false;
-	
+
 	if (PC->CanUnequipBag(SlotID))
 	{
 		const EBagSlot Bag = UInventoryComponent::GetBagSlotFromInventory(SlotID);
@@ -124,8 +124,27 @@ void UEquipmentSlotWidget::InnerRefresh()
 	if (IInventoryPlayerInterface* PC = GetInventoryPlayerInterface())
 	{
 		check(PC->GetEquipmentForInventory());
-		Item = PC->GetEquipmentForInventory()->GetEquippedItem(SlotID);
+		const UInventoryItemEquipable* Equipment = PC->GetEquipmentForInventory()->GetEquippedItem(SlotID);
+		Item = Equipment;
 		UGenericSlotWidget::InnerRefresh();
+
+		if (SisterSlot && Equipment && Equipment->TwoSlotsItem)
+		{
+			SisterSlot->EnabledSlot = false;
+			//SisterSlot->SetIsEnabled(false);
+			if (Equipment->Icon)
+			{
+				UTexture2D* Tex = Equipment->Icon;
+
+				if(!SisterSlot->ItemImagePointer)
+					return;
+
+				SisterSlot->ItemImagePointer->SetDesiredSizeOverride({TileSize, TileSize});
+				SisterSlot->ItemImagePointer->SetBrushFromTexture(Tex);
+				SisterSlot->ItemImagePointer->SetVisibility(ESlateVisibility::Visible);
+
+			}
+		}
 	}
 }
 
@@ -134,12 +153,18 @@ void UEquipmentSlotWidget::InnerRefresh()
 void UEquipmentSlotWidget::HideItem()
 {
 
-	UGenericSlotWidget::InnerRefresh();
-	if (const UInventoryItemEquipable* Equipable = Cast<UInventoryItemEquipable>(Item); Equipable->TwoSlotsItem && SisterSlot)
+	if (const UInventoryItemEquipable* Equipable = Cast<UInventoryItemEquipable>(Item); Equipable && Equipable->TwoSlotsItem &&
+		SisterSlot)
 	{
+
+		SisterSlot->EnabledSlot = true;
 		SisterSlot->HideItem();
+		//SisterSlot->SetIsEnabled(true);
 	}
+
 	Item = nullptr;
+
+	UGenericSlotWidget::InnerRefresh();
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -165,7 +190,7 @@ void UEquipmentSlotWidget::SetSisterSlot(UEquipmentSlotWidget* NewSisterSlot)
 
 bool UEquipmentSlotWidget::CanEquipItem(const UInventoryItemBase* InputItem) const
 {
-	if(!CanDropItem(InputItem))
+	if (!CanDropItem(InputItem))
 		return false;
 
 	if (!CanEquipItemAtSlot(InputItem, SlotID))
@@ -224,23 +249,23 @@ bool UEquipmentSlotWidget::TryEquipItem(UItemWidget* InputItem)
 
 void UEquipmentSlotWidget::UpdateTextSlots()
 {
-	if(!TextSlot1 || !TextSlot2)
+	if (!TextSlot1 || !TextSlot2)
 		return;
-	
+
 	FString SlotName = UInventoryUtilities::GetSlotName(SlotID);
 
-	if(SlotName.IsEmpty())
+	if (SlotName.IsEmpty())
 	{
 		TextSlot1->SetVisibility(ESlateVisibility::Hidden);
 		TextSlot2->SetVisibility(ESlateVisibility::Hidden);
 		return;
 	}
-	
+
 	FString LeftPart;
 	FString RightPart;
 	SlotName.Split(" ", &LeftPart, &RightPart, ESearchCase::CaseSensitive, ESearchDir::FromStart);
 
-	if(!LeftPart.IsEmpty() && !RightPart.IsEmpty())
+	if (!LeftPart.IsEmpty() && !RightPart.IsEmpty())
 	{
 		TextSlot1->SetText(FText::FromString(LeftPart));
 		TextSlot2->SetText(FText::FromString(RightPart));
@@ -250,5 +275,4 @@ void UEquipmentSlotWidget::UpdateTextSlots()
 		TextSlot1->SetText(FText::FromString(SlotName));
 		TextSlot2->SetVisibility(ESlateVisibility::Collapsed);
 	}
-	
 }

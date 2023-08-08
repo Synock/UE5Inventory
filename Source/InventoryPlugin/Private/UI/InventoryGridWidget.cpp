@@ -277,8 +277,8 @@ int32 UInventoryGridWidget::GetActualTopLeftCorner(float XPosition, float YPosit
 	}
 
 	//annoying case where we have bigger objects
-	const uint32 HalfWidth = static_cast<uint32>(std::floor(ItemWidth / 2.0f));
-	const uint32 HalfHeight = static_cast<uint32>(std::floor(ItemHeight / 2.0f));
+	const uint32 HalfWidth = static_cast<uint32>(FMath::Floor(ItemWidth / 2.0f));
+	const uint32 HalfHeight = static_cast<uint32>(FMath::Floor(ItemHeight / 2.0f));
 
 	//find out where the mouse is in the current cell
 	bool IsOnRight = false;
@@ -449,8 +449,8 @@ void UInventoryGridWidget::UnRegisterItem(UItemWidget* NewItem)
 void UInventoryGridWidget::GetXYCellFromFloatingPoint(float XPosition, float YPosition, int32& CellX,
                                                       int32& CellY) const
 {
-	CellX = FMath::Clamp(static_cast<int32>(std::floor(XPosition / TileSize)), 0, Width);
-	CellY = FMath::Clamp(static_cast<int32>(std::floor(YPosition / TileSize)), 0, Height);
+	CellX = FMath::Clamp(static_cast<int32>(FMath::Floor(XPosition / TileSize)), 0, Width);
+	CellY = FMath::Clamp(static_cast<int32>(FMath::Floor(YPosition / TileSize)), 0, Height);
 }
 
 //----------------------------------------------------------------------------------------------------------------------

@@ -35,4 +35,5 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Visual")
 	USkeletalMesh* EquipmentMesh = nullptr;
 
+
 };

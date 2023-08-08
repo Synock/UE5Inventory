@@ -50,12 +50,38 @@ UStaticMeshComponent* UEquipmentComponent::GetMeshComponentFromSocket(EEquipment
 
 //----------------------------------------------------------------------------------------------------------------------
 
+USkeletalMeshComponent* UEquipmentComponent::GetSkeletalMeshComponentFromSocket(EEquipmentSocket Socket) const
+{
+	switch (Socket)
+	{
+	case EEquipmentSocket::Unknown: return nullptr;
+	case EEquipmentSocket::Primary: return PrimaryWeaponComponentSkeletal;
+	case EEquipmentSocket::Secondary: return SecondaryWeaponComponentSkeletal;
+
+	default: return nullptr;
+	}
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 bool UEquipmentComponent::Equip(const UInventoryItemEquipable* Item, EEquipmentSlot EquipSlot)
 {
 	const EEquipmentSocket PossibleSocket = FindBestSocketForItem(Item, EquipSlot);
 
 	if (PossibleSocket == EEquipmentSocket::Unknown)
 		return false;
+
+	// skeletal mesh have precedence over static mesh
+	if (Item->EquipmentMesh)
+	{
+		USkeletalMeshComponent* SkeletalSocket = GetSkeletalMeshComponentFromSocket(PossibleSocket);
+
+		if (SkeletalSocket)
+		{
+			SkeletalSocket->SetSkeletalMeshAsset(Item->EquipmentMesh);
+			return true;
+		}
+	}
 
 	UStaticMeshComponent* WantedSocket = GetMeshComponentFromSocket(PossibleSocket);
 
@@ -78,7 +104,17 @@ bool UEquipmentComponent::UnEquip(const UInventoryItemEquipable* Item, EEquipmen
 	if (PossibleSocket == EEquipmentSocket::Unknown)
 		return false;
 
-	UStaticMesh* StaticMesh = Item->Mesh;
+	// skeletal mesh have precedence over static mesh
+	if (Item->EquipmentMesh)
+	{
+		if (USkeletalMeshComponent* SkeletalSocket = GetSkeletalMeshComponentFromSocket(PossibleSocket))
+		{
+			SkeletalSocket->SetSkeletalMeshAsset(nullptr);
+			return true;
+		}
+	}
+
+	const UStaticMesh* StaticMesh = Item->Mesh;
 
 	if (!StaticMesh)
 		return false;
@@ -88,12 +124,25 @@ bool UEquipmentComponent::UnEquip(const UInventoryItemEquipable* Item, EEquipmen
 	if (!WantedSocket)
 		return false;
 
+	if(!WantedSocket->GetStaticMesh() || !WantedSocket->IsVisible())
+	{
+		if(PrimaryWeaponOriginalSlot == PossibleSocket)
+		{
+			return PrimaryWeaponComponent->SetStaticMesh(nullptr);
+		}
+		if(SecondaryWeaponOriginalSlot == PossibleSocket)
+		{
+			return SecondaryWeaponComponent->SetStaticMesh(nullptr);
+		}
+	}
+
 	return WantedSocket->SetStaticMesh(nullptr);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
 
-EEquipmentSocket UEquipmentComponent::FindBestSocketForItem(const UInventoryItemEquipable* Item, EEquipmentSlot EquipSlot)
+EEquipmentSocket UEquipmentComponent::FindBestSocketForItem(const UInventoryItemEquipable* Item,
+                                                            EEquipmentSlot EquipSlot)
 {
 	switch (EquipSlot)
 	{
@@ -106,6 +155,9 @@ EEquipmentSocket UEquipmentComponent::FindBestSocketForItem(const UInventoryItem
 		}
 	case EEquipmentSlot::Secondary:
 		{
+			if (Item->Shield)
+				return EEquipmentSocket::BackSheath;
+
 			if (!Item->Weapon)
 				return EEquipmentSocket::Secondary;
 
@@ -133,16 +185,16 @@ EEquipmentSocket UEquipmentComponent::FindBestSocketForItem(const UInventoryItem
 			return EEquipmentSocket::ShoulderBag2;
 		}
 
-	case EEquipmentSlot::EarL :
+	case EEquipmentSlot::EarL:
 		return EEquipmentSocket::EarL;
 
-	case EEquipmentSlot::EarR :
+	case EEquipmentSlot::EarR:
 		return EEquipmentSocket::EarR;
 
-	case EEquipmentSlot::FingerL :
+	case EEquipmentSlot::FingerL:
 		return EEquipmentSocket::RingL;
 
-	case EEquipmentSlot::FingerR :
+	case EEquipmentSlot::FingerR:
 		return EEquipmentSocket::RingR;
 	default: ;
 	}
@@ -156,7 +208,7 @@ void UEquipmentComponent::Unsheath(EEquipmentSlot SlotToUnsheath)
 {
 	const UInventoryItemEquipable* Item = Equipment[static_cast<int>(SlotToUnsheath)];
 
-	if(!Item)
+	if (!Item)
 		return;
 
 	const EEquipmentSocket SheathSocket = FindBestSocketForItem(Item, SlotToUnsheath);
@@ -232,6 +284,30 @@ void UEquipmentComponent::Sheath()
 		SecondaryWeaponComponent->SetStaticMesh(nullptr);
 		ReturnSocket->SetStaticMesh(MeshPointer);
 	}
+	/*
+		if (PrimaryWeaponComponentSkeletal->GetSkeletalMeshAsset() != nullptr)
+		{
+			USkeletalMeshComponent* ReturnSocket = GetSkeletalMeshComponentFromSocket(PrimaryWeaponOriginalSlot);
+
+			if (!ReturnSocket || ReturnSocket->GetSkeletalMeshAsset())
+				return;
+
+			USkeletalMesh* MeshPointer = PrimaryWeaponComponentSkeletal->GetSkeletalMeshAsset();
+			PrimaryWeaponComponentSkeletal->SetSkeletalMeshAsset(nullptr);
+			ReturnSocket->SetSkeletalMeshAsset(MeshPointer);
+		}
+
+		if (SecondaryWeaponComponentSkeletal->GetSkeletalMeshAsset() != nullptr)
+		{
+			USkeletalMeshComponent* ReturnSocket = GetSkeletalMeshComponentFromSocket(SecondaryWeaponOriginalSlot);
+
+			if (!ReturnSocket || ReturnSocket->GetSkeletalMeshAsset())
+				return;
+
+			USkeletalMesh* MeshPointer = SecondaryWeaponComponentSkeletal->GetSkeletalMeshAsset();
+			SecondaryWeaponComponentSkeletal->SetSkeletalMeshAsset(nullptr);
+			ReturnSocket->SetSkeletalMeshAsset(MeshPointer);
+		}*/
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -251,6 +327,13 @@ UEquipmentComponent::UEquipmentComponent()
 	PrimaryWeaponComponent->SetIsReplicated(true);
 	SecondaryWeaponComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("SecondaryWeaponComponentMesh"));
 	SecondaryWeaponComponent->SetIsReplicated(true);
+
+	PrimaryWeaponComponentSkeletal = CreateDefaultSubobject<USkeletalMeshComponent>(
+		TEXT("PrimaryWeaponComponentSkeletalMesh"));
+	PrimaryWeaponComponentSkeletal->SetIsReplicated(true);
+	SecondaryWeaponComponentSkeletal = CreateDefaultSubobject<USkeletalMeshComponent>(
+		TEXT("SecondaryWeaponComponentSkeletalMesh"));
+	SecondaryWeaponComponentSkeletal->SetIsReplicated(true);
 
 	AmmoComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("AmmoComponentMesh"));
 	AmmoComponent->SetIsReplicated(true);
@@ -289,40 +372,46 @@ void UEquipmentComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if(GetOwnerRole() == ROLE_Authority)
+	if (GetOwnerRole() == ROLE_Authority)
 		return;
 
 	ACharacter* Parent = Cast<ACharacter>(GetOwner());
-    	if (!Parent)
-    		return;
+	if (!Parent)
+		return;
 	USkeletalMeshComponent* PlayerMesh = Parent->GetMesh();
 
-	if(!PlayerMesh)
+	if (!PlayerMesh)
 		return;
 
-	if(!PrimaryWeaponComponent)
+	if (!PrimaryWeaponComponent)
 		return;
 
-	FAttachmentTransformRules AttachmentTransformRules(EAttachmentRule::SnapToTarget,true);
+	FAttachmentTransformRules AttachmentTransformRules(EAttachmentRule::SnapToTarget, true);
+
 	PrimaryWeaponComponent->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("SOCKET_RightHandWeapon"));
-	SecondaryWeaponComponent->AttachToComponent(PlayerMesh, AttachmentTransformRules,  FName("SOCKET_LeftHandWeapon"));
-	AmmoComponent->AttachToComponent(PlayerMesh, AttachmentTransformRules,  FName("SOCKET_AmmoBag"));
+	SecondaryWeaponComponent->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("SOCKET_LeftHandWeapon"));
+	AmmoComponent->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("SOCKET_AmmoBag"));
 
-	WaistBag1Component->AttachToComponent(PlayerMesh, AttachmentTransformRules,  FName("SOCKET_WaistBag1"));
-	WaistBag2Component->AttachToComponent(PlayerMesh, AttachmentTransformRules,  FName("SOCKET_WaistBag2"));
-	ShoulderBag1Component->AttachToComponent(PlayerMesh, AttachmentTransformRules,  FName("SOCKET_ShoulderBag1"));
-	ShoulderBag2Component->AttachToComponent(PlayerMesh, AttachmentTransformRules,  FName("SOCKET_ShoulderBag2"));
-	BackpackComponent->AttachToComponent(PlayerMesh, AttachmentTransformRules,  FName("SOCKET_Backpack"));
+	PrimaryWeaponComponentSkeletal->AttachToComponent(PlayerMesh, AttachmentTransformRules,
+	                                                  FName("SOCKET_RightHandWeapon"));
+	SecondaryWeaponComponentSkeletal->AttachToComponent(PlayerMesh, AttachmentTransformRules,
+	                                                    FName("SOCKET_LeftHandWeapon"));
 
-	PrimaryWeaponSheath->AttachToComponent(PlayerMesh, AttachmentTransformRules,  FName("PrimarySheath"));
-	SecondaryWeaponSheath->AttachToComponent(PlayerMesh, AttachmentTransformRules,  FName("SecondarySheath"));
-	BackWeaponSheath->AttachToComponent(PlayerMesh, AttachmentTransformRules,  FName("BackSheath"));
+	WaistBag1Component->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("SOCKET_WaistBag1"));
+	WaistBag2Component->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("SOCKET_WaistBag2"));
+	ShoulderBag1Component->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("SOCKET_ShoulderBag1"));
+	ShoulderBag2Component->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("SOCKET_ShoulderBag2"));
+	BackpackComponent->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("SOCKET_Backpack"));
 
-	RingLComponent->AttachToComponent(PlayerMesh, AttachmentTransformRules,  FName("RingL"));
-	RingRComponent->AttachToComponent(PlayerMesh, AttachmentTransformRules,  FName("RingR"));
+	PrimaryWeaponSheath->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("PrimarySheath"));
+	SecondaryWeaponSheath->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("SecondarySheath"));
+	BackWeaponSheath->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("BackSheath"));
 
-	EarringLComponent->AttachToComponent(PlayerMesh, AttachmentTransformRules,  FName("EarR"));
-	EarringRComponent->AttachToComponent(PlayerMesh, AttachmentTransformRules,  FName("EarL"));
+	RingLComponent->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("RingL"));
+	RingRComponent->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("RingR"));
+
+	EarringLComponent->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("EarR"));
+	EarringRComponent->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("EarL"));
 	// ...
 }
 
@@ -396,6 +485,14 @@ bool UEquipmentComponent::RemoveItem(EEquipmentSlot InSlot)
 
 //----------------------------------------------------------------------------------------------------------------------
 
+void UEquipmentComponent::RemoveAll()
+{
+	for (uint32 SlotId = 0; SlotId < static_cast<uint32>(EEquipmentSlot::Last); ++SlotId)
+		RemoveItem(static_cast<EEquipmentSlot>(SlotId));
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 float UEquipmentComponent::GetTotalWeight() const
 {
 	float TotalWeight = 0.f;
@@ -415,13 +512,13 @@ EEquipmentSlot UEquipmentComponent::FindSuitableSlot(const UInventoryItemEquipab
 	{
 		if (!Equipment[i])
 		{
-			const int32 LocalAcceptableBitMask = std::pow(2., static_cast<double>(i));
+			const int32 LocalAcceptableBitMask = 1 << i;
 			const EEquipmentSlot CurrentSlot = static_cast<EEquipmentSlot>(i);
 			if (Item->EquipableSlotBitMask & LocalAcceptableBitMask)
 			{
 				if (Item->TwoSlotsItem)
 				{
-					if (CurrentSlot == EEquipmentSlot::WaistBag1 || CurrentSlot == EEquipmentSlot::BackPack1)
+					if (CurrentSlot == EEquipmentSlot::WaistBag1 || CurrentSlot == EEquipmentSlot::BackPack1 || CurrentSlot == EEquipmentSlot::Primary)
 						return CurrentSlot;
 				}
 				else

@@ -162,10 +162,9 @@ bool UInventoryComponent::RemoveItemIfPossible(int32 ItemID)
 
 bool UInventoryComponent::PlayerRemoveAnyItemIfPossible(const TArray<int32>& ItemID)
 {
-
-	for(int32 ID : ItemID)
+	for (int32 ID : ItemID)
 	{
-		if(RemoveItemIfPossible(ID))
+		if (RemoveItemIfPossible(ID))
 			return true;
 	}
 	return false;
@@ -179,6 +178,9 @@ EBagSlot UInventoryComponent::FindSuitableSlot(const UInventoryItemBase* Item, i
 	{
 		if (Bag.Bag->IsValidBag())
 		{
+			if(Item->ItemSize > Bag.Bag->GetMaxStoreSize())
+				continue;
+
 			GridBagSolver Solver = Bag.Bag->GetSolver();
 			OutputTopLeftID = Solver.GetFirstValidTopLeft(Item);
 
@@ -220,6 +222,35 @@ EBagSlot UInventoryComponent::GetBagSlotFromInventory(EEquipmentSlot ConsideredI
 
 //----------------------------------------------------------------------------------------------------------------------
 
+TArray<int32> UInventoryComponent::GetAllItems() const
+{
+	TArray<int32> ItemList;
+	for (auto& Bag : VariableBags)
+	{
+		for (auto& BagItem : Bag.Bag->GetBagConst())
+		{
+			ItemList.Add(BagItem.ItemID);
+		}
+	}
+	return ItemList;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UInventoryComponent::RemoveAllItems()
+{
+	for (auto& Bag : VariableBags)
+	{
+		TArray<FMinimalItemStorage> LocalBagCopy =  Bag.Bag->GetBagConst();
+		for (auto& BagItem : LocalBagCopy)
+		{
+			RemoveItem(Bag.Slot, BagItem.TopLeftID);
+		}
+	}
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 UBagStorage* UInventoryComponent::GetRelatedBag(EBagSlot InputSlot) const
 {
 	if (BagLUT.Contains(InputSlot))
@@ -228,6 +259,13 @@ UBagStorage* UInventoryComponent::GetRelatedBag(EBagSlot InputSlot) const
 	check(false);
 	UE_LOG(LogTemp, Error, TEXT("Cannot find related bag"));
 	return nullptr;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+const UBagStorage* UInventoryComponent::GetRelatedBagConst(EBagSlot InputSlot) const
+{
+	return GetRelatedBag(InputSlot);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
