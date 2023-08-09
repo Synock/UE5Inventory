@@ -10,6 +10,7 @@
 #include "Components/SizeBox.h"
 #include "ItemBaseWidget.generated.h"
 
+class UInventoryItemBase;
 /**
  * 
  */

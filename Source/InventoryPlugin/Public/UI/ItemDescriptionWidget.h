@@ -21,7 +21,7 @@ protected:
 	UUserWidget* Parent = nullptr;
 
 	UPROPERTY(BlueprintReadWrite)
-	UInventoryItemBase* ObservedItem;
+	UInventoryItemBase* ObservedItem = nullptr;
 	
 	UFUNCTION(BlueprintCallable)
 	bool IsLore() const;
