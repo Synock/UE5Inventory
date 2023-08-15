@@ -14,6 +14,7 @@
 #include "Items/InventoryItemBase.h"
 #include "InventoryPlayerInterface.generated.h"
 
+class UKeyringComponent;
 class UBankComponent;
 // This class does not need to be modified.
 UINTERFACE(MinimalAPI, meta = (CannotImplementInterfaceInBlueprint))
@@ -59,8 +60,12 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Bank")
 	virtual UCoinComponent* GetBankCoin() const;
+
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Bank")
 	virtual UBankComponent* GetBankComponent() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Keys")
+	virtual UKeyringComponent* GetKeyring() const;
 
 	//------------------------------------------------------------------------------------------------------------------
 	// Equipment
@@ -210,6 +215,22 @@ public:
 
 	float GetTotalWeight();
 
+	//------------------------------------------------------------------------------------------------------------------
+	// Keys
+	//------------------------------------------------------------------------------------------------------------------
+	UFUNCTION()
+	virtual void Internal_PlayerAddKeyFromInventory(int32 InTopLeft, EBagSlot InSlot, int32 InItemId);
+
+	UFUNCTION()
+	virtual void Internal_PlayerRemoveKeyToInventory(int32 KeyId);
+
+	UFUNCTION(BlueprintCallable)
+	virtual void PlayerAddKeyFromInventory(int32 InTopLeft, EBagSlot InSlot, int32 InItemId);
+
+	UFUNCTION(BlueprintCallable)
+	virtual void PlayerRemoveKeyToInventory(int32 KeyId);
+
+
 protected:
 	//------------------------------------------------------------------------------------------------------------------
 	// Merchant -- Server
@@ -294,4 +315,13 @@ protected:
 
 	//UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory|Staging")
 	virtual void Server_MoveInventoryItemToStagingArea(int32 InItemId, int32 OutTopLeft, EBagSlot OutSlot) = 0;
+
+	//------------------------------------------------------------------------------------------------------------------
+	// Keys
+	//------------------------------------------------------------------------------------------------------------------
+	//UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory|Key")
+	virtual void Server_PlayerAddKeyFromInventory(int32 InTopLeft, EBagSlot InSlot, int32 InItemId) = 0;
+
+	//UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory|Key")
+	virtual void Server_PlayerRemoveKeyToInventory(int32 KeyId) = 0;
 };

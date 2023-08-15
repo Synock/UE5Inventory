@@ -38,6 +38,12 @@ public:
 	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable, Category = "Inventory")
 	void ForceRefreshInventory();
 
+	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable, Category = "Inventory")
+	void SetKeyringDisplay(bool State);
+
+	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable, Category = "Inventory")
+	void ToggleKeyringDisplay();
+
 	UFUNCTION(Category = "Inventory")
 	virtual void HandleBag(EBagSlot InputBagSlot, class UBagWidget* Widget) = 0;
 

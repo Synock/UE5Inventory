@@ -211,8 +211,12 @@ void UBagStorage::AddItemAt_Implementation(int32 ItemID, int32 TopLeftIndex)
 {
 	Items.Add({ItemID, TopLeftIndex});
 
+	const UInventoryItemBase* Item = UInventoryUtilities::GetItemFromID(ItemID, GetWorld());
+	if(!Item)
+		return;
+
 	//update the weight
-	BagWeight += UInventoryUtilities::GetItemFromID(ItemID, GetWorld())->Weight;
+	BagWeight += Item->Weight;
 	BagStorageDispatcher_Server.Broadcast();
 }
 

@@ -4,11 +4,13 @@
 
 #include "InventoryUtilities.h"
 #include "Components/BankComponent.h"
+#include "Components/KeyringComponent.h"
 #include "Interfaces/EquipmentInterface.h"
 #include "GameFramework/Actor.h"
 #include "Interfaces/InventoryHUDInterface.h"
 #include "Interfaces/LootableInterface.h"
 #include "Items/InventoryItemEquipable.h"
+#include "Items/InventoryItemKey.h"
 
 UCoinComponent* IInventoryPlayerInterface::GetBankCoin() const
 {
@@ -18,6 +20,13 @@ UCoinComponent* IInventoryPlayerInterface::GetBankCoin() const
 //----------------------------------------------------------------------------------------------------------------------
 
 UBankComponent* IInventoryPlayerInterface::GetBankComponent() const
+{
+	return nullptr;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+UKeyringComponent* IInventoryPlayerInterface::GetKeyring() const
 {
 	return nullptr;
 }
@@ -66,7 +75,7 @@ TArray<const UInventoryItemBase*> IInventoryPlayerInterface::GetAllItems() const
 		for (auto& Item : Items)
 		{
 			const UInventoryItemBase* LocalItem = UInventoryUtilities::GetItemFromID(Item.ItemID,
-			                                                              GetInventoryOwningActorConst()->GetWorld());
+				GetInventoryOwningActorConst()->GetWorld());
 			ItemsList.Add(LocalItem);
 		}
 	}
@@ -77,10 +86,10 @@ TArray<const UInventoryItemBase*> IInventoryPlayerInterface::GetAllItems() const
 
 const TArray<FMinimalItemStorage>& IInventoryPlayerInterface::GetAllItemsInBag(EBagSlot Slot) const
 {
-    if(Slot == EBagSlot::BankPool)
-    {
-    	return GetBankComponent()->GetBagConst();
-    }
+	if (Slot == EBagSlot::BankPool)
+	{
+		return GetBankComponent()->GetBagConst();
+	}
 
 	return GetInventoryComponentConst()->GetBagConst(Slot);
 }
@@ -151,8 +160,8 @@ void IInventoryPlayerInterface::PlayerAddItem(int32 InTopLeft, EBagSlot InSlot, 
 	if (!GetInventoryOwningActor()->HasAuthority())
 		return;
 
-	if(InSlot == EBagSlot::BankPool)
-		GetBankComponent()->AddItem(InItemId,InTopLeft);
+	if (InSlot == EBagSlot::BankPool)
+		GetBankComponent()->AddItem(InItemId, InTopLeft);
 	else
 		GetInventoryComponent()->AddItemAt(InSlot, InItemId, InTopLeft);
 }
@@ -164,7 +173,7 @@ void IInventoryPlayerInterface::PlayerRemoveItem(int32 TopLeft, EBagSlot Slot)
 	if (!GetInventoryOwningActor()->HasAuthority())
 		return;
 
-	if(Slot == EBagSlot::BankPool)
+	if (Slot == EBagSlot::BankPool)
 		GetBankComponent()->RemoveItem(TopLeft);
 	else
 		GetInventoryComponent()->RemoveItem(Slot, TopLeft);
@@ -174,7 +183,7 @@ void IInventoryPlayerInterface::PlayerRemoveItem(int32 TopLeft, EBagSlot Slot)
 
 int32 IInventoryPlayerInterface::PlayerGetItem(int32 TopLeft, EBagSlot Slot) const
 {
-	if(Slot == EBagSlot::BankPool)
+	if (Slot == EBagSlot::BankPool)
 		return GetBankComponent()->GetItemAtIndex(TopLeft);
 
 	return GetInventoryComponentConst()->GetItemAtIndex(Slot, TopLeft);
@@ -196,10 +205,10 @@ void IInventoryPlayerInterface::PlayerMoveItem(int32 InTopLeft, EBagSlot InSlot,
 //----------------------------------------------------------------------------------------------------------------------
 
 void IInventoryPlayerInterface::TransferCoinTo(UCoinComponent* GivingComponent, UCoinComponent* ReceivingComponent,
-	const FCoinValue& RemovedCoinValue, const FCoinValue& AddedCoinValue)
+                                               const FCoinValue& RemovedCoinValue, const FCoinValue& AddedCoinValue)
 {
 	//if(ReceivingComponent->GetOwner() != GetInventoryOwningActor())
-		//return;
+	//return;
 
 	Server_TransferCoinTo(GivingComponent, ReceivingComponent, RemovedCoinValue, AddedCoinValue);
 }
@@ -256,7 +265,7 @@ void IInventoryPlayerInterface::StartLooting(AActor* Actor)
 
 //----------------------------------------------------------------------------------------------------------------------
 
-void IInventoryPlayerInterface::StopLooting(AActor* Actor )
+void IInventoryPlayerInterface::StopLooting(AActor* Actor)
 {
 	if (GetLootedActor() && (GetLootedActor() == Actor || Actor == nullptr))
 		Server_StopLooting();
@@ -427,4 +436,67 @@ float IInventoryPlayerInterface::GetTotalWeight()
 {
 	return GetInventoryComponent()->GetTotalWeight() + GetEquipmentForInventory()->GetTotalWeight() +
 		GetCoinComponent()->GetTotalWeight();
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryPlayerInterface::Internal_PlayerAddKeyFromInventory(int32 InTopLeft, EBagSlot InSlot, int32 InItemId)
+{
+	if (!GetInventoryOwningActor()->HasAuthority())
+		return;
+
+	if (!GetKeyring())
+		return;
+
+	const UInventoryItemKey* LocalItem = Cast<UInventoryItemKey>(UInventoryUtilities::GetItemFromID(
+		InItemId, GetInventoryOwningActorConst()->GetWorld()));
+
+	if (!LocalItem)
+		return;
+
+	if (GetKeyring()->TryAddKeyFromItem(LocalItem))
+		PlayerRemoveItem(InTopLeft, InSlot);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryPlayerInterface::Internal_PlayerRemoveKeyToInventory(int32 KeyId)
+{
+	if (!GetInventoryOwningActor()->HasAuthority())
+		return;
+
+	if (!GetKeyring())
+		return;
+
+	if (!GetKeyring()->HasKey(KeyId))
+		return;
+
+	int32 ItemToGet = GetKeyring()->GetItemFromKey(KeyId);
+
+	EEquipmentSlot PossibleEquipment;
+	int32 InTopLeft;
+	EBagSlot PossibleBag;
+
+	if (!PlayerTryAutoLootFunction(ItemToGet, PossibleEquipment, InTopLeft, PossibleBag))
+		return;
+
+	if (PossibleBag == EBagSlot::Unknown)
+		return;
+
+	GetKeyring()->RemoveKey(KeyId);
+	PlayerAddItem(InTopLeft, PossibleBag, ItemToGet);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryPlayerInterface::PlayerAddKeyFromInventory(int32 InTopLeft, EBagSlot InSlot, int32 InItemId)
+{
+	Server_PlayerAddKeyFromInventory(InTopLeft, InSlot, InItemId);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryPlayerInterface::PlayerRemoveKeyToInventory(int32 KeyId)
+{
+	Server_PlayerRemoveKeyToInventory(KeyId);
 }

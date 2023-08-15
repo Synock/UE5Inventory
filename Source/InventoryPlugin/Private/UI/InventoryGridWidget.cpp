@@ -103,7 +103,7 @@ void UInventoryGridWidget::AddItemWidgetToGrid(UCanvasPanel* GridCanvasPanel, UW
 void UInventoryGridWidget::CreateNewItem(UCanvasPanel* GridCanvasPanel, const FMinimalItemStorage& ItemStorage)
 {
 	const UInventoryItemBase* Item = UInventoryUtilities::GetItemFromID(ItemStorage.ItemID, GetWorld());
-
+	check(Item);
 	UItemWidget* ItemWidget = Cast<UItemWidget>(CreateWidget(GetOwningPlayer(), ItemWidgetClass));
 
 	ItemWidget->SetParentGrid(this);
