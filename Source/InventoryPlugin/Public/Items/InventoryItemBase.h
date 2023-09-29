@@ -58,6 +58,9 @@ public:
 	bool MagicItem = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|ItemData")
+	bool Temporary = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|ItemData")
 	float BaseValue = 0.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|ItemData")

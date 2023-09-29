@@ -9,12 +9,16 @@
 #include "Items/InventoryItemEquipable.h"
 #include "EquipmentComponent.generated.h"
 
+class AInventoryLightSourceActor;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnEquipmentChanged);
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnEquipmentChanged_Server);
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnItemEquiped_Server, EEquipmentSlot, Slot, const UInventoryItemEquipable*, Item);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnItemUnEquiped_Server, EEquipmentSlot, Slot, const UInventoryItemEquipable*, Item);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnItemEquiped_Server, EEquipmentSlot, Slot,
+                                             const UInventoryItemEquipable*, Item);
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnItemUnEquiped_Server, EEquipmentSlot, Slot,
+                                             const UInventoryItemEquipable*, Item);
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class INVENTORYPLUGIN_API UEquipmentComponent : public UActorComponent
@@ -31,6 +35,9 @@ protected:
 
 	UPROPERTY(ReplicatedUsing = OnRep_ItemList)
 	TArray<const UInventoryItemEquipable*> Equipment;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Light")
+	UChildActorComponent* SecondaryLightSource;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Weapon")
 	UStaticMeshComponent* PrimaryWeaponComponent;
@@ -84,7 +91,6 @@ protected:
 	EEquipmentSocket PrimaryWeaponOriginalSlot = EEquipmentSocket::Unknown;
 	EEquipmentSocket SecondaryWeaponOriginalSlot = EEquipmentSocket::Unknown;
 
-	
 
 	bool Equip(const UInventoryItemEquipable* Item, EEquipmentSlot EquipSlot);
 
@@ -96,7 +102,6 @@ protected:
 	void Sheath();
 
 public:
-
 	UStaticMeshComponent* GetMeshComponentFromSocket(EEquipmentSocket Socket) const;
 
 	USkeletalMeshComponent* GetSkeletalMeshComponentFromSocket(EEquipmentSocket Socket) const;
@@ -151,4 +156,13 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Equipment")
 	FBoxSphereBounds GetEquipmentOverlapBox(EEquipmentSlot Slot) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Equipment")
+	void SetEquipmentLight(TSubclassOf<AInventoryLightSourceActor> LightActor, EEquipmentSlot Slot) const;
+
+	UFUNCTION(NetMulticast, Reliable)
+	void EquipLightItem(TSubclassOf<AInventoryLightSourceActor> LightActor) const;
+
+	UFUNCTION(NetMulticast, Reliable)
+	void UnEquipLightItem() const;
 };

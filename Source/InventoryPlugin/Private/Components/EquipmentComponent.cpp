@@ -3,6 +3,8 @@
 
 #include "Components/EquipmentComponent.h"
 #include <Net/UnrealNetwork.h>
+
+#include "Actors/InventoryLightSourceActor.h"
 #include "GameFramework/Character.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Engine/StaticMesh.h"
@@ -14,7 +16,9 @@ namespace
 	UStaticMesh* LoadStaticMeshFromPath(const FName& Path)
 	{
 		if (Path == NAME_None)
+		{
 			return nullptr;
+		}
 
 		return Cast<UStaticMesh>(StaticLoadObject(UStaticMesh::StaticClass(), nullptr, *Path.ToString()));
 	}
@@ -69,7 +73,9 @@ bool UEquipmentComponent::Equip(const UInventoryItemEquipable* Item, EEquipmentS
 	const EEquipmentSocket PossibleSocket = FindBestSocketForItem(Item, EquipSlot);
 
 	if (PossibleSocket == EEquipmentSocket::Unknown)
+	{
 		return false;
+	}
 
 	// skeletal mesh have precedence over static mesh
 	if (Item->EquipmentMesh)
@@ -86,11 +92,15 @@ bool UEquipmentComponent::Equip(const UInventoryItemEquipable* Item, EEquipmentS
 	UStaticMeshComponent* WantedSocket = GetMeshComponentFromSocket(PossibleSocket);
 
 	if (!WantedSocket)
+	{
 		return false;
+	}
 
 	UStaticMesh* StaticMesh = Item->Mesh;
 	if (!StaticMesh)
+	{
 		return false;
+	}
 
 	return WantedSocket->SetStaticMesh(StaticMesh);
 }
@@ -102,7 +112,9 @@ bool UEquipmentComponent::UnEquip(const UInventoryItemEquipable* Item, EEquipmen
 	const EEquipmentSocket PossibleSocket = FindBestSocketForItem(Item, EquipSlot);
 
 	if (PossibleSocket == EEquipmentSocket::Unknown)
+	{
 		return false;
+	}
 
 	// skeletal mesh have precedence over static mesh
 	if (Item->EquipmentMesh)
@@ -117,20 +129,24 @@ bool UEquipmentComponent::UnEquip(const UInventoryItemEquipable* Item, EEquipmen
 	const UStaticMesh* StaticMesh = Item->Mesh;
 
 	if (!StaticMesh)
+	{
 		return false;
+	}
 
 	UStaticMeshComponent* WantedSocket = GetMeshComponentFromSocket(PossibleSocket);
 
 	if (!WantedSocket)
-		return false;
-
-	if(!WantedSocket->GetStaticMesh() || !WantedSocket->IsVisible())
 	{
-		if(PrimaryWeaponOriginalSlot == PossibleSocket)
+		return false;
+	}
+
+	if (!WantedSocket->GetStaticMesh() || !WantedSocket->IsVisible())
+	{
+		if (PrimaryWeaponOriginalSlot == PossibleSocket)
 		{
 			return PrimaryWeaponComponent->SetStaticMesh(nullptr);
 		}
-		if(SecondaryWeaponOriginalSlot == PossibleSocket)
+		if (SecondaryWeaponOriginalSlot == PossibleSocket)
 		{
 			return SecondaryWeaponComponent->SetStaticMesh(nullptr);
 		}
@@ -149,17 +165,23 @@ EEquipmentSocket UEquipmentComponent::FindBestSocketForItem(const UInventoryItem
 	case EEquipmentSlot::Primary:
 		{
 			if (!Item->Weapon)
+			{
 				return EEquipmentSocket::Primary;
+			}
 
 			return EEquipmentSocket::PrimarySheath;
 		}
 	case EEquipmentSlot::Secondary:
 		{
 			if (Item->Shield)
+			{
 				return EEquipmentSocket::BackSheath;
+			}
 
 			if (!Item->Weapon)
+			{
 				return EEquipmentSocket::Secondary;
+			}
 
 			return EEquipmentSocket::SecondarySheath;
 		}
@@ -175,13 +197,17 @@ EEquipmentSocket UEquipmentComponent::FindBestSocketForItem(const UInventoryItem
 	case EEquipmentSlot::BackPack1:
 		{
 			if (Item->TwoSlotsItem)
+			{
 				return EEquipmentSocket::Backpack;
+			}
 			return EEquipmentSocket::ShoulderBag1;
 		}
 	case EEquipmentSlot::BackPack2:
 		{
 			if (Item->TwoSlotsItem)
+			{
 				return EEquipmentSocket::Backpack;
+			}
 			return EEquipmentSocket::ShoulderBag2;
 		}
 
@@ -209,13 +235,17 @@ void UEquipmentComponent::Unsheath(EEquipmentSlot SlotToUnsheath)
 	const UInventoryItemEquipable* Item = Equipment[static_cast<int>(SlotToUnsheath)];
 
 	if (!Item)
+	{
 		return;
+	}
 
 	const EEquipmentSocket SheathSocket = FindBestSocketForItem(Item, SlotToUnsheath);
 
 	if (SheathSocket != EEquipmentSocket::PrimarySheath && SheathSocket != EEquipmentSocket::SecondarySheath &&
 		SheathSocket != EEquipmentSocket::BackSheath)
+	{
 		return;
+	}
 
 	EEquipmentSocket LiveSocket = EEquipmentSocket::Unknown;
 
@@ -229,11 +259,17 @@ void UEquipmentComponent::Unsheath(EEquipmentSlot SlotToUnsheath)
 	case EEquipmentSocket::BackSheath:
 		{
 			if (SlotToUnsheath == EEquipmentSlot::Primary)
+			{
 				LiveSocket = EEquipmentSocket::Primary;
+			}
 			else if (SlotToUnsheath == EEquipmentSlot::Secondary)
+			{
 				LiveSocket = EEquipmentSocket::Secondary;
+			}
 			else if (SlotToUnsheath == EEquipmentSlot::Range)
+			{
 				LiveSocket = EEquipmentSocket::Primary;
+			}
 		}
 		break;
 	default:
@@ -241,16 +277,22 @@ void UEquipmentComponent::Unsheath(EEquipmentSlot SlotToUnsheath)
 	}
 
 	if (LiveSocket == EEquipmentSocket::Primary)
+	{
 		PrimaryWeaponOriginalSlot = SheathSocket;
+	}
 
 	else if (LiveSocket == EEquipmentSocket::Secondary)
+	{
 		SecondaryWeaponOriginalSlot = SheathSocket;
+	}
 
 	UStaticMeshComponent* LiveSocketComponent = GetMeshComponentFromSocket(LiveSocket);
 	UStaticMeshComponent* SheathSocketComponent = GetMeshComponentFromSocket(SheathSocket);
 
 	if (SheathSocketComponent->GetStaticMesh() == nullptr || LiveSocketComponent->GetStaticMesh() != nullptr)
+	{
 		return;
+	}
 
 	UStaticMesh* MeshPointer = SheathSocketComponent->GetStaticMesh();
 	SheathSocketComponent->SetStaticMesh(nullptr);
@@ -266,7 +308,9 @@ void UEquipmentComponent::Sheath()
 		UStaticMeshComponent* ReturnSocket = GetMeshComponentFromSocket(PrimaryWeaponOriginalSlot);
 
 		if (!ReturnSocket || ReturnSocket->GetStaticMesh())
+		{
 			return;
+		}
 
 		UStaticMesh* MeshPointer = PrimaryWeaponComponent->GetStaticMesh();
 		PrimaryWeaponComponent->SetStaticMesh(nullptr);
@@ -278,7 +322,9 @@ void UEquipmentComponent::Sheath()
 		UStaticMeshComponent* ReturnSocket = GetMeshComponentFromSocket(SecondaryWeaponOriginalSlot);
 
 		if (!ReturnSocket || ReturnSocket->GetStaticMesh())
+		{
 			return;
+		}
 
 		UStaticMesh* MeshPointer = SecondaryWeaponComponent->GetStaticMesh();
 		SecondaryWeaponComponent->SetStaticMesh(nullptr);
@@ -363,6 +409,9 @@ UEquipmentComponent::UEquipmentComponent()
 	RingLComponent->SetIsReplicated(true);
 	RingRComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("RingRComponent"));
 	RingRComponent->SetIsReplicated(true);
+
+	SecondaryLightSource = CreateDefaultSubobject<UChildActorComponent>(TEXT("SecondaryLightSource"));
+	SecondaryLightSource->SetIsReplicated(true);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -373,18 +422,26 @@ void UEquipmentComponent::BeginPlay()
 	Super::BeginPlay();
 
 	if (GetOwnerRole() == ROLE_Authority)
+	{
 		return;
+	}
 
 	ACharacter* Parent = Cast<ACharacter>(GetOwner());
 	if (!Parent)
+	{
 		return;
+	}
 	USkeletalMeshComponent* PlayerMesh = Parent->GetMesh();
 
 	if (!PlayerMesh)
+	{
 		return;
+	}
 
 	if (!PrimaryWeaponComponent)
+	{
 		return;
+	}
 
 	FAttachmentTransformRules AttachmentTransformRules(EAttachmentRule::SnapToTarget, true);
 
@@ -449,7 +506,9 @@ void UEquipmentComponent::EquipItem(const UInventoryItemEquipable* Item, EEquipm
 bool UEquipmentComponent::IsSlotEmpty(EEquipmentSlot InSlot)
 {
 	if (!Equipment[static_cast<int>(InSlot)])
+	{
 		return true;
+	}
 
 	return false;
 }
@@ -473,7 +532,9 @@ const UInventoryItemEquipable* UEquipmentComponent::GetItemAtSlot(EEquipmentSlot
 bool UEquipmentComponent::RemoveItem(EEquipmentSlot InSlot)
 {
 	if (IsSlotEmpty(InSlot))
+	{
 		return false;
+	}
 
 	UnEquip(Equipment[static_cast<int>(InSlot)], InSlot);
 	ItemUnEquipedDispatcher_Server.Broadcast(InSlot, Equipment[static_cast<int>(InSlot)]);
@@ -488,7 +549,9 @@ bool UEquipmentComponent::RemoveItem(EEquipmentSlot InSlot)
 void UEquipmentComponent::RemoveAll()
 {
 	for (uint32 SlotId = 0; SlotId < static_cast<uint32>(EEquipmentSlot::Last); ++SlotId)
+	{
 		RemoveItem(static_cast<EEquipmentSlot>(SlotId));
+	}
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -499,7 +562,9 @@ float UEquipmentComponent::GetTotalWeight() const
 	for (const auto& Item : Equipment)
 	{
 		if (Item)
+		{
 			TotalWeight += Item->Weight;
+		}
 	}
 	return TotalWeight;
 }
@@ -518,11 +583,16 @@ EEquipmentSlot UEquipmentComponent::FindSuitableSlot(const UInventoryItemEquipab
 			{
 				if (Item->TwoSlotsItem)
 				{
-					if (CurrentSlot == EEquipmentSlot::WaistBag1 || CurrentSlot == EEquipmentSlot::BackPack1 || CurrentSlot == EEquipmentSlot::Primary)
+					if (CurrentSlot == EEquipmentSlot::WaistBag1 || CurrentSlot == EEquipmentSlot::BackPack1 ||
+						CurrentSlot == EEquipmentSlot::Primary)
+					{
 						return CurrentSlot;
+					}
 				}
 				else
+				{
 					return CurrentSlot;
+				}
 			}
 		}
 	}
@@ -561,9 +631,85 @@ FBoxSphereBounds UEquipmentComponent::GetEquipmentOverlapBox(EEquipmentSlot Slot
 	}
 
 	if (!IsValid(Component->GetStaticMesh()))
+	{
 		return {};
+	}
 
 	FBoxSphereBounds MeshBounds = Component->GetStaticMesh()->GetBounds();
 
 	return MeshBounds;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UEquipmentComponent::SetEquipmentLight(TSubclassOf<AInventoryLightSourceActor> LightActor,
+                                            EEquipmentSlot Slot) const
+{
+	if (GetOwnerRole() == ROLE_Authority)
+	{
+		EquipLightItem(LightActor);
+	}
+	if (LightActor)
+	{
+		ACharacter* Parent = Cast<ACharacter>(GetOwner());
+		if (!Parent)
+		{
+			return;
+		}
+
+		USkeletalMeshComponent* PlayerMesh = Parent->GetMesh();
+
+		if (!PlayerMesh)
+		{
+			return;
+		}
+
+		FAttachmentTransformRules AttachmentTransformRules(EAttachmentRule::SnapToTarget, true);
+		switch (Slot)
+		{
+		case EEquipmentSlot::Secondary:
+			break;
+		default: ;
+		}
+		SecondaryLightSource->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("SOCKET_LeftHandWeapon"));
+		SecondaryLightSource->SetChildActorClass(LightActor);
+		SecondaryLightSource->CreateChildActor();
+	}
+	else
+	{
+		SecondaryLightSource->DestroyChildActor();
+	}
+}
+
+void UEquipmentComponent::EquipLightItem_Implementation(TSubclassOf<AInventoryLightSourceActor> LightActor) const
+{
+	if (LightActor)
+	{
+		ACharacter* Parent = Cast<ACharacter>(GetOwner());
+		if (!Parent)
+		{
+			return;
+		}
+
+		USkeletalMeshComponent* PlayerMesh = Parent->GetMesh();
+
+		if (!PlayerMesh)
+		{
+			return;
+		}
+
+		FAttachmentTransformRules AttachmentTransformRules(EAttachmentRule::SnapToTarget, true);
+		SecondaryLightSource->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("SOCKET_LeftHandWeapon"));
+		SecondaryLightSource->SetChildActorClass(LightActor);
+		SecondaryLightSource->CreateChildActor();
+	}
+	else
+	{
+		SecondaryLightSource->DestroyChildActor();
+	}
+}
+
+void UEquipmentComponent::UnEquipLightItem_Implementation() const
+{
+	SecondaryLightSource->DestroyChildActor();
 }
