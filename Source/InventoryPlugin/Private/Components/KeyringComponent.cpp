@@ -47,6 +47,7 @@ void UKeyringComponent::AddKey(int32 KeyId, int32 ItemId)
 	KeyringData.Add({KeyId, ItemId});
 	Keyring.Add(KeyId);
 	KeyRingToItemLUT.Add(KeyId, ItemId);
+	KeyAdded.Broadcast(KeyId);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -57,6 +58,7 @@ void UKeyringComponent::RemoveKey(int32 KeyId)
 	KeyringData.Remove({KeyId,KeyRingToItemLUT.FindChecked(KeyId)});
 	Keyring.Remove(KeyId);
 	KeyRingToItemLUT.Remove(KeyId);
+	KeyRemoved.Broadcast(KeyId);
 }
 
 //----------------------------------------------------------------------------------------------------------------------

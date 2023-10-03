@@ -11,6 +11,8 @@ class UInventoryItemKey;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnKeyRingChanged);
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FKeyItemAdd, int32, KeyID);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FKeyItemRemove, int32, KeyID);
 
 USTRUCT(BlueprintType)
 struct FKeyItemPair
@@ -67,6 +69,10 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "Inventory|Keyring")
 	FOnKeyRingChanged KeyringChangedDelegate;
+
+	FKeyItemAdd KeyAdded;
+
+	FKeyItemRemove KeyRemoved;
 
 	UFUNCTION()
 	void OnRep_KeyringChanged();
