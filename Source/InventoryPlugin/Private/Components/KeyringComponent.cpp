@@ -47,7 +47,7 @@ void UKeyringComponent::AddKey(int32 KeyId, int32 ItemId)
 	KeyringData.Add({KeyId, ItemId});
 	Keyring.Add(KeyId);
 	KeyRingToItemLUT.Add(KeyId, ItemId);
-	KeyAdded.Broadcast(KeyId);
+	KeyAdded.Broadcast(KeyId, ItemId);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
