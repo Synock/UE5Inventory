@@ -18,21 +18,82 @@ class UInventoryGameModeInterface : public UInterface
 	GENERATED_BODY()
 };
 
+/**
+ * @interface IInventoryGameModeInterface
+ * @brief Interface for a game mode that handles inventory related functionality
+ */
 class INVENTORYPLUGIN_API IInventoryGameModeInterface
 {
 	GENERATED_BODY()
 
 public:
-
+	/**
+	 * Spawns an item from the given actor at the desired drop location.
+	 *
+	 * @param SpawningActor  The actor from which the item will be spawned.
+	 * @param ItemID         The ID of the item to be spawned.
+	 * @param DesiredDropLocation  The desired location where the item should be dropped.
+	 * @param ClampOnGround  Whether the item should be clamped to the ground or not. Defaults to true.
+	 * @return  A pointer to the spawned ADroppedItem object, or nullptr if spawning failed.
+	 *
+	 * This method is a pure virtual function and needs to be implemented by the derived classes.
+	 * It allows an item to be spawned from a specific actor at a desired location.
+	 *
+	 * Usage example:
+	 *     AActor* SpawningActor = GetPlayerCharacter();
+	 *     FVector DesiredDropLocation = SpawningActor->GetActorLocation();
+	 *     uint32 ItemID = GetRandomItemID();
+	 *     ADroppedItem* DroppedItem = SpawnItemFromActor(SpawningActor, ItemID, DesiredDropLocation);
+	 *     if (DroppedItem != nullptr) {
+	 *         // Item was successfully spawned.
+	 *     } else {
+	 *         // Item spawning failed.
+	 *     }
+	 */
 	virtual ADroppedItem* SpawnItemFromActor(AActor* SpawningActor, uint32 ItemID, const FVector& DesiredDropLocation, bool ClampOnGround = true) = 0;
 
+	/**
+	 * Spawns coins from an actor at a desired drop location.
+	 *
+	 * @param SpawningActor The actor from which to spawn the coins.
+	 * @param CoinValue The value of the coins to spawn.
+	 * @param DesiredDropLocation The desired location where the coins should be dropped.
+	 * @param ClampOnGround Optional parameter to specify whether the coins should be clamped on the ground. Defaults to true.
+	 *
+	 * @return A pointer to the spawned coins.
+	 */
 	virtual ADroppedCoins* SpawnCoinsFromActor(AActor* SpawningActor, const FCoinValue& CoinValue, const FVector& DesiredDropLocation, bool ClampOnGround = true) = 0;
 
+	/**
+	 * Calculates the spawn location for an item to be dropped by a spawning actor.
+	 *
+	 * @param SpawningActor The actor that is spawning the item.
+	 * @param DesiredDropLocation The desired drop location for the item.
+	 * @param ClampOnGround If true, the spawn location will be clamped on the ground.
+	 *
+	 * @return The calculated spawn location for the item.
+	 */
 	virtual FVector GetItemSpawnLocation(AActor* SpawningActor,const FVector& DesiredDropLocation, bool ClampOnGround = true);
 
+	/**
+	 * @brief Fetches an inventory item based on the given ID.
+	 *
+	 * This method should be implemented by subclasses to retrieve an inventory item
+	 * using the specified ID.
+	 *
+	 * @param ID The unique identifier of the inventory item to fetch.
+	 * @return The inventory item with the specified ID if found, otherwise null.
+	 */
 	UFUNCTION(BlueprintCallable)
 	virtual UInventoryItemBase* FetchItemFromID(int32 ID) = 0;
 
+	/**
+	 * @brief Registers a new inventory item.
+	 *
+	 * This method registers a new inventory item into the inventory system.
+	 *
+	 * @param NewItem The pointer to the inventory item to be registered.
+	 */
 	UFUNCTION(BlueprintCallable)
 	virtual void RegisterItem(UInventoryItemBase* NewItem) = 0;
 	

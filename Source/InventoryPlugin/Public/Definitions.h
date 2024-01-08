@@ -5,6 +5,13 @@
 #include "CoreMinimal.h"
 #include "Definitions.generated.h"
 
+/**
+ * @enum ECurrencyType
+ * @brief Represents the currency types available in the game.
+ *
+ * This enumeration defines the different types of currencies that can be used in the game. Each currency type
+ * has a display name associated with it.
+ */
 UENUM(BlueprintType)
 enum class ECurrencyType : uint8
 {
@@ -14,6 +21,10 @@ enum class ECurrencyType : uint8
 	Platinum UMETA(DisplayName = "Platinum")
 };
 
+/**
+ * @enum EAmmoType
+ * @brief Enumeration for different types of ammunition.
+ */
 UENUM(BlueprintType)
 enum class EAmmoType : uint8
 {
