@@ -88,6 +88,9 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Equipment")
 	UStaticMeshComponent* RingRComponent;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Equipment")
+	USkeletalMeshComponent* HeadComponent;
+
 	EEquipmentSocket PrimaryWeaponOriginalSlot = EEquipmentSocket::Unknown;
 	EEquipmentSocket SecondaryWeaponOriginalSlot = EEquipmentSocket::Unknown;
 
@@ -141,6 +144,7 @@ protected:
 	 */
 	void Sheath();
 
+
 public:
 	/**
 	 * Retrieves the mesh component associated with the specified equipment socket.
@@ -172,6 +176,9 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "Inventory|Equipment")
 	FOnItemUnEquiped_Server ItemUnEquipedDispatcher_Server;
+
+	UFUNCTION(NetMulticast, reliable)
+	void UpdateEquipment(USkeletalMeshComponent* SkeletalSocket, USkeletalMesh* LocalItem);
 
 	/**
 	 *

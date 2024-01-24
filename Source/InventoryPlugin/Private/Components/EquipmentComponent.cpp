@@ -61,6 +61,7 @@ USkeletalMeshComponent* UEquipmentComponent::GetSkeletalMeshComponentFromSocket(
 	case EEquipmentSocket::Unknown: return nullptr;
 	case EEquipmentSocket::Primary: return PrimaryWeaponComponentSkeletal;
 	case EEquipmentSocket::Secondary: return SecondaryWeaponComponentSkeletal;
+	case EEquipmentSocket::Head: return HeadComponent;
 
 	default: return nullptr;
 	}
@@ -84,7 +85,7 @@ bool UEquipmentComponent::Equip(const UInventoryItemEquipable* Item, EEquipmentS
 
 		if (SkeletalSocket)
 		{
-			SkeletalSocket->SetSkeletalMeshAsset(Item->EquipmentMesh);
+			UpdateEquipment(SkeletalSocket, Item->EquipmentMesh);
 			return true;
 		}
 	}
@@ -187,7 +188,10 @@ EEquipmentSocket UEquipmentComponent::FindBestSocketForItem(const UInventoryItem
 		}
 	case EEquipmentSlot::Range: return EEquipmentSocket::BackSheath;
 	case EEquipmentSlot::Ammo: return EEquipmentSocket::AmmoBag;
-	case EEquipmentSlot::Head: break;
+	case EEquipmentSlot::Head:
+		{
+			return EEquipmentSocket::Head;
+		}
 	case EEquipmentSlot::Face: break;
 	case EEquipmentSlot::Shoulders: break;
 	case EEquipmentSlot::Back: break;
@@ -356,6 +360,15 @@ void UEquipmentComponent::Sheath()
 		}*/
 }
 
+void UEquipmentComponent::UpdateEquipment_Implementation(USkeletalMeshComponent* SkeletalSocket,
+	USkeletalMesh* LocalItem)
+{
+	if (SkeletalSocket)
+	{
+		SkeletalSocket->SetSkeletalMeshAsset(LocalItem);
+	}
+}
+
 //----------------------------------------------------------------------------------------------------------------------
 //----------------------------------------------------------------------------------------------------------------------
 //----------------------------------------------------------------------------------------------------------------------
@@ -412,6 +425,9 @@ UEquipmentComponent::UEquipmentComponent()
 
 	SecondaryLightSource = CreateDefaultSubobject<UChildActorComponent>(TEXT("SecondaryLightSource"));
 	SecondaryLightSource->SetIsReplicated(true);
+
+	HeadComponent= CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("HeadRComponent"));
+	HeadComponent->SetIsReplicated(true);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -469,6 +485,10 @@ void UEquipmentComponent::BeginPlay()
 
 	EarringLComponent->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("EarR"));
 	EarringRComponent->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("EarL"));
+
+	HeadComponent->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("root"));
+	HeadComponent->SetLeaderPoseComponent(Cast<ACharacter>(GetOwner())->GetMesh());
+
 	// ...
 }
 

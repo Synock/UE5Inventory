@@ -53,6 +53,8 @@ enum class EEquipmentSocket : uint8
 	EarR,
 	RingL,
 	RingR,
+	Head,
+	Face,
 };
 
 UENUM(BlueprintType, Meta = (Bitflags))
