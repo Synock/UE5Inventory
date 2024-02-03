@@ -9,6 +9,7 @@
 #include "Kismet/KismetSystemLibrary.h"
 #include "Engine/StaticMesh.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Interfaces/EquipmentInterface.h"
 #include "Items/InventoryItemEquipable.h"
 
 namespace
@@ -48,6 +49,9 @@ UStaticMeshComponent* UEquipmentComponent::GetMeshComponentFromSocket(EEquipment
 	case EEquipmentSocket::RingR: return RingRComponent;
 	case EEquipmentSocket::RingL: return RingLComponent;
 
+	case EEquipmentSocket::WristL: return WristLComponent;
+	case EEquipmentSocket::WristR: return WristRComponent;
+
 	default: return nullptr;
 	}
 }
@@ -62,6 +66,8 @@ USkeletalMeshComponent* UEquipmentComponent::GetSkeletalMeshComponentFromSocket(
 	case EEquipmentSocket::Primary: return PrimaryWeaponComponentSkeletal;
 	case EEquipmentSocket::Secondary: return SecondaryWeaponComponentSkeletal;
 	case EEquipmentSocket::Head: return HeadComponent;
+	case EEquipmentSocket::WristL: return LeftBracerComponent;
+	case EEquipmentSocket::WristR: return RightBracerComponent;
 
 	default: return nullptr;
 	}
@@ -96,8 +102,10 @@ bool UEquipmentComponent::Equip(const UInventoryItemEquipable* Item, EEquipmentS
 	{
 		return false;
 	}
-
 	UStaticMesh* StaticMesh = Item->Mesh;
+	if(const IEquipmentInterface* Interface = Cast<IEquipmentInterface>(GetOwner()))
+		StaticMesh = Interface->GetPreferedMesh(StaticMesh);
+
 	if (!StaticMesh)
 	{
 		return false;
@@ -192,7 +200,18 @@ EEquipmentSocket UEquipmentComponent::FindBestSocketForItem(const UInventoryItem
 		{
 			return EEquipmentSocket::Head;
 		}
-	case EEquipmentSlot::Face: break;
+	case EEquipmentSlot::Face:
+		{
+			return EEquipmentSocket::Face;
+	}
+	case EEquipmentSlot::WristL:
+		{
+			return EEquipmentSocket::WristL;
+		}
+	case EEquipmentSlot::WristR:
+		{
+			return EEquipmentSocket::WristR;
+		}
 	case EEquipmentSlot::Shoulders: break;
 	case EEquipmentSlot::Back: break;
 	case EEquipmentSlot::Waist: break;
@@ -426,8 +445,19 @@ UEquipmentComponent::UEquipmentComponent()
 	SecondaryLightSource = CreateDefaultSubobject<UChildActorComponent>(TEXT("SecondaryLightSource"));
 	SecondaryLightSource->SetIsReplicated(true);
 
+	WristLComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WristLComponent"));
+	WristLComponent->SetIsReplicated(true);
+	WristRComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WristRComponent"));
+	WristRComponent->SetIsReplicated(true);
+
 	HeadComponent= CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("HeadRComponent"));
 	HeadComponent->SetIsReplicated(true);
+
+
+	LeftBracerComponent = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("BracerLComponent"));
+	LeftBracerComponent->SetIsReplicated(true);
+	RightBracerComponent = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("BracerRComponent"));
+	RightBracerComponent->SetIsReplicated(true);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -486,8 +516,19 @@ void UEquipmentComponent::BeginPlay()
 	EarringLComponent->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("EarR"));
 	EarringRComponent->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("EarL"));
 
+	WristLComponent->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("WristL"));
+	WristRComponent->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("WristR"));
+
+
 	HeadComponent->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("root"));
 	HeadComponent->SetLeaderPoseComponent(Cast<ACharacter>(GetOwner())->GetMesh());
+
+	FAttachmentTransformRules TransformRules2(EAttachmentRule::SnapToTarget, EAttachmentRule::KeepWorld,EAttachmentRule::SnapToTarget,true);
+	LeftBracerComponent->AttachToComponent(PlayerMesh, TransformRules2, FName("root"));
+	LeftBracerComponent->SetLeaderPoseComponent(Cast<ACharacter>(GetOwner())->GetMesh());
+
+	RightBracerComponent->AttachToComponent(PlayerMesh, TransformRules2, FName("root"));
+	RightBracerComponent->SetLeaderPoseComponent(Cast<ACharacter>(GetOwner())->GetMesh());
 
 	// ...
 }

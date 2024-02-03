@@ -241,3 +241,10 @@ void IEquipmentInterface::HandleTwoSlotItemUnequip(const UInventoryItemEquipable
 		GetEquipmentComponent()->RemoveItem(SecondarySlot);
 	}
 }
+
+//----------------------------------------------------------------------------------------------------------------------
+
+UStaticMesh* IEquipmentInterface::GetPreferedMesh(UStaticMesh* OriginalMesh) const
+{
+	return OriginalMesh;
+}
