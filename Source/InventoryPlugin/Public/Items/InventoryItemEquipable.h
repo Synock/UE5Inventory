@@ -35,5 +35,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Visual")
 	USkeletalMesh* EquipmentMesh = nullptr;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Visual")
+	FMaterialOverride EquipmentMeshMaterialOverride;
+
 
 };

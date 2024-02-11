@@ -9,7 +9,6 @@
 ADroppedItem::ADroppedItem()
 {
 	PrimaryActorTick.bCanEverTick = false;
-
 }
 
 void ADroppedItem::InitializeFromItem(UInventoryItemBase* Item)
@@ -17,7 +16,12 @@ void ADroppedItem::InitializeFromItem(UInventoryItemBase* Item)
 	if (Item)
 	{
 		if (Item->Mesh)
+		{
 			StaticItem->SetStaticMesh(Item->Mesh);
+
+			if (Item->OverrideMaterial.OverrideMaterial)
+				StaticItem->SetMaterial(Item->OverrideMaterial.MaterialID, Item->OverrideMaterial.OverrideMaterial);
+		}
 		//else initialize at some default mesh
 
 		CapsuleComponent->SetRelativeLocation(Item->Mesh->GetBoundingBox().GetCenter());

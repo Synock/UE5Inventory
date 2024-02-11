@@ -91,7 +91,7 @@ bool UEquipmentComponent::Equip(const UInventoryItemEquipable* Item, EEquipmentS
 
 		if (SkeletalSocket)
 		{
-			UpdateEquipment(SkeletalSocket, Item->EquipmentMesh);
+			UpdateEquipment(SkeletalSocket, Item->EquipmentMesh, Item->EquipmentMeshMaterialOverride);
 			return true;
 		}
 	}
@@ -111,6 +111,9 @@ bool UEquipmentComponent::Equip(const UInventoryItemEquipable* Item, EEquipmentS
 		return false;
 	}
 
+	if(Item->OverrideMaterial.OverrideMaterial)
+		WantedSocket->SetMaterial(Item->OverrideMaterial.MaterialID, Item->OverrideMaterial.OverrideMaterial);
+
 	return WantedSocket->SetStaticMesh(StaticMesh);
 }
 
@@ -125,7 +128,6 @@ bool UEquipmentComponent::UnEquip(const UInventoryItemEquipable* Item, EEquipmen
 		return false;
 	}
 
-	// skeletal mesh have precedence over static mesh
 	if (Item->EquipmentMesh)
 	{
 		if (USkeletalMeshComponent* SkeletalSocket = GetSkeletalMeshComponentFromSocket(PossibleSocket))
@@ -136,7 +138,6 @@ bool UEquipmentComponent::UnEquip(const UInventoryItemEquipable* Item, EEquipmen
 	}
 
 	const UStaticMesh* StaticMesh = Item->Mesh;
-
 	if (!StaticMesh)
 	{
 		return false;
@@ -380,11 +381,16 @@ void UEquipmentComponent::Sheath()
 }
 
 void UEquipmentComponent::UpdateEquipment_Implementation(USkeletalMeshComponent* SkeletalSocket,
-	USkeletalMesh* LocalItem)
+	USkeletalMesh* LocalItem, const FMaterialOverride& MaterialOverride)
 {
 	if (SkeletalSocket)
 	{
 		SkeletalSocket->SetSkeletalMeshAsset(LocalItem);
+
+		if(MaterialOverride.OverrideMaterial)
+		{
+			SkeletalSocket->SetMaterial(MaterialOverride.MaterialID, MaterialOverride.OverrideMaterial);
+		}
 	}
 }
 

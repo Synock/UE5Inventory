@@ -31,4 +31,6 @@ public:
 	virtual USkeletalMeshComponent* GetFootComponent() = 0;
 
 	virtual void SetEquipment(const UInventoryItemEquipable* Item, EEquipmentSlot Slot);
+
+	virtual USkeletalMeshComponent* GetEquipmentComponentFromSlot(EEquipmentSlot Slot);
 };
