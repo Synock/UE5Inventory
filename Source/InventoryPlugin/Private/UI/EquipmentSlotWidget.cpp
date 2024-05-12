@@ -128,11 +128,10 @@ void UEquipmentSlotWidget::InnerRefresh()
 		Item = Equipment;
 		UGenericSlotWidget::InnerRefresh();
 
-		if (SisterSlot && Equipment && Equipment->TwoSlotsItem)
+		if (Equipment && Equipment->MultiSlotItem && ParentComponent)
 		{
-			SisterSlot->EnabledSlot = false;
 			//SisterSlot->SetIsEnabled(false);
-			if (Equipment->Icon)
+			/*if (Equipment->Icon)
 			{
 				UTexture2D* Tex = Equipment->Icon;
 
@@ -143,7 +142,7 @@ void UEquipmentSlotWidget::InnerRefresh()
 				SisterSlot->ItemImagePointer->SetBrushFromTexture(Tex);
 				SisterSlot->ItemImagePointer->SetVisibility(ESlateVisibility::Visible);
 
-			}
+			}*/
 		}
 	}
 }
@@ -153,13 +152,14 @@ void UEquipmentSlotWidget::InnerRefresh()
 void UEquipmentSlotWidget::HideItem()
 {
 
-	if (const UInventoryItemEquipable* Equipable = Cast<UInventoryItemEquipable>(Item); Equipable && Equipable->TwoSlotsItem &&
-		SisterSlot)
+	if (const UInventoryItemEquipable* Equipable = Cast<UInventoryItemEquipable>(Item); Equipable && Equipable->MultiSlotItem)
 	{
-
+		//emit a signal or something?
+/*
 		SisterSlot->EnabledSlot = true;
 		SisterSlot->HideItem();
 		//SisterSlot->SetIsEnabled(true);
+		*/
 	}
 
 	Item = nullptr;
@@ -177,13 +177,6 @@ void UEquipmentSlotWidget::StopDrag()
 		if (IInventoryPlayerInterface* PC = GetInventoryPlayerInterface())
 			PC->GetInventoryHUDInterface()->Execute_ForceRefreshInventory(PC->GetInventoryHUDObject());
 	}
-}
-
-//----------------------------------------------------------------------------------------------------------------------
-
-void UEquipmentSlotWidget::SetSisterSlot(UEquipmentSlotWidget* NewSisterSlot)
-{
-	SisterSlot = NewSisterSlot;
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -219,7 +212,7 @@ bool UEquipmentSlotWidget::CanEquipItemAtSlot(const UInventoryItemBase* InputIte
 
 	const int32 LocalAcceptableBitMask = FMath::Pow(2., static_cast<double>(InputSlot));
 
-	if (Equipable->TwoSlotsItem)
+	if (Equipable->MultiSlotItem)
 	{
 		if (InputSlot == EEquipmentSlot::WaistBag2 || InputSlot == EEquipmentSlot::BackPack2)
 		{
