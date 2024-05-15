@@ -6,6 +6,8 @@
 #include "Blueprint/UserWidget.h"
 #include "InventoryEquipmentWidget.generated.h"
 
+class UEquipmentSlotWidget;
+enum class EEquipmentSlot : uint8;
 /**
  * 
  */
@@ -14,13 +16,25 @@ class INVENTORYPLUGIN_API UInventoryEquipmentWidget : public UUserWidget
 {
  	
  GENERATED_BODY()
+
 protected:
+
+	UPROPERTY(BlueprintReadOnly)
+	TMap<EEquipmentSlot, UEquipmentSlotWidget*> KnownEquipmentSlot;
 
 	UFUNCTION(BlueprintCallable)
 	virtual bool HandleItemDrop(class UItemWidget* InputItem);
-	
+
+	UFUNCTION(BlueprintCallable)
+	void RegisterSlotWidget(UEquipmentSlotWidget* NewSlotWidget);
+
+
 public:
 
 	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent)
 	void ForceRefresh();
+
+	UFUNCTION(BlueprintCallable)
+	UEquipmentSlotWidget* GetSlotWidget(EEquipmentSlot WantedSlot) const;
+
 };

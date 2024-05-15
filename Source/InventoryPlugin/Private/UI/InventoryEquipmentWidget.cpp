@@ -5,6 +5,7 @@
 
 #include "Interfaces/InventoryPlayerInterface.h"
 #include "Items/InventoryItemBase.h"
+#include "UI/EquipmentSlotWidget.h"
 #include "UI/ItemWidget.h"
 
 bool UInventoryEquipmentWidget::HandleItemDrop(UItemWidget* InputItem)
@@ -35,4 +36,23 @@ bool UInventoryEquipmentWidget::HandleItemDrop(UItemWidget* InputItem)
 	}
 
 	return false;
+}
+
+void UInventoryEquipmentWidget::RegisterSlotWidget(UEquipmentSlotWidget* NewSlotWidget)
+{
+	if (!KnownEquipmentSlot.Contains(NewSlotWidget->GetSlotID()))
+	{
+		KnownEquipmentSlot.Add(NewSlotWidget->GetSlotID(), NewSlotWidget);
+		NewSlotWidget->SetParentComponent(this);
+
+	}
+	else
+	{
+		UE_LOG(LogTemp, Log, TEXT("Trying to register a slot that is already known : %d"), NewSlotWidget->GetSlotID());
+	}
+}
+
+UEquipmentSlotWidget* UInventoryEquipmentWidget::GetSlotWidget(EEquipmentSlot WantedSlot) const
+{
+	return KnownEquipmentSlot.FindRef(WantedSlot);
 }

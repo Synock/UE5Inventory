@@ -10,6 +10,7 @@
 #include "Engine/StaticMesh.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Interfaces/EquipmentInterface.h"
+#include "Interfaces/InventoryModularCharacterInterface.h"
 #include "Items/InventoryItemEquipable.h"
 
 namespace
@@ -65,7 +66,10 @@ USkeletalMeshComponent* UEquipmentComponent::GetSkeletalMeshComponentFromSocket(
 	case EEquipmentSocket::Unknown: return nullptr;
 	case EEquipmentSocket::Primary: return PrimaryWeaponComponentSkeletal;
 	case EEquipmentSocket::Secondary: return SecondaryWeaponComponentSkeletal;
-	case EEquipmentSocket::Head: return HeadComponent;
+	case EEquipmentSocket::Head:
+		{
+			return Cast<IInventoryModularCharacterInterface>(GetOwner())->GetHelmetComponent();
+		}
 	case EEquipmentSocket::WristL: return LeftBracerComponent;
 	case EEquipmentSocket::WristR: return RightBracerComponent;
 
@@ -457,14 +461,18 @@ UEquipmentComponent::UEquipmentComponent()
 	WristRComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WristRComponent"));
 	WristRComponent->SetIsReplicated(true);
 
-	HeadComponent = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("HeadRComponent"));
-	HeadComponent->SetIsReplicated(true);
-
-
 	LeftBracerComponent = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("BracerLComponent"));
 	LeftBracerComponent->SetIsReplicated(true);
 	RightBracerComponent = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("BracerRComponent"));
 	RightBracerComponent->SetIsReplicated(true);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UEquipmentComponent::UpdateMasterMeshComponent(USkeletalMeshComponent* Mesh)
+{
+	RightBracerComponent->SetLeaderPoseComponent(Mesh);
+	LeftBracerComponent->SetLeaderPoseComponent(Mesh);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -526,10 +534,6 @@ void UEquipmentComponent::BeginPlay()
 	WristLComponent->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("WristL"));
 	WristRComponent->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("WristR"));
 
-
-	HeadComponent->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("root"));
-	HeadComponent->SetLeaderPoseComponent(Cast<ACharacter>(GetOwner())->GetMesh());
-
 	FAttachmentTransformRules TransformRules2(EAttachmentRule::SnapToTarget, EAttachmentRule::KeepWorld,
 	                                          EAttachmentRule::SnapToTarget, true);
 	LeftBracerComponent->AttachToComponent(PlayerMesh, TransformRules2, FName("root"));
@@ -537,8 +541,6 @@ void UEquipmentComponent::BeginPlay()
 
 	RightBracerComponent->AttachToComponent(PlayerMesh, TransformRules2, FName("root"));
 	RightBracerComponent->SetLeaderPoseComponent(Cast<ACharacter>(GetOwner())->GetMesh());
-
-	// ...
 }
 
 //----------------------------------------------------------------------------------------------------------------------

@@ -29,6 +29,8 @@ public:
 	// Sets default values for this component's properties
 	UEquipmentComponent();
 
+	void UpdateMasterMeshComponent(USkeletalMeshComponent* Mesh);
+
 protected:
 	// Called when the game starts
 	virtual void BeginPlay() override;
@@ -87,9 +89,6 @@ protected:
 	UStaticMeshComponent* RingLComponent;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Equipment")
 	UStaticMeshComponent* RingRComponent;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Equipment")
-	USkeletalMeshComponent* HeadComponent;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Equipment")
     USkeletalMeshComponent* RightBracerComponent;

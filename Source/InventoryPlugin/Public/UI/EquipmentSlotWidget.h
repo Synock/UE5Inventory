@@ -10,6 +10,7 @@
 
 #include "EquipmentSlotWidget.generated.h"
 
+class UInventoryItemEquipable;
 class APlayerCharacter;
 /**
  * 
@@ -51,6 +52,8 @@ protected:
 
 	virtual void HideItem() override;
 
+	void DisableAndRefresh(const UInventoryItemEquipable* InputItem);
+
 public:
 	virtual void StopDrag() override;
 
@@ -68,4 +71,19 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void UpdateTextSlots();
+
+	[[nodiscard]] EEquipmentSlot GetSlotID() const
+	{
+		return SlotID;
+	}
+
+	[[nodiscard]] UInventoryEquipmentWidget* GetParentComponent() const
+	{
+		return ParentComponent;
+	}
+
+	void SetParentComponent(UInventoryEquipmentWidget* const NewParentComponent)
+	{
+		ParentComponent = NewParentComponent;
+	}
 };

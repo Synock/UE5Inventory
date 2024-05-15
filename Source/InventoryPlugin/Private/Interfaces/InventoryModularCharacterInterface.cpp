@@ -4,6 +4,11 @@
 #include "Interfaces/InventoryModularCharacterInterface.h"
 
 
+USkeletalMeshComponent* IInventoryModularCharacterInterface::GetHelmetComponent()
+{
+	return nullptr;
+}
+
 void IInventoryModularCharacterInterface::SetEquipment(const UInventoryItemEquipable* Item, EEquipmentSlot Slot)
 {
 	if (!Item)
@@ -42,7 +47,7 @@ USkeletalMeshComponent* IInventoryModularCharacterInterface::GetEquipmentCompone
 		return GetLegsComponent();
 
 	if (Slot == EEquipmentSlot::Head)
-		return GetHeadComponent();
+		return GetHelmetComponent();
 
 	return nullptr;
 }

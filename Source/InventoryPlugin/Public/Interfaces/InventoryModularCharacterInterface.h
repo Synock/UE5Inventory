@@ -24,6 +24,7 @@ class INVENTORYPLUGIN_API IInventoryModularCharacterInterface
 public:
 
 	virtual USkeletalMeshComponent* GetHeadComponent() = 0;
+	virtual USkeletalMeshComponent* GetHelmetComponent();
 	virtual USkeletalMeshComponent* GetTorsoComponent() = 0;
 	virtual USkeletalMeshComponent* GetArmsComponent() = 0;
 	virtual USkeletalMeshComponent* GetHandsComponent() = 0;
