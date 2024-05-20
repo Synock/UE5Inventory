@@ -31,7 +31,7 @@ protected:
 
 public:
 
-	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent)
+	UFUNCTION(BlueprintCallable)
 	void ForceRefresh();
 
 	UFUNCTION(BlueprintCallable)

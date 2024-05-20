@@ -52,6 +52,14 @@ void UInventoryEquipmentWidget::RegisterSlotWidget(UEquipmentSlotWidget* NewSlot
 	}
 }
 
+void UInventoryEquipmentWidget::ForceRefresh()
+{
+	for(auto& CurrentSlot : KnownEquipmentSlot)
+	{
+		CurrentSlot.Value->Refresh();
+	}
+}
+
 UEquipmentSlotWidget* UInventoryEquipmentWidget::GetSlotWidget(EEquipmentSlot WantedSlot) const
 {
 	return KnownEquipmentSlot.FindRef(WantedSlot);

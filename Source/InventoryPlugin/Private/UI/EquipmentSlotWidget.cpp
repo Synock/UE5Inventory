@@ -134,8 +134,7 @@ void UEquipmentSlotWidget::InnerRefresh()
 			for (int32 i = static_cast<int32>(EEquipmentSlot::Unknown); i < static_cast<int32>(EEquipmentSlot::Last); ++
 			     i)
 			{
-				const int32 localValue = 1 << i;
-				if (localValue & Equipment->EquipableSlotBitMask)
+				if (const int32 LocalValue = 1 << i; LocalValue & Equipment->EquipableSlotBitMask)
 				{
 					EEquipmentSlot localSlot = static_cast<EEquipmentSlot>(i);
 					if (localSlot != SlotID)
