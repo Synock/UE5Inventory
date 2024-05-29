@@ -23,13 +23,20 @@ class INVENTORYPLUGIN_API IInventoryModularCharacterInterface
 	GENERATED_BODY()
 public:
 
+	/// these are character component that get replaced by stuff
 	virtual USkeletalMeshComponent* GetHeadComponent() = 0;
-	virtual USkeletalMeshComponent* GetHelmetComponent();
 	virtual USkeletalMeshComponent* GetTorsoComponent() = 0;
 	virtual USkeletalMeshComponent* GetArmsComponent() = 0;
 	virtual USkeletalMeshComponent* GetHandsComponent() = 0;
 	virtual USkeletalMeshComponent* GetLegsComponent() = 0;
 	virtual USkeletalMeshComponent* GetFootComponent() = 0;
+
+	/// these are stuff that get on top of other stuff
+	virtual USkeletalMeshComponent* GetHelmetComponent();
+	virtual USkeletalMeshComponent* GetShoulderPadComponent();
+	virtual USkeletalMeshComponent* GetNeckComponent();
+	virtual USkeletalMeshComponent* GetRightBracerComponent();
+	virtual USkeletalMeshComponent* GetLeftBracerComponent();
 
 	virtual void SetEquipment(const UInventoryItemEquipable* Item, EEquipmentSlot Slot);
 

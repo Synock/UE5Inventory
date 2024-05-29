@@ -9,6 +9,26 @@ USkeletalMeshComponent* IInventoryModularCharacterInterface::GetHelmetComponent(
 	return nullptr;
 }
 
+USkeletalMeshComponent* IInventoryModularCharacterInterface::GetShoulderPadComponent()
+{
+	return nullptr;
+}
+
+USkeletalMeshComponent* IInventoryModularCharacterInterface::GetNeckComponent()
+{
+	return nullptr;
+}
+
+USkeletalMeshComponent* IInventoryModularCharacterInterface::GetRightBracerComponent()
+{
+	return nullptr;
+}
+
+USkeletalMeshComponent* IInventoryModularCharacterInterface::GetLeftBracerComponent()
+{
+	return nullptr;
+}
+
 void IInventoryModularCharacterInterface::SetEquipment(const UInventoryItemEquipable* Item, EEquipmentSlot Slot)
 {
 	if (!Item)
@@ -31,23 +51,44 @@ void IInventoryModularCharacterInterface::SetEquipment(const UInventoryItemEquip
 
 USkeletalMeshComponent* IInventoryModularCharacterInterface::GetEquipmentComponentFromSlot(EEquipmentSlot Slot)
 {
-	if (Slot == EEquipmentSlot::Torso)
-		return GetTorsoComponent();
-
-	if (Slot == EEquipmentSlot::Arms)
-		return GetArmsComponent();
-
-	if (Slot == EEquipmentSlot::Foot)
-		return GetFootComponent();
-
-	if (Slot == EEquipmentSlot::Hands)
-		return GetHandsComponent();
-
-	if (Slot == EEquipmentSlot::Legs)
-		return GetLegsComponent();
-
-	if (Slot == EEquipmentSlot::Head)
+	switch (Slot)
+	{
+	case EEquipmentSlot::Head:
 		return GetHelmetComponent();
+	case EEquipmentSlot::Face:
+		break;
+	case EEquipmentSlot::Neck:
+		return GetNeckComponent();
+	case EEquipmentSlot::Shoulders:
+		return GetShoulderPadComponent();
+	case EEquipmentSlot::Back:
+		break;
+	case EEquipmentSlot::Torso:
+		return GetTorsoComponent();
+	case EEquipmentSlot::WristL:
+		return GetLeftBracerComponent();
+	case EEquipmentSlot::WristR:
+		return GetRightBracerComponent();
+	case EEquipmentSlot::Hands:
+		return GetHandsComponent();
+	case EEquipmentSlot::Waist:
+		break;
+	case EEquipmentSlot::Legs:
+		return GetLegsComponent();
+	case EEquipmentSlot::Foot:
+		return GetFootComponent();
+	case EEquipmentSlot::Arms:
+		return GetArmsComponent();
+	case EEquipmentSlot::WaistBag1:
+		break;
+	case EEquipmentSlot::WaistBag2:
+		break;
+	case EEquipmentSlot::BackPack1:
+		break;
+	case EEquipmentSlot::BackPack2:
+		break;
+	default: return nullptr;
+	}
 
 	return nullptr;
 }
