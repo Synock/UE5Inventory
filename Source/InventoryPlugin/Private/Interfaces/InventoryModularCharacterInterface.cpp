@@ -19,6 +19,11 @@ USkeletalMeshComponent* IInventoryModularCharacterInterface::GetNeckComponent()
 	return nullptr;
 }
 
+USkeletalMeshComponent* IInventoryModularCharacterInterface::GetBackComponent()
+{
+	return nullptr;
+}
+
 USkeletalMeshComponent* IInventoryModularCharacterInterface::GetRightBracerComponent()
 {
 	return nullptr;
@@ -62,7 +67,7 @@ USkeletalMeshComponent* IInventoryModularCharacterInterface::GetEquipmentCompone
 	case EEquipmentSlot::Shoulders:
 		return GetShoulderPadComponent();
 	case EEquipmentSlot::Back:
-		break;
+		return GetBackComponent();
 	case EEquipmentSlot::Torso:
 		return GetTorsoComponent();
 	case EEquipmentSlot::WristL:

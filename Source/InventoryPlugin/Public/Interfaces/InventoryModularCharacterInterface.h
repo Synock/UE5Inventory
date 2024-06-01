@@ -37,6 +37,7 @@ public:
 	virtual USkeletalMeshComponent* GetNeckComponent();
 	virtual USkeletalMeshComponent* GetRightBracerComponent();
 	virtual USkeletalMeshComponent* GetLeftBracerComponent();
+	virtual USkeletalMeshComponent* GetBackComponent();
 
 	virtual void SetEquipment(const UInventoryItemEquipable* Item, EEquipmentSlot Slot);
 
