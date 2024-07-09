@@ -500,3 +500,10 @@ void IInventoryPlayerInterface::PlayerRemoveKeyToInventory(int32 KeyId)
 {
 	Server_PlayerRemoveKeyToInventory(KeyId);
 }
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryPlayerInterface::DisplayItemDescription(const UInventoryItemBase* Item, float X, float Y)
+{
+	GetInventoryHUDInterface()->Execute_DisplayItemDescription(GetInventoryHUDObject(), Item, X, Y);
+}

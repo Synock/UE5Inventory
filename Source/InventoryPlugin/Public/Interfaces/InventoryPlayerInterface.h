@@ -826,6 +826,9 @@ public:
 	UFUNCTION(BlueprintCallable)
 	virtual void PlayerRemoveKeyToInventory(int32 KeyId);
 
+	UFUNCTION(BlueprintCallable)
+	virtual void DisplayItemDescription(const UInventoryItemBase* Item, float X, float Y);
+
 
 protected:
 	//------------------------------------------------------------------------------------------------------------------
