@@ -7,6 +7,8 @@
 #include "UObject/Interface.h"
 #include "InventoryGameModeInterface.generated.h"
 
+class ULootPoolComponent;
+class ULoreItemManagerComponent;
 struct FCoinValue;
 class ADroppedCoins;
 class ADroppedItem;
@@ -96,5 +98,11 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable)
 	virtual void RegisterItem(UInventoryItemBase* NewItem) = 0;
-	
+
+	UFUNCTION(BlueprintCallable)
+	virtual bool CanSpawnItem(UInventoryItemBase* NewItem);
+
+	virtual bool DelayedLoreItemValidation(const UInventoryItemBase* LocalItem, ULootPoolComponent* Origin);
+
+	virtual ULoreItemManagerComponent* GetLoreManagementComponent();
 };

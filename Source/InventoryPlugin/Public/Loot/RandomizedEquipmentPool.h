@@ -86,5 +86,10 @@ public:
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere)
 	TArray<FItemAlternative> AlternativeSet;
+
+	TArray<int32> GetRandomisedItems() const;
+
+	float GetRandomisedCoin() const;
+
 };
 

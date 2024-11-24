@@ -2,6 +2,8 @@
 
 
 #include "Interfaces/InventoryGameModeInterface.h"
+
+#include "Components/LoreItemManagerComponent.h"
 #include "GameFramework/Actor.h"
 #include "Engine/World.h"
 
@@ -36,4 +38,27 @@ FVector IInventoryGameModeInterface::GetItemSpawnLocation(AActor* SpawningActor,
 	}
 
 	return SpawnLocation;
+}
+
+bool IInventoryGameModeInterface::CanSpawnItem(UInventoryItemBase* NewItem)
+{
+	const auto* LoreComponent = GetLoreManagementComponent();
+	if (!LoreComponent)
+		return true;
+
+	return true;
+}
+
+bool IInventoryGameModeInterface::DelayedLoreItemValidation(const UInventoryItemBase* LocalItem, ULootPoolComponent* Origin)
+{
+	auto* LoreComponent = GetLoreManagementComponent();
+	if (!LoreComponent)
+		return false;
+
+	return LoreComponent->DelayedSpawnItem(LocalItem, Origin);
+}
+
+ULoreItemManagerComponent* IInventoryGameModeInterface::GetLoreManagementComponent()
+{
+	return nullptr;
 }

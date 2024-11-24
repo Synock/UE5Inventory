@@ -57,4 +57,8 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory|LootPool")
 	bool IsEmpty() const { return Items.IsEmpty(); }
+
+	/// Try to refrain using this functions, as it rebuilds the solver from scratch every time.
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Inventory|LootPool")
+	bool AddItemSomewhere(int32 ItemID);
 };

@@ -5,7 +5,9 @@
 
 #include "InventoryUtilities.h"
 #include "BagStorage.h"
+#include "Interfaces/InventoryGameModeInterface.h"
 #include "Items/InventoryItemBase.h"
+#include "Kismet/GameplayStatics.h"
 
 // Sets default values for this component's properties
 ULootPoolComponent::ULootPoolComponent()
@@ -17,7 +19,7 @@ ULootPoolComponent::ULootPoolComponent()
 
 void ULootPoolComponent::Init(const TArray<int32>& LootableItems)
 {
-	if(!GetOwner()->HasAuthority())
+	if (!GetOwner()->HasAuthority())
 		return;
 
 	TArray<const UInventoryItemBase*> ItemArray;
@@ -26,8 +28,18 @@ void ULootPoolComponent::Init(const TArray<int32>& LootableItems)
 	{
 		const UInventoryItemBase* LocalItem = UInventoryUtilities::GetItemFromID(ItemID, GetWorld());
 
-		if(!LocalItem)
+		if (!LocalItem)
 			continue;
+
+		if (LocalItem->LoreItem)
+		{
+			auto* GM = Cast<IInventoryGameModeInterface>(
+				UGameplayStatics::GetGameMode(GetWorld()));
+			if (GM->DelayedLoreItemValidation(LocalItem, this))
+			{
+				continue;
+			}
+		}
 
 		ItemArray.Add(LocalItem);
 	}
@@ -69,6 +81,37 @@ int32 ULootPoolComponent::GetItemAtIndex(int32 ID) const
 			return Item.ItemID;
 	}
 	return -1;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+bool ULootPoolComponent::AddItemSomewhere(int32 ItemID)
+{
+	if (!GetOwner()->HasAuthority())
+		return false;
+
+	GridBagSolver Solver(Width, Height);
+	for (auto& Item : Items)
+	{
+		const UInventoryItemBase* LocalItem = UInventoryUtilities::GetItemFromID(Item.ItemID, GetWorld());
+
+		if (!LocalItem)
+			continue;
+
+		Solver.RecordData(LocalItem, Item.TopLeftID);
+	}
+
+	const UInventoryItemBase* LocalItem = UInventoryUtilities::GetItemFromID(ItemID, GetWorld());
+
+	if (!LocalItem)
+		return false;
+
+	int32 TopLeft = Solver.GetFirstValidTopLeft(LocalItem);
+
+	if (TopLeft >= 0)
+		Items.Add({LocalItem->ItemID, TopLeft});
+
+	return true;
 }
 
 //----------------------------------------------------------------------------------------------------------------------
