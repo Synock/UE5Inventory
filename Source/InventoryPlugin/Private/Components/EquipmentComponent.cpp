@@ -644,6 +644,23 @@ float UEquipmentComponent::GetTotalWeight() const
 
 EEquipmentSlot UEquipmentComponent::FindSuitableSlot(const UInventoryItemEquipable* Item) const
 {
+	// In the specific case of multiple slots items, if one of the slot is used, we can't equip it.
+	if (Item->MultiSlotItem)
+	{
+		EEquipmentSlot PrimarySlot = EEquipmentSlot::Unknown;
+
+		for (int32 i = static_cast<int32>(EEquipmentSlot::Unknown); i < static_cast<int32>(EEquipmentSlot::Last); ++i)
+		{
+			const int32 LocalAcceptableBitMask = 1 << i;
+
+			if (Item->EquipableSlotBitMask & LocalAcceptableBitMask)
+			{
+				if (Equipment[i])
+					return PrimarySlot;
+			}
+		}
+	}
+
 	for (size_t i = 1; i < Equipment.Num(); ++i)
 	{
 		if (!Equipment[i])
