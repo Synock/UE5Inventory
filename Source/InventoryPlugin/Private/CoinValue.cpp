@@ -84,7 +84,7 @@ bool FCoinValue::IsEmpty() const
 //----------------------------------------------------------------------------------------------------------------------
 
 void MakeChange(int32& AvailableLow, const int32& NeededLow, int32& AvailableCurrent, const int32& NeededCurrent,
-                int32& NeededHigher)
+                int32& NeededHigher, int32 ConversionFactor = 10)
 {
 	//if we don't have enough coin of the current value
 	if (AvailableCurrent < NeededCurrent)
@@ -93,15 +93,15 @@ void MakeChange(int32& AvailableLow, const int32& NeededLow, int32& AvailableCur
 		const int32 MissingCurrent = NeededCurrent - AvailableCurrent;
 
 		//if we can use lower value coins to make up for current values
-		if (SpareLow >= MissingCurrent * 10)
+		if (SpareLow >= MissingCurrent * ConversionFactor)
 		{
-			AvailableLow -= MissingCurrent * 10; //we use 10 time more lower value coin
+			AvailableLow -= MissingCurrent * ConversionFactor; //we use ConversionFactor time more lower value coin
 			AvailableCurrent += MissingCurrent;
 		}
 		else //otherwise we can try to use higher value coin to compensate
 		{
-			const int32 Factor = FMath::Max((NeededCurrent - AvailableCurrent) / 10, 1);
-			AvailableCurrent += Factor * 10;
+			const int32 Factor = FMath::Max((NeededCurrent - AvailableCurrent) / ConversionFactor, 1);
+			AvailableCurrent += Factor * ConversionFactor;
 			NeededHigher += Factor;
 		}
 	}
@@ -111,6 +111,11 @@ void MakeChange(int32& AvailableLow, const int32& NeededLow, int32& AvailableCur
 
 bool FCoinValue::RetrieveValue(FCoinValue& AvailableCoins, FCoinValue& NeededCoins)
 {
+
+	if (AvailableCoins.ToFloat() < NeededCoins.ToFloat())
+		return false;
+
+
 	//if copper coin is missing, the only option is to convert at least one silver into 10 copper
 	if (AvailableCoins.CopperPieces < NeededCoins.CopperPieces)
 	{
@@ -123,6 +128,11 @@ bool FCoinValue::RetrieveValue(FCoinValue& AvailableCoins, FCoinValue& NeededCoi
 	MakeChange(AvailableCoins.CopperPieces, NeededCoins.CopperPieces,
 	           AvailableCoins.SilverPieces, NeededCoins.SilverPieces,
 	           NeededCoins.GoldPieces);
+
+	//Silver can be obtained using either copper or gold
+	MakeChange(AvailableCoins.CopperPieces, NeededCoins.CopperPieces,
+			   AvailableCoins.GoldPieces, NeededCoins.GoldPieces,
+			   NeededCoins.PlatinumPieces,100);
 
 	//Gold can be obtained using either silver or platinum
 	MakeChange(AvailableCoins.SilverPieces, NeededCoins.SilverPieces,

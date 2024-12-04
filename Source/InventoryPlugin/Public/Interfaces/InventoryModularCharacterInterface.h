@@ -42,4 +42,8 @@ public:
 	virtual void SetEquipment(const UInventoryItemEquipable* Item, EEquipmentSlot Slot);
 
 	virtual USkeletalMeshComponent* GetEquipmentComponentFromSlot(EEquipmentSlot Slot);
+
+	virtual bool IsBodyPart(EEquipmentSlot Slot);
+
+	virtual bool IsEquipmentPart(EEquipmentSlot Slot);
 };

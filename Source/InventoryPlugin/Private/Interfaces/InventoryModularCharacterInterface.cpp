@@ -97,3 +97,14 @@ USkeletalMeshComponent* IInventoryModularCharacterInterface::GetEquipmentCompone
 
 	return nullptr;
 }
+
+bool IInventoryModularCharacterInterface::IsBodyPart(EEquipmentSlot Slot)
+{
+	return Slot == EEquipmentSlot::Legs || Slot == EEquipmentSlot::Foot || Slot == EEquipmentSlot::Arms || Slot ==
+		EEquipmentSlot::Torso || Slot == EEquipmentSlot::Hands;
+}
+
+bool IInventoryModularCharacterInterface::IsEquipmentPart(EEquipmentSlot Slot)
+{
+	return !IsBodyPart(Slot);
+}
