@@ -63,6 +63,20 @@ void UCoinComponent::PayAndAdjust(const FCoinValue& Cost)
 
 //----------------------------------------------------------------------------------------------------------------------
 
+void UCoinComponent::PayAndAdjustSimple(const FCoinValue& Cost)
+{
+	if (GetOwnerRole() != ROLE_Authority)
+		return;
+
+	float NewValue = FMath::Max(PurseContent.ToFloat() - Cost.ToFloat(), 0.f);
+	PurseContent = FCoinValue(NewValue);
+
+	UE_LOG(LogTemp, Log, TEXT("Paying and adjusting %s"), *GetName());
+	PurseDispatcher_Server.Broadcast();
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 void UCoinComponent::RemoveCoins(const FCoinValue& CoinValue)
 {
 	if (GetOwnerRole() != ROLE_Authority)

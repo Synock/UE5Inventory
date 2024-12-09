@@ -43,7 +43,7 @@ void IMerchantInterface::RemoveItemAmountIfNeeded(int32 ItemID)
 
 void IMerchantInterface::PayCoin(const FCoinValue& CoinValue)
 {
-	GetCoinComponent()->PayAndAdjust(CoinValue);
+	GetCoinComponent()->PayAndAdjustSimple(CoinValue);
 }
 
 //----------------------------------------------------------------------------------------------------------------------

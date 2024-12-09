@@ -251,6 +251,14 @@ void UInventoryComponent::RemoveAllItems()
 
 //----------------------------------------------------------------------------------------------------------------------
 
+void UInventoryComponent::ClearAllBags()
+{
+	BagLUT.Reset();
+	VariableBags.Reset();
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 UBagStorage* UInventoryComponent::GetRelatedBag(EBagSlot InputSlot) const
 {
 	if (BagLUT.Contains(InputSlot))

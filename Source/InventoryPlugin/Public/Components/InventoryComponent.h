@@ -126,4 +126,7 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category="Inventory")
 	void RemoveAllItems();
+
+	UFUNCTION(BlueprintCallable, Category="Inventory")
+	void ClearAllBags();
 };

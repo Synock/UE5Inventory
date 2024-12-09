@@ -42,7 +42,7 @@ FCoinValue& FCoinValue::operator*=(float Ratio)
 	else
 		FVal -= 0.5f;
 
-	*this = FCoinValue(FMath::Max(FVal, 0.f));
+	*this = FCoinValue(FMath::CeilToFloat(FMath::Max(FVal, 0.f)));
 	return *this;
 }
 
@@ -129,11 +129,6 @@ bool FCoinValue::RetrieveValue(FCoinValue& AvailableCoins, FCoinValue& NeededCoi
 	           AvailableCoins.SilverPieces, NeededCoins.SilverPieces,
 	           NeededCoins.GoldPieces);
 
-	//Silver can be obtained using either copper or gold
-	MakeChange(AvailableCoins.CopperPieces, NeededCoins.CopperPieces,
-			   AvailableCoins.GoldPieces, NeededCoins.GoldPieces,
-			   NeededCoins.PlatinumPieces,100);
-
 	//Gold can be obtained using either silver or platinum
 	MakeChange(AvailableCoins.SilverPieces, NeededCoins.SilverPieces,
 	           AvailableCoins.GoldPieces, NeededCoins.GoldPieces,
@@ -171,8 +166,5 @@ bool FCoinValue::CanPay(const FCoinValue& AvailableCoins, const FCoinValue& Need
 
 bool FCoinValue::CanPayWithChange(const FCoinValue& AvailableCoins, const FCoinValue& NeededCoins)
 {
-	FCoinValue CAvailableCoins = AvailableCoins;
-	FCoinValue CNeededCoins = NeededCoins;
-
-	return RetrieveValue(CAvailableCoins, CNeededCoins);
+	return AvailableCoins.ToFloat() >= NeededCoins.ToFloat();
 }

@@ -112,6 +112,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Inventory|Purse")
 	void PayAndAdjust(const FCoinValue& Cost);
 
+	UFUNCTION(BlueprintCallable, Category="Inventory|Purse")
+	void PayAndAdjustSimple(const FCoinValue& Cost);
+
 	/**
 	 * Removes coins from the purse.
 	 *

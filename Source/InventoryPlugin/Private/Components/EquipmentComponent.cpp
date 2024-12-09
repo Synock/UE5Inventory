@@ -603,9 +603,7 @@ const UInventoryItemEquipable* UEquipmentComponent::GetItemAtSlot(EEquipmentSlot
 bool UEquipmentComponent::RemoveItem(EEquipmentSlot InSlot)
 {
 	if (IsSlotEmpty(InSlot))
-	{
 		return false;
-	}
 
 	UnEquip(Equipment[static_cast<int>(InSlot)], InSlot);
 	ItemUnEquipedDispatcher_Server.Broadcast(InSlot, Equipment[static_cast<int>(InSlot)]);
