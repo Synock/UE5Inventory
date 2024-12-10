@@ -187,7 +187,7 @@ public:
 	FOnItemUnEquiped_Server ItemUnEquipedDispatcher_Server;
 
 	UFUNCTION(NetMulticast, reliable)
-	void UpdateEquipment(USkeletalMeshComponent* SkeletalSocket, USkeletalMesh* LocalItem, const FMaterialOverride& MaterialOverride);
+	void UpdateEquipment(USkeletalMeshComponent* SkeletalSocket, USkeletalMesh* LocalItem, const TArray<FMaterialOverride>& MaterialOverride);
 
 	/**
 	 *

@@ -46,10 +46,9 @@ void IInventoryModularCharacterInterface::SetEquipment(const UInventoryItemEquip
 	{
 		SkeletaComponent->SetSkeletalMeshAsset(Item->EquipmentMesh);
 
-		if (Item->EquipmentMeshMaterialOverride.OverrideMaterial)
+		for (auto& Material : Item->EquipmentMeshMaterialOverride)
 		{
-			SkeletaComponent->SetMaterial(Item->EquipmentMeshMaterialOverride.MaterialID,
-			                              Item->EquipmentMeshMaterialOverride.OverrideMaterial);
+			SkeletaComponent->SetMaterial(Material.MaterialID, Material.OverrideMaterial);
 		}
 	}
 }

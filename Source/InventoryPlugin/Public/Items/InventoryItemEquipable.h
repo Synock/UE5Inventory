@@ -33,11 +33,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Weapon")
 	bool Weapon = false;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Visual")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Equipable|Visual")
 	USkeletalMesh* EquipmentMesh = nullptr;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Visual")
-	FMaterialOverride EquipmentMeshMaterialOverride;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Equipable|Visual")
+	TArray<FMaterialOverride> EquipmentMeshMaterialOverride;
 
 
 };

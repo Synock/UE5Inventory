@@ -386,16 +386,16 @@ void UEquipmentComponent::Sheath()
 
 void UEquipmentComponent::UpdateEquipment_Implementation(USkeletalMeshComponent* SkeletalSocket,
                                                          USkeletalMesh* LocalItem,
-                                                         const FMaterialOverride& MaterialOverride)
+                                                         const TArray<FMaterialOverride>& MaterialOverride)
 {
 	if (SkeletalSocket)
 	{
 		SkeletalSocket->SetSkeletalMeshAsset(LocalItem);
-
-		if (MaterialOverride.OverrideMaterial)
+		for (auto& Material : MaterialOverride)
 		{
-			SkeletalSocket->SetMaterial(MaterialOverride.MaterialID, MaterialOverride.OverrideMaterial);
+			SkeletalSocket->SetMaterial(Material.MaterialID, Material.OverrideMaterial);
 		}
+
 	}
 }
 

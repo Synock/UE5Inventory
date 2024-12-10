@@ -46,4 +46,5 @@ public:
 	virtual bool IsBodyPart(EEquipmentSlot Slot);
 
 	virtual bool IsEquipmentPart(EEquipmentSlot Slot);
+
 };
