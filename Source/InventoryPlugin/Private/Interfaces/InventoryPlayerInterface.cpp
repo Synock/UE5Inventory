@@ -140,13 +140,20 @@ bool IInventoryPlayerInterface::PlayerHasItem(int32 ItemId)
 {
 	return GetInventoryComponent()->HasItem(ItemId);
 }
+//----------------------------------------------------------------------------------------------------------------------
 
+bool IInventoryPlayerInterface::PlayerHasAnyItem(const TArray<int32>& ItemID)
+{
+	return GetInventoryComponent()->HasAnyItem(ItemId);
+}
 //----------------------------------------------------------------------------------------------------------------------
 
 bool IInventoryPlayerInterface::PlayerRemoveItemIfPossible(int32 ItemID)
 {
 	return GetInventoryComponent()->RemoveItemIfPossible(ItemID);
 }
+
+//----------------------------------------------------------------------------------------------------------------------
 
 bool IInventoryPlayerInterface::PlayerRemoveAnyItemIfPossible(const TArray<int32>& ItemID)
 {

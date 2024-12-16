@@ -103,6 +103,9 @@ public:
 	float GetTotalWeight() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	bool HasAnyItem(const TArray<int32>& ItemID);
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	bool HasItem(int32 ItemID);
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory")

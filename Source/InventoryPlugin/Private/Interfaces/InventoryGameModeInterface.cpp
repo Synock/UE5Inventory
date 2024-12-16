@@ -62,3 +62,8 @@ ULoreItemManagerComponent* IInventoryGameModeInterface::GetLoreManagementCompone
 {
 	return nullptr;
 }
+
+float IInventoryGameModeInterface::GetCurrentInflationValue()
+{
+	return 0.f;
+}

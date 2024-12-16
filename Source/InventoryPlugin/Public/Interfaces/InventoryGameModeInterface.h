@@ -105,4 +105,15 @@ public:
 	virtual bool DelayedLoreItemValidation(const UInventoryItemBase* LocalItem, ULootPoolComponent* Origin);
 
 	virtual ULoreItemManagerComponent* GetLoreManagementComponent();
+
+	/**
+	 * @brief Returns the current inflation value.
+	 *
+	 * This method return the inflation value. By default, it is 0, so no price increase due to inflation will happen.
+	 * If this is set to 1.0, the price of the items will double.
+	 * It is probably not wise to go negative.
+	 *
+	 * @return The actual inflation value.
+	 */
+	virtual float GetCurrentInflationValue();
 };

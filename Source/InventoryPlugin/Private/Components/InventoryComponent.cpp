@@ -130,6 +130,17 @@ float UInventoryComponent::GetTotalWeight() const
 
 	return TotalWeight;
 }
+//----------------------------------------------------------------------------------------------------------------------
+
+bool UInventoryComponent::HasAnyItem(const TArray<int32>& ItemID)
+{
+	for (int32 ID : ItemID)
+	{
+		if (HasItem(ID))
+			return true;
+	}
+	return false;
+}
 
 //----------------------------------------------------------------------------------------------------------------------
 
