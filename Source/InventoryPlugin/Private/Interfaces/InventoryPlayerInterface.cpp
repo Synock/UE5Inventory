@@ -144,7 +144,7 @@ bool IInventoryPlayerInterface::PlayerHasItem(int32 ItemId)
 
 bool IInventoryPlayerInterface::PlayerHasAnyItem(const TArray<int32>& ItemID)
 {
-	return GetInventoryComponent()->HasAnyItem(ItemId);
+	return GetInventoryComponent()->HasAnyItem(ItemID);
 }
 //----------------------------------------------------------------------------------------------------------------------
 
