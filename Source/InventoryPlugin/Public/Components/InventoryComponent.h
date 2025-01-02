@@ -109,6 +109,9 @@ public:
 	bool HasItem(int32 ItemID);
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	bool HasItems(int32 ItemId, int32 ItemAmount);
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	bool RemoveItemIfPossible(int32 ItemID);
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory")

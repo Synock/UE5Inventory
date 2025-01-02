@@ -122,5 +122,8 @@ public:
 	bool HasItem(int32 ItemID);
 
 	UFUNCTION(BlueprintCallable, Category="Inventory|Bag")
+	int32 CountItems(int32 ItemID);
+
+	UFUNCTION(BlueprintCallable, Category="Inventory|Bag")
 	int32 GetFirstTopLeftID(int32 ItemID);
 };

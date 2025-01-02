@@ -96,7 +96,8 @@ void UBagStorage::OnRep_BagData()
 
 //----------------------------------------------------------------------------------------------------------------------
 
-bool UBagStorage::InitializeData(EBagSlot InputBagSlot, int32 InputWidth, int32 InputHeight, EItemSize InputMaxStoreSize)
+bool UBagStorage::InitializeData(EBagSlot InputBagSlot, int32 InputWidth, int32 InputHeight,
+                                 EItemSize InputMaxStoreSize)
 {
 	if (BagValidity)
 	{
@@ -131,7 +132,7 @@ GridBagSolver UBagStorage::GetSolver() const
 
 	for (auto& Item : Items)
 	{
-		 const UInventoryItemBase* LocalItem = UInventoryUtilities::GetItemFromID(Item.ItemID, GetWorld());
+		const UInventoryItemBase* LocalItem = UInventoryUtilities::GetItemFromID(Item.ItemID, GetWorld());
 
 		Solver.RecordData(LocalItem, Item.TopLeftID); //we don't care about pointer validity
 	}
@@ -143,9 +144,9 @@ GridBagSolver UBagStorage::GetSolver() const
 
 bool UBagStorage::HasItem(int32 ItemID)
 {
-	for(auto& Item : Items)
+	for (auto& Item : Items)
 	{
-		if(Item.ItemID == ItemID)
+		if (Item.ItemID == ItemID)
 			return true;
 	}
 
@@ -154,12 +155,26 @@ bool UBagStorage::HasItem(int32 ItemID)
 
 //----------------------------------------------------------------------------------------------------------------------
 
+int32 UBagStorage::CountItems(int32 ItemID)
+{
+	int32 Count = 0;
+	for (auto& Item : Items)
+	{
+		if (Item.ItemID == ItemID)
+			++Count;
+	}
+
+	return Count;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 int32 UBagStorage::GetFirstTopLeftID(int32 ItemID)
 {
 	volatile int32 TopLeftID = -1;
-	for(const auto& Item : Items)
+	for (const auto& Item : Items)
 	{
-		if(Item.ItemID == ItemID)
+		if (Item.ItemID == ItemID)
 		{
 			TopLeftID = Item.TopLeftID;
 			break;
@@ -212,7 +227,7 @@ void UBagStorage::AddItemAt_Implementation(int32 ItemID, int32 TopLeftIndex)
 	Items.Add({ItemID, TopLeftIndex});
 
 	const UInventoryItemBase* Item = UInventoryUtilities::GetItemFromID(ItemID, GetWorld());
-	if(!Item)
+	if (!Item)
 		return;
 
 	//update the weight

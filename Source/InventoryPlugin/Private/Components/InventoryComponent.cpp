@@ -130,6 +130,7 @@ float UInventoryComponent::GetTotalWeight() const
 
 	return TotalWeight;
 }
+
 //----------------------------------------------------------------------------------------------------------------------
 
 bool UInventoryComponent::HasAnyItem(const TArray<int32>& ItemID)
@@ -152,6 +153,21 @@ bool UInventoryComponent::HasItem(int32 ItemID)
 			return true;
 	}
 	return false;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+bool UInventoryComponent::HasItems(int32 ItemId, int32 ItemAmount)
+{
+	int32 FoundAmount = 0;
+	for (auto& BagData : VariableBags)
+	{
+		FoundAmount += BagData.Bag->CountItems(ItemId);
+
+		if (FoundAmount >= ItemAmount)
+			return true;
+	}
+	return FoundAmount >= ItemAmount;
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -189,7 +205,7 @@ EBagSlot UInventoryComponent::FindSuitableSlot(const UInventoryItemBase* Item, i
 	{
 		if (Bag.Bag->IsValidBag())
 		{
-			if(Item->ItemSize > Bag.Bag->GetMaxStoreSize())
+			if (Item->ItemSize > Bag.Bag->GetMaxStoreSize())
 				continue;
 
 			GridBagSolver Solver = Bag.Bag->GetSolver();
@@ -252,7 +268,7 @@ void UInventoryComponent::RemoveAllItems()
 {
 	for (auto& Bag : VariableBags)
 	{
-		TArray<FMinimalItemStorage> LocalBagCopy =  Bag.Bag->GetBagConst();
+		TArray<FMinimalItemStorage> LocalBagCopy = Bag.Bag->GetBagConst();
 		for (auto& BagItem : LocalBagCopy)
 		{
 			RemoveItem(Bag.Slot, BagItem.TopLeftID);
