@@ -229,6 +229,18 @@ public:
 	virtual FCoinValue AdjustPriceSell(const FCoinValue& CoinValue) const;
 
 	/**
+	 * @brief Adjusts the price of a product for regarding inflation.
+	 *
+	 * This method calculates the adjusted price of a product based on the given coin value.
+	 *
+	 * @param CoinValue The original coin value of the product.
+	 *
+	 * @return The adjusted coin value after applying the general inflation value.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Inventory|Merchant")
+	virtual FCoinValue AdjustPriceForInflation(const FCoinValue& CoinValue) const;
+
+	/**
 	 * Retrieves the buy price for an item.
 	 *
 	 * @param ItemID The ID of the item to get the buy price for.

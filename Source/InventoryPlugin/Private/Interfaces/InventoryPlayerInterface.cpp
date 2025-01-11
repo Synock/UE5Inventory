@@ -143,10 +143,26 @@ bool IInventoryPlayerInterface::PlayerHasItem(int32 ItemId)
 
 //----------------------------------------------------------------------------------------------------------------------
 
+bool IInventoryPlayerInterface::PlayerHasItems(int32 ItemId, int32 ItemAmount)
+{
+	return GetInventoryComponent()->HasItems(ItemId, ItemAmount);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+bool IInventoryPlayerInterface::PlayerHasAnyItem(const TArray<int32>& ItemID)
+{
+	return GetInventoryComponent()->HasAnyItem(ItemID);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 bool IInventoryPlayerInterface::PlayerRemoveItemIfPossible(int32 ItemID)
 {
 	return GetInventoryComponent()->RemoveItemIfPossible(ItemID);
 }
+
+//----------------------------------------------------------------------------------------------------------------------
 
 bool IInventoryPlayerInterface::PlayerRemoveAnyItemIfPossible(const TArray<int32>& ItemID)
 {
@@ -499,4 +515,11 @@ void IInventoryPlayerInterface::PlayerAddKeyFromInventory(int32 InTopLeft, EBagS
 void IInventoryPlayerInterface::PlayerRemoveKeyToInventory(int32 KeyId)
 {
 	Server_PlayerRemoveKeyToInventory(KeyId);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryPlayerInterface::DisplayItemDescription(const UInventoryItemBase* Item, float X, float Y)
+{
+	GetInventoryHUDInterface()->Execute_DisplayItemDescription(GetInventoryHUDObject(), Item, X, Y);
 }

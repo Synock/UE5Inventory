@@ -10,6 +10,7 @@
 
 #include "EquipmentSlotWidget.generated.h"
 
+class UInventoryItemEquipable;
 class APlayerCharacter;
 /**
  * 
@@ -30,13 +31,11 @@ protected:
 	UPROPERTY(BlueprintReadWrite, Category = "Inventory|Equipment")
 	UTextBlock* TextSlot2 = nullptr;
 
-	// This is a pointer used to handle two slots items.
-	// Only the first slot must reference the second to avoid cyclic calls.
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Inventory|Equipment")
-	UEquipmentSlotWidget* SisterSlot = nullptr;
-
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Inventory|Equipment")
 	EEquipmentSlot SlotID = EEquipmentSlot::Unknown;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Inventory|Equipment")
+	class UInventoryEquipmentWidget* ParentComponent = nullptr;
 
 	virtual bool HandleItemDrop(class UItemWidget* InputItem) override;
 
@@ -53,11 +52,10 @@ protected:
 
 	virtual void HideItem() override;
 
+	void DisableAndRefresh(const UInventoryItemEquipable* InputItem);
+
 public:
 	virtual void StopDrag() override;
-
-	UFUNCTION(BlueprintCallable)
-	void SetSisterSlot(UEquipmentSlotWidget* NewSisterSlot);
 
 	UFUNCTION(BlueprintCallable)
 	virtual bool CanEquipItem(const UInventoryItemBase* InputItem) const;
@@ -73,4 +71,19 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void UpdateTextSlots();
+
+	[[nodiscard]] EEquipmentSlot GetSlotID() const
+	{
+		return SlotID;
+	}
+
+	[[nodiscard]] UInventoryEquipmentWidget* GetParentComponent() const
+	{
+		return ParentComponent;
+	}
+
+	void SetParentComponent(UInventoryEquipmentWidget* const NewParentComponent)
+	{
+		ParentComponent = NewParentComponent;
+	}
 };

@@ -433,6 +433,29 @@ public:
 	virtual bool PlayerHasItem(int32 ItemId);
 
 	/**
+	 * @brief Checks if the player has at least a specific amount of an item.
+	 *
+	 * @param ItemId The ID of the item to check for.
+	 * @param ItemAmounts The ID of the item to check for.
+	 *
+	 * @return True if the player has the item, false otherwise.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	virtual bool PlayerHasItems(int32 ItemId, int32 ItemAmount);
+
+	/**
+	 * @brief Checks if the player has any of the specific items.
+	 *
+	 * This method is used to determine if the player possesses any of the specific items given their item ID.
+	 *
+	 * @param ItemId The ID of the items to check for.
+	 *
+	 * @return True if the player has any of the items, false otherwise.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	virtual bool PlayerHasAnyItem(const TArray<int32>& ItemID);
+
+	/**
 	 * Removes an item from the player's inventory if it is possible.
 	 *
 	 * @param ItemID The ID of the item to be removed.
@@ -825,6 +848,9 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable)
 	virtual void PlayerRemoveKeyToInventory(int32 KeyId);
+
+	UFUNCTION(BlueprintCallable)
+	virtual void DisplayItemDescription(const UInventoryItemBase* Item, float X, float Y);
 
 
 protected:

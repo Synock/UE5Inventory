@@ -9,6 +9,8 @@
 #include "Kismet/KismetSystemLibrary.h"
 #include "Engine/StaticMesh.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Interfaces/EquipmentInterface.h"
+#include "Interfaces/InventoryModularCharacterInterface.h"
 #include "Items/InventoryItemEquipable.h"
 
 namespace
@@ -48,6 +50,9 @@ UStaticMeshComponent* UEquipmentComponent::GetMeshComponentFromSocket(EEquipment
 	case EEquipmentSocket::RingR: return RingRComponent;
 	case EEquipmentSocket::RingL: return RingLComponent;
 
+	case EEquipmentSocket::WristL: return WristLComponent;
+	case EEquipmentSocket::WristR: return WristRComponent;
+
 	default: return nullptr;
 	}
 }
@@ -61,7 +66,12 @@ USkeletalMeshComponent* UEquipmentComponent::GetSkeletalMeshComponentFromSocket(
 	case EEquipmentSocket::Unknown: return nullptr;
 	case EEquipmentSocket::Primary: return PrimaryWeaponComponentSkeletal;
 	case EEquipmentSocket::Secondary: return SecondaryWeaponComponentSkeletal;
-	case EEquipmentSocket::Head: return HeadComponent;
+	case EEquipmentSocket::Head:
+		{
+			return Cast<IInventoryModularCharacterInterface>(GetOwner())->GetHelmetComponent();
+		}
+	case EEquipmentSocket::WristL: return LeftBracerComponent;
+	case EEquipmentSocket::WristR: return RightBracerComponent;
 
 	default: return nullptr;
 	}
@@ -85,7 +95,7 @@ bool UEquipmentComponent::Equip(const UInventoryItemEquipable* Item, EEquipmentS
 
 		if (SkeletalSocket)
 		{
-			UpdateEquipment(SkeletalSocket, Item->EquipmentMesh);
+			UpdateEquipment(SkeletalSocket, Item->EquipmentMesh, Item->EquipmentMeshMaterialOverride);
 			return true;
 		}
 	}
@@ -96,12 +106,17 @@ bool UEquipmentComponent::Equip(const UInventoryItemEquipable* Item, EEquipmentS
 	{
 		return false;
 	}
-
 	UStaticMesh* StaticMesh = Item->Mesh;
+	if (const IEquipmentInterface* Interface = Cast<IEquipmentInterface>(GetOwner()))
+		StaticMesh = Interface->GetPreferedMesh(StaticMesh);
+
 	if (!StaticMesh)
 	{
 		return false;
 	}
+
+	if (Item->OverrideMaterial.OverrideMaterial)
+		WantedSocket->SetMaterial(Item->OverrideMaterial.MaterialID, Item->OverrideMaterial.OverrideMaterial);
 
 	return WantedSocket->SetStaticMesh(StaticMesh);
 }
@@ -117,7 +132,6 @@ bool UEquipmentComponent::UnEquip(const UInventoryItemEquipable* Item, EEquipmen
 		return false;
 	}
 
-	// skeletal mesh have precedence over static mesh
 	if (Item->EquipmentMesh)
 	{
 		if (USkeletalMeshComponent* SkeletalSocket = GetSkeletalMeshComponentFromSocket(PossibleSocket))
@@ -128,7 +142,6 @@ bool UEquipmentComponent::UnEquip(const UInventoryItemEquipable* Item, EEquipmen
 	}
 
 	const UStaticMesh* StaticMesh = Item->Mesh;
-
 	if (!StaticMesh)
 	{
 		return false;
@@ -192,7 +205,18 @@ EEquipmentSocket UEquipmentComponent::FindBestSocketForItem(const UInventoryItem
 		{
 			return EEquipmentSocket::Head;
 		}
-	case EEquipmentSlot::Face: break;
+	case EEquipmentSlot::Face:
+		{
+			return EEquipmentSocket::Face;
+		}
+	case EEquipmentSlot::WristL:
+		{
+			return EEquipmentSocket::WristL;
+		}
+	case EEquipmentSlot::WristR:
+		{
+			return EEquipmentSocket::WristR;
+		}
 	case EEquipmentSlot::Shoulders: break;
 	case EEquipmentSlot::Back: break;
 	case EEquipmentSlot::Waist: break;
@@ -200,7 +224,7 @@ EEquipmentSocket UEquipmentComponent::FindBestSocketForItem(const UInventoryItem
 	case EEquipmentSlot::WaistBag2: return EEquipmentSocket::WaistBag2;
 	case EEquipmentSlot::BackPack1:
 		{
-			if (Item->TwoSlotsItem)
+			if (Item->MultiSlotItem)
 			{
 				return EEquipmentSocket::Backpack;
 			}
@@ -208,7 +232,7 @@ EEquipmentSocket UEquipmentComponent::FindBestSocketForItem(const UInventoryItem
 		}
 	case EEquipmentSlot::BackPack2:
 		{
-			if (Item->TwoSlotsItem)
+			if (Item->MultiSlotItem)
 			{
 				return EEquipmentSocket::Backpack;
 			}
@@ -361,11 +385,17 @@ void UEquipmentComponent::Sheath()
 }
 
 void UEquipmentComponent::UpdateEquipment_Implementation(USkeletalMeshComponent* SkeletalSocket,
-	USkeletalMesh* LocalItem)
+                                                         USkeletalMesh* LocalItem,
+                                                         const TArray<FMaterialOverride>& MaterialOverride)
 {
 	if (SkeletalSocket)
 	{
 		SkeletalSocket->SetSkeletalMeshAsset(LocalItem);
+		for (auto& Material : MaterialOverride)
+		{
+			SkeletalSocket->SetMaterial(Material.MaterialID, Material.OverrideMaterial);
+		}
+
 	}
 }
 
@@ -426,8 +456,23 @@ UEquipmentComponent::UEquipmentComponent()
 	SecondaryLightSource = CreateDefaultSubobject<UChildActorComponent>(TEXT("SecondaryLightSource"));
 	SecondaryLightSource->SetIsReplicated(true);
 
-	HeadComponent= CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("HeadRComponent"));
-	HeadComponent->SetIsReplicated(true);
+	WristLComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WristLComponent"));
+	WristLComponent->SetIsReplicated(true);
+	WristRComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WristRComponent"));
+	WristRComponent->SetIsReplicated(true);
+
+	LeftBracerComponent = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("BracerLComponent"));
+	LeftBracerComponent->SetIsReplicated(true);
+	RightBracerComponent = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("BracerRComponent"));
+	RightBracerComponent->SetIsReplicated(true);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UEquipmentComponent::UpdateMasterMeshComponent(USkeletalMeshComponent* Mesh)
+{
+	RightBracerComponent->SetLeaderPoseComponent(Mesh);
+	LeftBracerComponent->SetLeaderPoseComponent(Mesh);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -486,10 +531,16 @@ void UEquipmentComponent::BeginPlay()
 	EarringLComponent->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("EarR"));
 	EarringRComponent->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("EarL"));
 
-	HeadComponent->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("root"));
-	HeadComponent->SetLeaderPoseComponent(Cast<ACharacter>(GetOwner())->GetMesh());
+	WristLComponent->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("WristL"));
+	WristRComponent->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("WristR"));
 
-	// ...
+	FAttachmentTransformRules TransformRules2(EAttachmentRule::SnapToTarget, EAttachmentRule::KeepWorld,
+	                                          EAttachmentRule::SnapToTarget, true);
+	LeftBracerComponent->AttachToComponent(PlayerMesh, TransformRules2, FName("root"));
+	LeftBracerComponent->SetLeaderPoseComponent(Cast<ACharacter>(GetOwner())->GetMesh());
+
+	RightBracerComponent->AttachToComponent(PlayerMesh, TransformRules2, FName("root"));
+	RightBracerComponent->SetLeaderPoseComponent(Cast<ACharacter>(GetOwner())->GetMesh());
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -552,9 +603,7 @@ const UInventoryItemEquipable* UEquipmentComponent::GetItemAtSlot(EEquipmentSlot
 bool UEquipmentComponent::RemoveItem(EEquipmentSlot InSlot)
 {
 	if (IsSlotEmpty(InSlot))
-	{
 		return false;
-	}
 
 	UnEquip(Equipment[static_cast<int>(InSlot)], InSlot);
 	ItemUnEquipedDispatcher_Server.Broadcast(InSlot, Equipment[static_cast<int>(InSlot)]);
@@ -593,6 +642,23 @@ float UEquipmentComponent::GetTotalWeight() const
 
 EEquipmentSlot UEquipmentComponent::FindSuitableSlot(const UInventoryItemEquipable* Item) const
 {
+	// In the specific case of multiple slots items, if one of the slot is used, we can't equip it.
+	if (Item->MultiSlotItem)
+	{
+		EEquipmentSlot PrimarySlot = EEquipmentSlot::Unknown;
+
+		for (int32 i = static_cast<int32>(EEquipmentSlot::Unknown); i < static_cast<int32>(EEquipmentSlot::Last); ++i)
+		{
+			const int32 LocalAcceptableBitMask = 1 << i;
+
+			if (Item->EquipableSlotBitMask & LocalAcceptableBitMask)
+			{
+				if (Equipment[i])
+					return PrimarySlot;
+			}
+		}
+	}
+
 	for (size_t i = 1; i < Equipment.Num(); ++i)
 	{
 		if (!Equipment[i])
@@ -601,18 +667,7 @@ EEquipmentSlot UEquipmentComponent::FindSuitableSlot(const UInventoryItemEquipab
 			const EEquipmentSlot CurrentSlot = static_cast<EEquipmentSlot>(i);
 			if (Item->EquipableSlotBitMask & LocalAcceptableBitMask)
 			{
-				if (Item->TwoSlotsItem)
-				{
-					if (CurrentSlot == EEquipmentSlot::WaistBag1 || CurrentSlot == EEquipmentSlot::BackPack1 ||
-						CurrentSlot == EEquipmentSlot::Primary)
-					{
-						return CurrentSlot;
-					}
-				}
-				else
-				{
-					return CurrentSlot;
-				}
+				return CurrentSlot;
 			}
 		}
 	}

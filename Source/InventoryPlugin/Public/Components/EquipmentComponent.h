@@ -29,6 +29,8 @@ public:
 	// Sets default values for this component's properties
 	UEquipmentComponent();
 
+	void UpdateMasterMeshComponent(USkeletalMeshComponent* Mesh);
+
 protected:
 	// Called when the game starts
 	virtual void BeginPlay() override;
@@ -89,7 +91,14 @@ protected:
 	UStaticMeshComponent* RingRComponent;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Equipment")
-	USkeletalMeshComponent* HeadComponent;
+    USkeletalMeshComponent* RightBracerComponent;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Equipment")
+	USkeletalMeshComponent* LeftBracerComponent;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Equipment")
+	UStaticMeshComponent* WristLComponent;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Equipment")
+	UStaticMeshComponent* WristRComponent;
 
 	EEquipmentSocket PrimaryWeaponOriginalSlot = EEquipmentSocket::Unknown;
 	EEquipmentSocket SecondaryWeaponOriginalSlot = EEquipmentSocket::Unknown;
@@ -178,7 +187,7 @@ public:
 	FOnItemUnEquiped_Server ItemUnEquipedDispatcher_Server;
 
 	UFUNCTION(NetMulticast, reliable)
-	void UpdateEquipment(USkeletalMeshComponent* SkeletalSocket, USkeletalMesh* LocalItem);
+	void UpdateEquipment(USkeletalMeshComponent* SkeletalSocket, USkeletalMesh* LocalItem, const TArray<FMaterialOverride>& MaterialOverride);
 
 	/**
 	 *

@@ -162,6 +162,13 @@ public:
 	 */
 	float GetTotalWeight() const;
 
+	/**
+		 * @brief If needed, override this to handle special mesh query of the interface owner
+		 *
+		 * @return The static mesh to use.
+		 */
+	virtual UStaticMesh* GetPreferedMesh(UStaticMesh* OriginalMesh) const;
+
 protected:
 	/**
 	 * Check if the equipment has authority.

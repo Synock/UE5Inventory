@@ -4,30 +4,106 @@
 #include "Interfaces/InventoryModularCharacterInterface.h"
 
 
-// Add default functionality here for any IInventoryModularCharacterInterface functions that are not pure virtual.
+USkeletalMeshComponent* IInventoryModularCharacterInterface::GetHelmetComponent()
+{
+	return nullptr;
+}
+
+USkeletalMeshComponent* IInventoryModularCharacterInterface::GetShoulderPadComponent()
+{
+	return nullptr;
+}
+
+USkeletalMeshComponent* IInventoryModularCharacterInterface::GetNeckComponent()
+{
+	return nullptr;
+}
+
+USkeletalMeshComponent* IInventoryModularCharacterInterface::GetBackComponent()
+{
+	return nullptr;
+}
+
+USkeletalMeshComponent* IInventoryModularCharacterInterface::GetRightBracerComponent()
+{
+	return nullptr;
+}
+
+USkeletalMeshComponent* IInventoryModularCharacterInterface::GetLeftBracerComponent()
+{
+	return nullptr;
+}
+
 void IInventoryModularCharacterInterface::SetEquipment(const UInventoryItemEquipable* Item, EEquipmentSlot Slot)
 {
-	if(!Item)
+	if (!Item)
 		return;
 
-	if(!Item->EquipmentMesh)
+	if (!Item->EquipmentMesh)
 		return;
 
-	if(Slot == EEquipmentSlot::Torso)
-		GetTorsoComponent()->SetSkeletalMeshAsset(Item->EquipmentMesh);
+	if (auto SkeletaComponent = GetEquipmentComponentFromSlot(Slot))
+	{
+		SkeletaComponent->SetSkeletalMeshAsset(Item->EquipmentMesh);
 
-	if(Slot == EEquipmentSlot::Arms)
-		GetArmsComponent()->SetSkeletalMeshAsset(Item->EquipmentMesh);
+		for (auto& Material : Item->EquipmentMeshMaterialOverride)
+		{
+			SkeletaComponent->SetMaterial(Material.MaterialID, Material.OverrideMaterial);
+		}
+	}
+}
 
-	if(Slot == EEquipmentSlot::Foot)
-		GetFootComponent()->SetSkeletalMeshAsset(Item->EquipmentMesh);
+USkeletalMeshComponent* IInventoryModularCharacterInterface::GetEquipmentComponentFromSlot(EEquipmentSlot Slot)
+{
+	switch (Slot)
+	{
+	case EEquipmentSlot::Head:
+		return GetHelmetComponent();
+	case EEquipmentSlot::Face:
+		break;
+	case EEquipmentSlot::Neck:
+		return GetNeckComponent();
+	case EEquipmentSlot::Shoulders:
+		return GetShoulderPadComponent();
+	case EEquipmentSlot::Back:
+		return GetBackComponent();
+	case EEquipmentSlot::Torso:
+		return GetTorsoComponent();
+	case EEquipmentSlot::WristL:
+		return GetLeftBracerComponent();
+	case EEquipmentSlot::WristR:
+		return GetRightBracerComponent();
+	case EEquipmentSlot::Hands:
+		return GetHandsComponent();
+	case EEquipmentSlot::Waist:
+		break;
+	case EEquipmentSlot::Legs:
+		return GetLegsComponent();
+	case EEquipmentSlot::Foot:
+		return GetFootComponent();
+	case EEquipmentSlot::Arms:
+		return GetArmsComponent();
+	case EEquipmentSlot::WaistBag1:
+		break;
+	case EEquipmentSlot::WaistBag2:
+		break;
+	case EEquipmentSlot::BackPack1:
+		break;
+	case EEquipmentSlot::BackPack2:
+		break;
+	default: return nullptr;
+	}
 
-	if(Slot == EEquipmentSlot::Hands)
-		GetHandsComponent()->SetSkeletalMeshAsset(Item->EquipmentMesh);
+	return nullptr;
+}
 
-	if(Slot == EEquipmentSlot::Legs)
-		GetLegsComponent()->SetSkeletalMeshAsset(Item->EquipmentMesh);
+bool IInventoryModularCharacterInterface::IsBodyPart(EEquipmentSlot Slot)
+{
+	return Slot == EEquipmentSlot::Legs || Slot == EEquipmentSlot::Foot || Slot == EEquipmentSlot::Arms || Slot ==
+		EEquipmentSlot::Torso || Slot == EEquipmentSlot::Hands;
+}
 
-	if(Slot == EEquipmentSlot::Head)
-		GetHeadComponent()->SetSkeletalMeshAsset(Item->EquipmentMesh);
+bool IInventoryModularCharacterInterface::IsEquipmentPart(EEquipmentSlot Slot)
+{
+	return !IsBodyPart(Slot);
 }

@@ -28,7 +28,7 @@ UWorld* IEquipmentInterface::EquipmentGetWorldContext() const
 //----------------------------------------------------------------------------------------------------------------------
 
 // Add default functionality here for any IEquipmentInterface functions that are not pure virtual.
- const TArray<const UInventoryItemEquipable*>& IEquipmentInterface::GetAllEquipment() const
+const TArray<const UInventoryItemEquipable*>& IEquipmentInterface::GetAllEquipment() const
 {
 	return GetEquipmentComponentConst()->GetAllEquipment();
 }
@@ -182,37 +182,23 @@ void IEquipmentInterface::HandleTwoSlotItemEquip(const UInventoryItemEquipable* 
 	if (!EquipmentHasAuthority())
 		return;
 
-	if (Item->TwoSlotsItem)
+	if (Item->MultiSlotItem)
 	{
 		EEquipmentSlot PrimarySlot = InSlot;
-		EEquipmentSlot SecondarySlot = InSlot;
 
-		if (PrimarySlot == EEquipmentSlot::BackPack1 || PrimarySlot == EEquipmentSlot::BackPack2)
+		for (int32 i = static_cast<int32>(EEquipmentSlot::Unknown); i < static_cast<int32>(EEquipmentSlot::Last); ++i)
 		{
-			PrimarySlot = EEquipmentSlot::BackPack1;
-			SecondarySlot = EEquipmentSlot::BackPack2;
-		}
-		else if (PrimarySlot == EEquipmentSlot::WaistBag1 || PrimarySlot == EEquipmentSlot::WaistBag2)
-		{
-			PrimarySlot = EEquipmentSlot::WaistBag1;
-			SecondarySlot = EEquipmentSlot::WaistBag2;
-		}
-		else if (PrimarySlot == EEquipmentSlot::Primary || PrimarySlot == EEquipmentSlot::Secondary)
-		{
-			PrimarySlot = EEquipmentSlot::Primary;
-			SecondarySlot = EEquipmentSlot::Secondary;
-		}
-		else if (PrimarySlot == EEquipmentSlot::Range || PrimarySlot == EEquipmentSlot::Ammo)
-		{
-			PrimarySlot = EEquipmentSlot::Range;
-			SecondarySlot = EEquipmentSlot::Ammo;
+			const int32 localValue = 1 << i;
+
+			if (localValue & Item->EquipableSlotBitMask)
+			{
+				// put the first slot as the major slot
+				PrimarySlot = static_cast<EEquipmentSlot>(i);
+				break;
+			}
 		}
 
-		//fix here
-		//GetEquipmentComponent()->EquipItem(nullptr, SecondarySlot);
 		InSlot = PrimarySlot;
-		//GetEquipmentComponent()->EquipItem(Item->, InSlot);
-
 	}
 }
 
@@ -223,21 +209,25 @@ void IEquipmentInterface::HandleTwoSlotItemUnequip(const UInventoryItemEquipable
 	if (!EquipmentHasAuthority())
 		return;
 
-	if (Item->TwoSlotsItem)
+	if (Item->MultiSlotItem)
 	{
-		const EEquipmentSlot PrimarySlot = InSlot;
-		EEquipmentSlot SecondarySlot = InSlot;
+		TArray<EEquipmentSlot> OtherSlots;
+		OtherSlots.Reserve(static_cast<int32>(EEquipmentSlot::Last));
+		for (int32 i = static_cast<int32>(EEquipmentSlot::Unknown); i < static_cast<int32>(EEquipmentSlot::Last); ++i)
+		{
+			const int32 localValue = 1 << i;
 
-		if (PrimarySlot == EEquipmentSlot::BackPack1)
-			SecondarySlot = EEquipmentSlot::BackPack2;
-
-		else if (PrimarySlot == EEquipmentSlot::WaistBag1)
-			SecondarySlot = EEquipmentSlot::WaistBag2;
-		else if (PrimarySlot == EEquipmentSlot::Primary)
-			SecondarySlot = EEquipmentSlot::Secondary;
-		else if (PrimarySlot == EEquipmentSlot::Range)
-			SecondarySlot = EEquipmentSlot::Ammo;
-
-		GetEquipmentComponent()->RemoveItem(SecondarySlot);
+			if ((localValue & Item->EquipableSlotBitMask )&& InSlot != static_cast<EEquipmentSlot>(i))
+			{
+				OtherSlots.Emplace(static_cast<EEquipmentSlot>(i));
+			}
+		}
 	}
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+UStaticMesh* IEquipmentInterface::GetPreferedMesh(UStaticMesh* OriginalMesh) const
+{
+	return OriginalMesh;
 }

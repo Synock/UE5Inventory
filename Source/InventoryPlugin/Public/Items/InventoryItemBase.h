@@ -16,6 +16,18 @@ enum class EItemSize : uint8
 	Giant UMETA(DisplayName = "Giant")
 };
 
+USTRUCT(BlueprintType)
+struct FMaterialOverride
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Visual")
+	UMaterialInstance* OverrideMaterial = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Visual")
+	int32 MaterialID = 0;
+};
+
 class UTexture2D;
 class UStaticMesh;
 /**
@@ -44,6 +56,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Visual")
 	UStaticMesh* Mesh = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Visual")
+	FMaterialOverride OverrideMaterial;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|ItemData")
 	EItemSize ItemSize = EItemSize::Tiny;

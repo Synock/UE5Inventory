@@ -6,6 +6,7 @@
 #include "InventoryUtilities.h"
 #include "Components/CoinComponent.h"
 #include "Components/MerchantComponent.h"
+#include "Interfaces/InventoryGameModeInterface.h"
 #include "Items/InventoryItemBase.h"
 
 void IMerchantInterface::InitMerchantData(const TArray<int32>& StaticItems,
@@ -43,7 +44,7 @@ void IMerchantInterface::RemoveItemAmountIfNeeded(int32 ItemID)
 
 void IMerchantInterface::PayCoin(const FCoinValue& CoinValue)
 {
-	GetCoinComponent()->PayAndAdjust(CoinValue);
+	GetCoinComponent()->PayAndAdjustSimple(CoinValue);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -71,7 +72,7 @@ bool IMerchantInterface::CanPayAmount(const FCoinValue& CoinValue) const
 
 FCoinValue IMerchantInterface::AdjustPriceBuy(const FCoinValue& CoinValue) const
 {
-	FCoinValue Value = CoinValue;
+	FCoinValue Value = AdjustPriceForInflation(CoinValue);
 	Value *= GetMerchantRatio();
 	return Value;
 }
@@ -80,8 +81,27 @@ FCoinValue IMerchantInterface::AdjustPriceBuy(const FCoinValue& CoinValue) const
 
 FCoinValue IMerchantInterface::AdjustPriceSell(const FCoinValue& CoinValue) const
 {
-	FCoinValue Value = CoinValue;
+	FCoinValue Value = AdjustPriceForInflation(CoinValue);
 	Value *= (2.0 - GetMerchantRatio());
+	return Value;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+FCoinValue IMerchantInterface::AdjustPriceForInflation(const FCoinValue& CoinValue) const
+{
+	float InflationPriceMultiplier = 1.0;
+	if (IInventoryGameModeInterface* GM = Cast<IInventoryGameModeInterface>(
+		GetMerchantWorldContext()->GetAuthGameMode()); GM)
+	{
+		InflationPriceMultiplier += GM->GetCurrentInflationValue();
+	}
+
+	constexpr float MinimalPriceDrop = 1.0;
+	InflationPriceMultiplier = FMath::Max(MinimalPriceDrop,InflationPriceMultiplier);
+
+	FCoinValue Value = CoinValue;
+	Value *= InflationPriceMultiplier;
 	return Value;
 }
 

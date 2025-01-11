@@ -61,6 +61,8 @@ protected:
 	UPROPERTY(BlueprintReadOnly)
 	int32 ItemID;
 
+	virtual FReply NativeOnMouseButtonUp(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+
 public:
 	virtual void NativeOnListItemObjectSet(UObject* ListItemObject) override;
 };

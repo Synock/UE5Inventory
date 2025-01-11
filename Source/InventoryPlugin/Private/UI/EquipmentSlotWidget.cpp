@@ -9,6 +9,7 @@
 #include "GenericPlatform/GenericPlatformMath.h"
 #include "Items/InventoryItemBag.h"
 #include "Items/InventoryItemBase.h"
+#include "UI/InventoryEquipmentWidget.h"
 
 void UEquipmentSlotWidget::InitData()
 {
@@ -128,21 +129,24 @@ void UEquipmentSlotWidget::InnerRefresh()
 		Item = Equipment;
 		UGenericSlotWidget::InnerRefresh();
 
-		if (SisterSlot && Equipment && Equipment->TwoSlotsItem)
+		if (Equipment && Equipment->MultiSlotItem && ParentComponent)
 		{
-			SisterSlot->EnabledSlot = false;
-			//SisterSlot->SetIsEnabled(false);
-			if (Equipment->Icon)
+			for (int32 i = static_cast<int32>(EEquipmentSlot::Unknown); i < static_cast<int32>(EEquipmentSlot::Last); ++
+			     i)
 			{
-				UTexture2D* Tex = Equipment->Icon;
+				if (const int32 LocalValue = 1 << i; LocalValue & Equipment->EquipableSlotBitMask)
+				{
+					EEquipmentSlot localSlot = static_cast<EEquipmentSlot>(i);
+					if (localSlot != SlotID)
+					{
+						UEquipmentSlotWidget* OtherSlot = ParentComponent->GetSlotWidget(localSlot);
 
-				if(!SisterSlot->ItemImagePointer)
-					return;
+						if (!OtherSlot)
+							continue;
 
-				SisterSlot->ItemImagePointer->SetDesiredSizeOverride({TileSize, TileSize});
-				SisterSlot->ItemImagePointer->SetBrushFromTexture(Tex);
-				SisterSlot->ItemImagePointer->SetVisibility(ESlateVisibility::Visible);
-
+						OtherSlot->DisableAndRefresh(Equipment);
+					}
+				}
 			}
 		}
 	}
@@ -152,19 +156,52 @@ void UEquipmentSlotWidget::InnerRefresh()
 
 void UEquipmentSlotWidget::HideItem()
 {
-
-	if (const UInventoryItemEquipable* Equipable = Cast<UInventoryItemEquipable>(Item); Equipable && Equipable->TwoSlotsItem &&
-		SisterSlot)
+	if (const UInventoryItemEquipable* Equipable = Cast<UInventoryItemEquipable>(Item); Equipable && Equipable->
+		MultiSlotItem && ParentComponent)
 	{
+		for (int32 i = static_cast<int32>(EEquipmentSlot::Unknown); i < static_cast<int32>(EEquipmentSlot::Last); ++i)
+		{
+			const int32 localValue = 1 << i;
+			if (localValue & Equipable->EquipableSlotBitMask)
+			{
+				EEquipmentSlot localSlot = static_cast<EEquipmentSlot>(i);
+				if (localSlot != SlotID)
+				{
+					UEquipmentSlotWidget* OtherSlot = ParentComponent->GetSlotWidget(localSlot);
 
-		SisterSlot->EnabledSlot = true;
-		SisterSlot->HideItem();
-		//SisterSlot->SetIsEnabled(true);
+					if (!OtherSlot)
+						continue;
+
+					OtherSlot->EnabledSlot = true;
+					OtherSlot->HideItem();
+					OtherSlot->SetIsEnabled(true);
+				}
+			}
+		}
 	}
 
 	Item = nullptr;
 
 	UGenericSlotWidget::InnerRefresh();
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UEquipmentSlotWidget::DisableAndRefresh(const UInventoryItemEquipable* InputItem)
+{
+	SetIsEnabled(false);
+	EnabledSlot = false;
+	if (InputItem->Icon)
+	{
+		UTexture2D* Tex = InputItem->Icon;
+
+		if (!ItemImagePointer)
+			return;
+
+		ItemImagePointer->SetDesiredSizeOverride({TileSize, TileSize});
+		ItemImagePointer->SetBrushFromTexture(Tex);
+		ItemImagePointer->SetVisibility(ESlateVisibility::Visible);
+	}
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -177,13 +214,6 @@ void UEquipmentSlotWidget::StopDrag()
 		if (IInventoryPlayerInterface* PC = GetInventoryPlayerInterface())
 			PC->GetInventoryHUDInterface()->Execute_ForceRefreshInventory(PC->GetInventoryHUDObject());
 	}
-}
-
-//----------------------------------------------------------------------------------------------------------------------
-
-void UEquipmentSlotWidget::SetSisterSlot(UEquipmentSlotWidget* NewSisterSlot)
-{
-	SisterSlot = NewSisterSlot;
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -217,9 +247,9 @@ bool UEquipmentSlotWidget::CanEquipItemAtSlot(const UInventoryItemBase* InputIte
 		return false;
 	}
 
-	const int32 LocalAcceptableBitMask = FMath::Pow(2., static_cast<double>(InputSlot));
+	const int32 LocalAcceptableBitMask = 1 << static_cast<uint32>(InputSlot);
 
-	if (Equipable->TwoSlotsItem)
+	if (Equipable->MultiSlotItem)
 	{
 		if (InputSlot == EEquipmentSlot::WaistBag2 || InputSlot == EEquipmentSlot::BackPack2)
 		{

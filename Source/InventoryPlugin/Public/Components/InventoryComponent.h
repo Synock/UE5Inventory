@@ -103,7 +103,13 @@ public:
 	float GetTotalWeight() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	bool HasAnyItem(const TArray<int32>& ItemID);
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	bool HasItem(int32 ItemID);
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	bool HasItems(int32 ItemId, int32 ItemAmount);
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	bool RemoveItemIfPossible(int32 ItemID);
@@ -126,4 +132,7 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category="Inventory")
 	void RemoveAllItems();
+
+	UFUNCTION(BlueprintCallable, Category="Inventory")
+	void ClearAllBags();
 };

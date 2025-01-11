@@ -23,8 +23,9 @@ public:
 		Category = "Inventory|Equipable")
 	int32 EquipableSlotBitMask = 0;
 
+	/// If true, this item will take all the slots defined in the EquipableSlotBitMask bitmask.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Equipable")
-	bool TwoSlotsItem = false;
+	bool MultiSlotItem = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Shield")
 	bool Shield = false;
@@ -32,8 +33,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Weapon")
 	bool Weapon = false;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Visual")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Equipable|Visual")
 	USkeletalMesh* EquipmentMesh = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Equipable|Visual")
+	TArray<FMaterialOverride> EquipmentMeshMaterialOverride;
 
 
 };
