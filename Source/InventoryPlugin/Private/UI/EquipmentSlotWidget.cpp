@@ -124,8 +124,9 @@ void UEquipmentSlotWidget::InnerRefresh()
 {
 	if (IInventoryPlayerInterface* PC = GetInventoryPlayerInterface())
 	{
-		check(PC->GetEquipmentForInventory());
-		const UInventoryItemEquipable* Equipment = PC->GetEquipmentForInventory()->GetEquippedItem(SlotID);
+		const IEquipmentInterface* EquipmentInterface = PC->GetEquipmentForInventory();
+		check(EquipmentInterface);
+		const UInventoryItemEquipable* Equipment = EquipmentInterface->GetEquippedItem(SlotID);
 		Item = Equipment;
 		UGenericSlotWidget::InnerRefresh();
 
