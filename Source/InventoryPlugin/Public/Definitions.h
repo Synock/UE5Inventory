@@ -107,3 +107,9 @@ enum class EBagSlot : uint8
 	StagingArea = 21 UMETA(DisplayName = "StagingArea"),
 	BankPool = 22  UMETA(DisplayName = "BankingPool")
 };
+
+inline EBagSlot& operator++(EBagSlot& Slot)
+{
+	Slot = static_cast<EBagSlot>(static_cast<int>(Slot) + 1);
+	return Slot;
+}

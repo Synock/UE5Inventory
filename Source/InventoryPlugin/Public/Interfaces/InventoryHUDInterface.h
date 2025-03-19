@@ -15,14 +15,13 @@ class UInventoryHUDInterface : public UInterface
 	GENERATED_BODY()
 };
 
-/**
- * @brief Hides the*/
+
 class INVENTORYPLUGIN_API IInventoryHUDInterface
 {
 	GENERATED_BODY()
 
 public:
-	
+
 	//------------------------------------------------------------------------------------------------------------------
 	// Inventory
 	/**
@@ -140,6 +139,9 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, BlueprintCosmetic, Category = "Inventory")
 	void HideBag(EBagSlot InputBagSlot);
+
+	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, BlueprintCosmetic, Category = "Inventory")
+	void HideAllBags();
 
 	/**
 	 * Unequips a bag from a specified bag slot.

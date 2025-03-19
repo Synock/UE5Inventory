@@ -135,4 +135,7 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category="Inventory")
 	void ClearAllBags();
+
+	UFUNCTION(Blueprintable, Category="Inventory")
+	bool IsBagValid(EBagSlot InputSlot) const;
 };

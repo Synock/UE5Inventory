@@ -9,6 +9,7 @@
 #include "GameFramework/Actor.h"
 #include "Interfaces/InventoryHUDInterface.h"
 #include "Interfaces/LootableInterface.h"
+#include "Items/InventoryItemActionnable.h"
 #include "Items/InventoryItemEquipable.h"
 #include "Items/InventoryItemKey.h"
 
@@ -522,4 +523,64 @@ void IInventoryPlayerInterface::PlayerRemoveKeyToInventory(int32 KeyId)
 void IInventoryPlayerInterface::DisplayItemDescription(const UInventoryItemBase* Item, float X, float Y)
 {
 	GetInventoryHUDInterface()->Execute_DisplayItemDescription(GetInventoryHUDObject(), Item, X, Y);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+bool IInventoryPlayerInterface::TryToEat()
+{
+	UInventoryComponent* Inventory = GetInventoryComponent();
+	if (!Inventory)
+		return false;
+
+	for (EBagSlot BagSlot = EBagSlot::Unknown; BagSlot < EBagSlot::LastValidBag; ++BagSlot)
+	{
+		if (!Inventory->IsBagValid(BagSlot))
+			continue;
+
+		const TArray<FMinimalItemStorage>& BagItems = Inventory->GetBagConst(BagSlot);
+		for (const FMinimalItemStorage& ItemStorage : BagItems)
+		{
+			const UInventoryItemBase* Item = UInventoryUtilities::GetItemFromID(ItemStorage.ItemID, GetInventoryOwningActor()->GetWorld());
+			if (const UInventoryItemActionnable* ActionnableItem = Cast<UInventoryItemActionnable>(Item))
+			{
+				if (ActionnableItem->HungerValue > 0.f)
+				{
+					HandleActivation(ItemStorage.ItemID, ItemStorage.TopLeftID, BagSlot);
+					return true;
+				}
+			}
+		}
+	}
+
+	return false;
+}
+
+bool IInventoryPlayerInterface::TryToDrink()
+{
+	UInventoryComponent* Inventory = GetInventoryComponent();
+	if (!Inventory)
+		return false;
+
+	for (EBagSlot BagSlot = EBagSlot::Unknown; BagSlot < EBagSlot::LastValidBag; ++BagSlot)
+	{
+		if (!Inventory->IsBagValid(BagSlot))
+			continue;
+
+		const TArray<FMinimalItemStorage>& BagItems = Inventory->GetBagConst(BagSlot);
+		for (const FMinimalItemStorage& ItemStorage : BagItems)
+		{
+			const UInventoryItemBase* Item = UInventoryUtilities::GetItemFromID(ItemStorage.ItemID, GetInventoryOwningActor()->GetWorld());
+			if (const UInventoryItemActionnable* ActionnableItem = Cast<UInventoryItemActionnable>(Item))
+			{
+				if (ActionnableItem->ThirstValue > 0.f)
+				{
+					HandleActivation(ItemStorage.ItemID, ItemStorage.TopLeftID, BagSlot);
+					return true;
+				}
+			}
+		}
+	}
+
+	return false;
 }

@@ -283,6 +283,12 @@ void UInventoryComponent::ClearAllBags()
 	BagLUT.Reset();
 	VariableBags.Reset();
 }
+//----------------------------------------------------------------------------------------------------------------------
+
+bool UInventoryComponent::IsBagValid(EBagSlot InputSlot) const
+{
+	return BagLUT.Contains(InputSlot);
+}
 
 //----------------------------------------------------------------------------------------------------------------------
 

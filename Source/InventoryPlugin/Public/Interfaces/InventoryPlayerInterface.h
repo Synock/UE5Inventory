@@ -852,6 +852,11 @@ public:
 	UFUNCTION(BlueprintCallable)
 	virtual void DisplayItemDescription(const UInventoryItemBase* Item, float X, float Y);
 
+	UFUNCTION(Blueprintable)
+	virtual bool TryToEat();
+
+	UFUNCTION(Blueprintable)
+	virtual bool TryToDrink();
 
 protected:
 	//------------------------------------------------------------------------------------------------------------------

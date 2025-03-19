@@ -158,7 +158,7 @@ FString UItemDescriptionWidget::GetUsableString() const
 	}
 
 	FString DrinkString = GetDrinkString();
-	if (!FoodString.IsEmpty())
+	if (!DrinkString.IsEmpty())
 	{
 		Out += DrinkString;
 	}
