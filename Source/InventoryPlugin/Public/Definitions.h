@@ -105,7 +105,9 @@ enum class EBagSlot : uint8
 
 	LootPool = 20 UMETA(DisplayName = "Lootpool"),
 	StagingArea = 21 UMETA(DisplayName = "StagingArea"),
-	BankPool = 22  UMETA(DisplayName = "BankingPool")
+	BankPool = 22  UMETA(DisplayName = "BankingPool"),
+	CraftInput = 23  UMETA(DisplayName = "CraftInput"),
+	CraftOutput = 24  UMETA(DisplayName = "CraftOutput")
 };
 
 inline EBagSlot& operator++(EBagSlot& Slot)

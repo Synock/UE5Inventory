@@ -233,6 +233,16 @@ public:
 	virtual UBankComponent* GetBankComponent() const;
 
 	/**
+	 * @brief Get the crafting component of the inventory player.
+	 *
+	 * @return UCraftComponent* Pointer to the craft component. Returns nullptr if the craft component is not found.
+	 *
+	 * @note This method is implemented by classes that implement the IInventoryPlayerInterface interface.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Bank")
+	virtual UCraftComponent* GetCraftComponent() const;
+
+	/**
 	 * @brief Gets the keyring component of the inventory player.
 	 *
 	 * This method returns the keyring component of the inventory player.

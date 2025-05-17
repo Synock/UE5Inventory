@@ -27,6 +27,13 @@ UBankComponent* IInventoryPlayerInterface::GetBankComponent() const
 
 //----------------------------------------------------------------------------------------------------------------------
 
+UCraftComponent* IInventoryPlayerInterface::GetCraftComponent() const
+{
+	return nullptr;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 UKeyringComponent* IInventoryPlayerInterface::GetKeyring() const
 {
 	return nullptr;

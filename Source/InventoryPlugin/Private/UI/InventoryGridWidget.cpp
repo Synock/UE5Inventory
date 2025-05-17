@@ -195,6 +195,11 @@ void UInventoryGridWidget::InitData(AActor* Owner, EBagSlot InputBagSlot, int32 
 		ResizeBagArea(InputWidth > 0 ? InputWidth : 8, InputHeight > 0 ? InputHeight : 16);
 		PC->GetBankComponent()->BankPoolDispatcher.AddDynamic(this, &UInventoryGridWidget::Refresh);
 	}
+	else if (BagID == EBagSlot::CraftInput || BagID == EBagSlot::CraftOutput)
+	{
+		ResizeBagArea(InputWidth > 0 ? InputWidth : 4, InputHeight > 0 ? InputHeight : 4);
+		PC->GetBankComponent()->BankPoolDispatcher.AddDynamic(this, &UInventoryGridWidget::Refresh);
+	}
 	else
 	{
 		const EEquipmentSlot RelatedSlot = UInventoryComponent::GetInventorySlotFromBagSlot(BagID);
