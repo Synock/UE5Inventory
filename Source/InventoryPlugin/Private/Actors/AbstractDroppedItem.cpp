@@ -15,8 +15,8 @@ AAbstractDroppedItem::AAbstractDroppedItem()
 	CapsuleComponent->SetIsReplicated(true);
 	SetRootComponent(StaticItem);
 
-	CapsuleComponent->SetHiddenInGame(false);
-	CapsuleComponent->SetVisibility(true);
+	CapsuleComponent->SetHiddenInGame(true);
+	CapsuleComponent->SetVisibility(false);
 	CapsuleComponent->SetupAttachment(StaticItem);
 
 	StaticItem->SetCollisionEnabled(ECollisionEnabled::Type::QueryOnly);

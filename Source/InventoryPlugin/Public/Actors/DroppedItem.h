@@ -25,6 +25,6 @@ public:
 
 	ADroppedItem();
 
-	virtual void InitializeFromItem(UInventoryItemBase* Item);
+	virtual void InitializeFromItem(UInventoryItemBase* Item, bool AllowToRotate = true);;
 
 };

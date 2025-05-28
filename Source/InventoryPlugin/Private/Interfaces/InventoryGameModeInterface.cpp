@@ -3,9 +3,54 @@
 
 #include "Interfaces/InventoryGameModeInterface.h"
 
+#include "Actors/DroppedItem.h"
 #include "Components/LoreItemManagerComponent.h"
 #include "GameFramework/Actor.h"
 #include "Engine/World.h"
+
+ADroppedItem* IInventoryGameModeInterface::SpawnItemFromActor(AActor* SpawningActor, uint32 ItemID,
+	const FVector& DesiredDropLocation, bool ClampOnGround)
+{
+
+		if (!SpawningActor)
+			return nullptr;
+
+		if (ItemID <= 0)
+			return nullptr;
+
+		const FVector SpawnLocation = GetItemSpawnLocation(SpawningActor, DesiredDropLocation, ClampOnGround);
+
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.Owner = SpawningActor;
+		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+
+		UInventoryItemBase* ItemToSpawn = FetchItemFromID(ItemID);
+
+		ADroppedItem* Item = SpawningActor->GetWorld()->SpawnActor<ADroppedItem>(SpawnLocation, SpawningActor->GetActorRotation(),
+																	SpawnParams);
+		Item->SetReplicates(true);
+		Item->InitializeFromItem(ItemToSpawn);
+		return Item;
+}
+
+ADroppedItem* IInventoryGameModeInterface::SpawnItemFromActorRaw(AActor* SpawningActor, UInventoryItemBase* ItemToSpawn)
+{
+	if (!SpawningActor)
+		return nullptr;
+
+	if (!ItemToSpawn)
+		return nullptr;
+
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.Owner = SpawningActor;
+	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+	ADroppedItem* Item = SpawningActor->GetWorld()->SpawnActor<ADroppedItem>(SpawningActor->GetActorLocation(), SpawningActor->GetActorRotation(),
+																SpawnParams);
+	Item->SetReplicates(true);
+	Item->InitializeFromItem(ItemToSpawn, false);
+	return Item;
+}
 
 FVector IInventoryGameModeInterface::GetItemSpawnLocation(AActor* SpawningActor, const FVector& DesiredDropLocation, bool ClampOnGround)
 {

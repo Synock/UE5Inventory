@@ -52,7 +52,9 @@ public:
 	 *         // Item spawning failed.
 	 *     }
 	 */
-	virtual ADroppedItem* SpawnItemFromActor(AActor* SpawningActor, uint32 ItemID, const FVector& DesiredDropLocation, bool ClampOnGround = true) = 0;
+	virtual ADroppedItem* SpawnItemFromActor(AActor* SpawningActor, uint32 ItemID, const FVector& DesiredDropLocation, bool ClampOnGround = true);
+
+	virtual ADroppedItem* SpawnItemFromActorRaw(AActor* SpawningActor, UInventoryItemBase* ItemToSpawn);
 
 	/**
 	 * Spawns coins from an actor at a desired drop location.

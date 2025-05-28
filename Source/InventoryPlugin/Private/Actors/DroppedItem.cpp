@@ -11,7 +11,7 @@ ADroppedItem::ADroppedItem()
 	PrimaryActorTick.bCanEverTick = false;
 }
 
-void ADroppedItem::InitializeFromItem(UInventoryItemBase* Item)
+void ADroppedItem::InitializeFromItem(UInventoryItemBase* Item, bool AllowToRotate)
 {
 	if (Item)
 	{
@@ -30,7 +30,7 @@ void ADroppedItem::InitializeFromItem(UInventoryItemBase* Item)
 			FMath::Max(Item->Mesh->GetBoundingBox().GetSize().X, Item->Mesh->GetBoundingBox().GetSize().Y),
 			Item->Mesh->GetBoundingBox().GetSize().Z * 0.5);
 
-		if (Item->Mesh->GetBoundingBox().GetSize().Z > Item->Mesh->GetBoundingBox().GetSize().Y)
+		if (AllowToRotate && Item->Mesh->GetBoundingBox().GetSize().Z > Item->Mesh->GetBoundingBox().GetSize().Y)
 		{
 			StaticItem->SetRelativeRotation(FRotator::MakeFromEuler({90, 0, 0}));
 			//CapsuleComponent->SetRelativeRotation(FRotator::MakeFromEuler({90, 0, 0}));
