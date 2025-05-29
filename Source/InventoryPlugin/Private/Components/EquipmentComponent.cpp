@@ -394,6 +394,11 @@ void UEquipmentComponent::UpdateEquipment_Implementation(USkeletalMeshComponent*
 		for (auto& Material : MaterialOverride)
 		{
 			SkeletalSocket->SetMaterial(Material.MaterialID, Material.OverrideMaterial);
+			if (UMaterialInstanceDynamic* DynMat = SkeletalSocket->CreateAndSetMaterialInstanceDynamic(Material.MaterialID))
+			{
+				DynMat->SetVectorParameterValue(TEXT("Tint"), Material.TintColor);
+				DynMat->SetScalarParameterValue(TEXT("TintIntensity"), Material.TintIntensity);
+			}
 		}
 
 	}

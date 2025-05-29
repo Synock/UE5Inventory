@@ -26,6 +26,12 @@ struct FMaterialOverride
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Visual")
 	int32 MaterialID = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Visual")
+	FLinearColor TintColor = FLinearColor::White;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Visual")
+	float TintIntensity = 1.0f;
 };
 
 class UTexture2D;

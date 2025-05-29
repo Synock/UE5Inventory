@@ -49,6 +49,11 @@ void IInventoryModularCharacterInterface::SetEquipment(const UInventoryItemEquip
 		for (auto& Material : Item->EquipmentMeshMaterialOverride)
 		{
 			SkeletaComponent->SetMaterial(Material.MaterialID, Material.OverrideMaterial);
+			if (UMaterialInstanceDynamic* DynMat = SkeletaComponent->CreateAndSetMaterialInstanceDynamic(Material.MaterialID))
+			{
+				DynMat->SetVectorParameterValue(TEXT("Tint"), Material.TintColor);
+				DynMat->SetScalarParameterValue(TEXT("TintIntensity"), Material.TintIntensity);
+			}
 		}
 	}
 }
