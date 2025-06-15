@@ -546,6 +546,24 @@ void UEquipmentComponent::BeginPlay()
 
 	RightBracerComponent->AttachToComponent(PlayerMesh, TransformRules2, FName("root"));
 	RightBracerComponent->SetLeaderPoseComponent(Cast<ACharacter>(GetOwner())->GetMesh());
+
+	//Disable camera collision for EVERY piece of equipment
+	RightBracerComponent->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
+	LeftBracerComponent->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
+	PrimaryWeaponComponent->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
+	SecondaryWeaponComponent->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
+	PrimaryWeaponComponentSkeletal->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
+	SecondaryWeaponComponentSkeletal->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
+	AmmoComponent->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
+	PrimaryWeaponSheath->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
+	SecondaryWeaponSheath->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
+	BackWeaponSheath->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
+	ShoulderBag1Component->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
+	ShoulderBag2Component->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
+	WaistBag1Component->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
+	WaistBag2Component->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
+	BackpackComponent->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
+
 }
 
 //----------------------------------------------------------------------------------------------------------------------
