@@ -333,4 +333,7 @@ public:
 	 */
 	UFUNCTION(NetMulticast, Reliable)
 	void UnEquipLightItem() const;
+
+	UFUNCTION(BlueprintCallable)
+	void SetAllEquipmentCollisionDisabled();
 };

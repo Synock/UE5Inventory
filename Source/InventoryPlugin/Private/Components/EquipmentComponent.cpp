@@ -779,6 +779,25 @@ void UEquipmentComponent::SetEquipmentLight(TSubclassOf<AInventoryLightSourceAct
 	}
 }
 
+void UEquipmentComponent::SetAllEquipmentCollisionDisabled()
+{
+	RightBracerComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
+	LeftBracerComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
+	PrimaryWeaponComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
+	SecondaryWeaponComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
+	PrimaryWeaponComponentSkeletal->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
+	SecondaryWeaponComponentSkeletal->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
+	AmmoComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
+	PrimaryWeaponSheath->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
+	SecondaryWeaponSheath->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
+	BackWeaponSheath->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
+	ShoulderBag1Component->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
+	ShoulderBag2Component->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
+	WaistBag1Component->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
+	WaistBag2Component->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
+	BackpackComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
+}
+
 void UEquipmentComponent::EquipLightItem_Implementation(TSubclassOf<AInventoryLightSourceActor> LightActor) const
 {
 	if (LightActor)
