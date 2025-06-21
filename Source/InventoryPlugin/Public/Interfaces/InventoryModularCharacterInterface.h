@@ -24,12 +24,12 @@ class INVENTORYPLUGIN_API IInventoryModularCharacterInterface
 public:
 
 	/// these are character component that get replaced by stuff
-	virtual USkeletalMeshComponent* GetHeadComponent() = 0;
-	virtual USkeletalMeshComponent* GetTorsoComponent() = 0;
-	virtual USkeletalMeshComponent* GetArmsComponent() = 0;
-	virtual USkeletalMeshComponent* GetHandsComponent() = 0;
-	virtual USkeletalMeshComponent* GetLegsComponent() = 0;
-	virtual USkeletalMeshComponent* GetFootComponent() = 0;
+	virtual USkeletalMeshComponent* GetHeadComponent();
+	virtual USkeletalMeshComponent* GetTorsoComponent();
+	virtual USkeletalMeshComponent* GetArmsComponent();
+	virtual USkeletalMeshComponent* GetHandsComponent();
+	virtual USkeletalMeshComponent* GetLegsComponent();
+	virtual USkeletalMeshComponent* GetFootComponent();
 
 	/// these are stuff that get on top of other stuff
 	virtual USkeletalMeshComponent* GetHelmetComponent();

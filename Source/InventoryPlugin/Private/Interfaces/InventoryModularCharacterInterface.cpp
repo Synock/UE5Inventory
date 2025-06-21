@@ -4,6 +4,36 @@
 #include "Interfaces/InventoryModularCharacterInterface.h"
 
 
+USkeletalMeshComponent* IInventoryModularCharacterInterface::GetHeadComponent()
+{
+	return nullptr;
+}
+
+USkeletalMeshComponent* IInventoryModularCharacterInterface::GetTorsoComponent()
+{
+	return nullptr;
+}
+
+USkeletalMeshComponent* IInventoryModularCharacterInterface::GetArmsComponent()
+{
+	return nullptr;
+}
+
+USkeletalMeshComponent* IInventoryModularCharacterInterface::GetHandsComponent()
+{
+	return nullptr;
+}
+
+USkeletalMeshComponent* IInventoryModularCharacterInterface::GetLegsComponent()
+{
+	return nullptr;
+}
+
+USkeletalMeshComponent* IInventoryModularCharacterInterface::GetFootComponent()
+{
+	return nullptr;
+}
+
 USkeletalMeshComponent* IInventoryModularCharacterInterface::GetHelmetComponent()
 {
 	return nullptr;
