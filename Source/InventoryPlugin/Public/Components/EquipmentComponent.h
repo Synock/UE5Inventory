@@ -41,17 +41,24 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Light")
 	UChildActorComponent* SecondaryLightSource;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Weapon")
-	UStaticMeshComponent* PrimaryWeaponComponent;
+	/// Weapons and Sheaths
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Weapon")
-	UStaticMeshComponent* SecondaryWeaponComponent;
+	UPROPERTY(EditAnywhere, Replicated, BlueprintReadWrite, Category = "Inventory|Weapon")
+	USkeletalMeshComponent* PrimaryWeaponComponent;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Weapon")
-	USkeletalMeshComponent* PrimaryWeaponComponentSkeletal;
+	UPROPERTY(EditAnywhere,Replicated, BlueprintReadWrite, Category = "Inventory|Weapon")
+	USkeletalMeshComponent* SecondaryWeaponComponent;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Weapon")
-	USkeletalMeshComponent* SecondaryWeaponComponentSkeletal;
+	UPROPERTY(EditAnywhere,Replicated, BlueprintReadWrite, Category = "Inventory|Sheath")
+	USkeletalMeshComponent* PrimaryWeaponSheath;
+
+	UPROPERTY(EditAnywhere,Replicated, BlueprintReadWrite, Category = "Inventory|Sheath")
+	USkeletalMeshComponent* SecondaryWeaponSheath;
+
+	UPROPERTY(EditAnywhere,Replicated, BlueprintReadWrite, Category = "Inventory|Sheath")
+	USkeletalMeshComponent* BackWeaponSheath;
+
+	/// Bags and Ammo
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Bag")
 	UStaticMeshComponent* AmmoComponent;
@@ -71,15 +78,7 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Bag")
 	UStaticMeshComponent* BackpackComponent;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Sheath")
-	UStaticMeshComponent* PrimaryWeaponSheath;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Sheath")
-	UStaticMeshComponent* SecondaryWeaponSheath;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Sheath")
-	UStaticMeshComponent* BackWeaponSheath;
-
+	/// Jewelry
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Equipment")
 	UStaticMeshComponent* EarringLComponent;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Equipment")
@@ -90,6 +89,7 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Equipment")
 	UStaticMeshComponent* RingRComponent;
 
+	/// Bracers and Wrist
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Equipment")
     USkeletalMeshComponent* RightBracerComponent;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Equipment")
@@ -103,6 +103,8 @@ protected:
 	EEquipmentSocket PrimaryWeaponOriginalSlot = EEquipmentSocket::Unknown;
 	EEquipmentSocket SecondaryWeaponOriginalSlot = EEquipmentSocket::Unknown;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Replicated, Category = "Inventory|Equipment")
+	bool bIsHoldingATwoHandedWeapon = false;
 
 	/**
 	 * Equips the given equipable item to the specified equipment slot.
@@ -336,4 +338,10 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void SetAllEquipmentCollisionDisabled();
+
+	UFUNCTION(BlueprintCallable)
+	bool IsWeaponTwoHanded() const;
+
+	UFUNCTION(BlueprintCallable, meta = (BlueprintThreadSafe))
+	FTransform GetOffHandTransform() const;
 };

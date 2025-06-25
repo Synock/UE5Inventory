@@ -13,19 +13,6 @@
 #include "Interfaces/InventoryModularCharacterInterface.h"
 #include "Items/InventoryItemEquipable.h"
 
-namespace
-{
-	UStaticMesh* LoadStaticMeshFromPath(const FName& Path)
-	{
-		if (Path == NAME_None)
-		{
-			return nullptr;
-		}
-
-		return Cast<UStaticMesh>(StaticLoadObject(UStaticMesh::StaticClass(), nullptr, *Path.ToString()));
-	}
-}
-
 //----------------------------------------------------------------------------------------------------------------------
 
 UStaticMeshComponent* UEquipmentComponent::GetMeshComponentFromSocket(EEquipmentSocket Socket) const
@@ -38,12 +25,7 @@ UStaticMeshComponent* UEquipmentComponent::GetMeshComponentFromSocket(EEquipment
 	case EEquipmentSocket::ShoulderBag1: return ShoulderBag1Component;
 	case EEquipmentSocket::ShoulderBag2: return ShoulderBag2Component;
 	case EEquipmentSocket::Backpack: return BackpackComponent;
-	case EEquipmentSocket::PrimarySheath: return PrimaryWeaponSheath;
-	case EEquipmentSocket::SecondarySheath: return SecondaryWeaponSheath;
-	case EEquipmentSocket::BackSheath: return BackWeaponSheath;
 	case EEquipmentSocket::Unknown: return nullptr;
-	case EEquipmentSocket::Primary: return PrimaryWeaponComponent;
-	case EEquipmentSocket::Secondary: return SecondaryWeaponComponent;
 
 	case EEquipmentSocket::EarL: return EarringLComponent;
 	case EEquipmentSocket::EarR: return EarringRComponent;
@@ -64,11 +46,18 @@ USkeletalMeshComponent* UEquipmentComponent::GetSkeletalMeshComponentFromSocket(
 	switch (Socket)
 	{
 	case EEquipmentSocket::Unknown: return nullptr;
-	case EEquipmentSocket::Primary: return PrimaryWeaponComponentSkeletal;
-	case EEquipmentSocket::Secondary: return SecondaryWeaponComponentSkeletal;
+	case EEquipmentSocket::Primary: return PrimaryWeaponComponent;
+	case EEquipmentSocket::Secondary: return SecondaryWeaponComponent;
+	case EEquipmentSocket::PrimarySheath: return PrimaryWeaponSheath;
+	case EEquipmentSocket::SecondarySheath: return SecondaryWeaponSheath;
+	case EEquipmentSocket::BackSheath: return BackWeaponSheath;
 	case EEquipmentSocket::Head:
 		{
-			return Cast<IInventoryModularCharacterInterface>(GetOwner())->GetHelmetComponent();
+			if (auto * ModularCharacter = Cast<IInventoryModularCharacterInterface>(GetOwner()))
+			{
+				return ModularCharacter->GetHelmetComponent();
+			}
+			return nullptr;
 		}
 	case EEquipmentSocket::WristL: return LeftBracerComponent;
 	case EEquipmentSocket::WristR: return RightBracerComponent;
@@ -152,18 +141,6 @@ bool UEquipmentComponent::UnEquip(const UInventoryItemEquipable* Item, EEquipmen
 	if (!WantedSocket)
 	{
 		return false;
-	}
-
-	if (!WantedSocket->GetStaticMesh() || !WantedSocket->IsVisible())
-	{
-		if (PrimaryWeaponOriginalSlot == PossibleSocket)
-		{
-			return PrimaryWeaponComponent->SetStaticMesh(nullptr);
-		}
-		if (SecondaryWeaponOriginalSlot == PossibleSocket)
-		{
-			return SecondaryWeaponComponent->SetStaticMesh(nullptr);
-		}
 	}
 
 	return WantedSocket->SetStaticMesh(nullptr);
@@ -314,74 +291,55 @@ void UEquipmentComponent::Unsheath(EEquipmentSlot SlotToUnsheath)
 		SecondaryWeaponOriginalSlot = SheathSocket;
 	}
 
-	UStaticMeshComponent* LiveSocketComponent = GetMeshComponentFromSocket(LiveSocket);
-	UStaticMeshComponent* SheathSocketComponent = GetMeshComponentFromSocket(SheathSocket);
 
-	if (SheathSocketComponent->GetStaticMesh() == nullptr || LiveSocketComponent->GetStaticMesh() != nullptr)
+	USkeletalMeshComponent* LiveSocketComponent = GetSkeletalMeshComponentFromSocket(LiveSocket);
+	USkeletalMeshComponent* SheathSocketComponent = GetSkeletalMeshComponentFromSocket(SheathSocket);
+
+	if (SheathSocketComponent->GetSkeletalMeshAsset() == nullptr || LiveSocketComponent->GetSkeletalMeshAsset() != nullptr)
 	{
 		return;
 	}
 
-	UStaticMesh* MeshPointer = SheathSocketComponent->GetStaticMesh();
-	SheathSocketComponent->SetStaticMesh(nullptr);
-	LiveSocketComponent->SetStaticMesh(MeshPointer);
+	USkeletalMesh* MeshPointer = SheathSocketComponent->GetSkeletalMeshAsset();
+	SheathSocketComponent->SetSkeletalMeshAsset(nullptr);
+	LiveSocketComponent->SetSkeletalMeshAsset(MeshPointer);
+
+	bIsHoldingATwoHandedWeapon = Item->MultiSlotItem;
 }
 
 //----------------------------------------------------------------------------------------------------------------------
 
 void UEquipmentComponent::Sheath()
 {
-	if (PrimaryWeaponComponent->GetStaticMesh() != nullptr)
+	if (PrimaryWeaponComponent->GetSkeletalMeshAsset() != nullptr)
 	{
-		UStaticMeshComponent* ReturnSocket = GetMeshComponentFromSocket(PrimaryWeaponOriginalSlot);
+		USkeletalMeshComponent* ReturnSocket = GetSkeletalMeshComponentFromSocket(PrimaryWeaponOriginalSlot);
 
-		if (!ReturnSocket || ReturnSocket->GetStaticMesh())
+		if (!ReturnSocket || ReturnSocket->GetSkeletalMeshAsset())
 		{
 			return;
 		}
 
-		UStaticMesh* MeshPointer = PrimaryWeaponComponent->GetStaticMesh();
-		PrimaryWeaponComponent->SetStaticMesh(nullptr);
-		ReturnSocket->SetStaticMesh(MeshPointer);
+		USkeletalMesh* MeshPointer = PrimaryWeaponComponent->GetSkeletalMeshAsset();
+		PrimaryWeaponComponent->SetSkeletalMeshAsset(nullptr);
+		ReturnSocket->SetSkeletalMeshAsset(MeshPointer);
 	}
 
-	if (SecondaryWeaponComponent->GetStaticMesh() != nullptr)
+	if (SecondaryWeaponComponent->GetSkeletalMeshAsset() != nullptr)
 	{
-		UStaticMeshComponent* ReturnSocket = GetMeshComponentFromSocket(SecondaryWeaponOriginalSlot);
+		USkeletalMeshComponent* ReturnSocket = GetSkeletalMeshComponentFromSocket(SecondaryWeaponOriginalSlot);
 
-		if (!ReturnSocket || ReturnSocket->GetStaticMesh())
+		if (!ReturnSocket || ReturnSocket->GetSkeletalMeshAsset())
 		{
 			return;
 		}
 
-		UStaticMesh* MeshPointer = SecondaryWeaponComponent->GetStaticMesh();
-		SecondaryWeaponComponent->SetStaticMesh(nullptr);
-		ReturnSocket->SetStaticMesh(MeshPointer);
+		USkeletalMesh* MeshPointer = SecondaryWeaponComponent->GetSkeletalMeshAsset();
+		SecondaryWeaponComponent->SetSkeletalMeshAsset(nullptr);
+		ReturnSocket->SetSkeletalMeshAsset(MeshPointer);
 	}
-	/*
-		if (PrimaryWeaponComponentSkeletal->GetSkeletalMeshAsset() != nullptr)
-		{
-			USkeletalMeshComponent* ReturnSocket = GetSkeletalMeshComponentFromSocket(PrimaryWeaponOriginalSlot);
 
-			if (!ReturnSocket || ReturnSocket->GetSkeletalMeshAsset())
-				return;
-
-			USkeletalMesh* MeshPointer = PrimaryWeaponComponentSkeletal->GetSkeletalMeshAsset();
-			PrimaryWeaponComponentSkeletal->SetSkeletalMeshAsset(nullptr);
-			ReturnSocket->SetSkeletalMeshAsset(MeshPointer);
-		}
-
-		if (SecondaryWeaponComponentSkeletal->GetSkeletalMeshAsset() != nullptr)
-		{
-			USkeletalMeshComponent* ReturnSocket = GetSkeletalMeshComponentFromSocket(SecondaryWeaponOriginalSlot);
-
-			if (!ReturnSocket || ReturnSocket->GetSkeletalMeshAsset())
-				return;
-
-			USkeletalMesh* MeshPointer = SecondaryWeaponComponentSkeletal->GetSkeletalMeshAsset();
-			SecondaryWeaponComponentSkeletal->SetSkeletalMeshAsset(nullptr);
-			ReturnSocket->SetSkeletalMeshAsset(MeshPointer);
-		}*/
+	bIsHoldingATwoHandedWeapon = false;
 }
 
 void UEquipmentComponent::UpdateEquipment_Implementation(USkeletalMeshComponent* SkeletalSocket,
@@ -405,8 +363,6 @@ void UEquipmentComponent::UpdateEquipment_Implementation(USkeletalMeshComponent*
 }
 
 //----------------------------------------------------------------------------------------------------------------------
-//----------------------------------------------------------------------------------------------------------------------
-//----------------------------------------------------------------------------------------------------------------------
 
 // Sets default values for this component's properties
 UEquipmentComponent::UEquipmentComponent()
@@ -417,17 +373,17 @@ UEquipmentComponent::UEquipmentComponent()
 
 	Equipment.Init(nullptr, 32);
 
-	PrimaryWeaponComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("PrimaryWeaponComponentMesh"));
+	PrimaryWeaponComponent = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("PrimaryWeaponComponentMesh"));
 	PrimaryWeaponComponent->SetIsReplicated(true);
-	SecondaryWeaponComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("SecondaryWeaponComponentMesh"));
+	SecondaryWeaponComponent = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("SecondaryWeaponComponentMesh"));
 	SecondaryWeaponComponent->SetIsReplicated(true);
 
-	PrimaryWeaponComponentSkeletal = CreateDefaultSubobject<USkeletalMeshComponent>(
-		TEXT("PrimaryWeaponComponentSkeletalMesh"));
-	PrimaryWeaponComponentSkeletal->SetIsReplicated(true);
-	SecondaryWeaponComponentSkeletal = CreateDefaultSubobject<USkeletalMeshComponent>(
-		TEXT("SecondaryWeaponComponentSkeletalMesh"));
-	SecondaryWeaponComponentSkeletal->SetIsReplicated(true);
+	PrimaryWeaponSheath = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("PrimaryWeaponSheathComponentMesh"));
+	PrimaryWeaponSheath->SetIsReplicated(true);
+	SecondaryWeaponSheath = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("SecondaryWeaponSheathComponentMesh"));
+	SecondaryWeaponSheath->SetIsReplicated(true);
+	BackWeaponSheath = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("BackWeaponSheathComponentMesh"));
+	BackWeaponSheath->SetIsReplicated(true);
 
 	AmmoComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("AmmoComponentMesh"));
 	AmmoComponent->SetIsReplicated(true);
@@ -441,13 +397,6 @@ UEquipmentComponent::UEquipmentComponent()
 	ShoulderBag2Component->SetIsReplicated(true);
 	BackpackComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("BackpackComponentMesh"));
 	BackpackComponent->SetIsReplicated(true);
-
-	PrimaryWeaponSheath = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("PrimaryWeaponSheathComponentMesh"));
-	PrimaryWeaponSheath->SetIsReplicated(true);
-	SecondaryWeaponSheath = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("SecondaryWeaponSheathComponentMesh"));
-	SecondaryWeaponSheath->SetIsReplicated(true);
-	BackWeaponSheath = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("BackWeaponSheathComponentMesh"));
-	BackWeaponSheath->SetIsReplicated(true);
 
 	EarringLComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("EarringLComponent"));
 	EarringLComponent->SetIsReplicated(true);
@@ -514,21 +463,16 @@ void UEquipmentComponent::BeginPlay()
 	PrimaryWeaponComponent->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("SOCKET_RightHandWeapon"));
 	SecondaryWeaponComponent->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("SOCKET_LeftHandWeapon"));
 	AmmoComponent->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("SOCKET_AmmoBag"));
+	PrimaryWeaponSheath->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("PrimarySheath"));
+	SecondaryWeaponSheath->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("SecondarySheath"));
+	BackWeaponSheath->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("BackSheath"));
 
-	PrimaryWeaponComponentSkeletal->AttachToComponent(PlayerMesh, AttachmentTransformRules,
-	                                                  FName("SOCKET_RightHandWeapon"));
-	SecondaryWeaponComponentSkeletal->AttachToComponent(PlayerMesh, AttachmentTransformRules,
-	                                                    FName("SOCKET_LeftHandWeapon"));
 
 	WaistBag1Component->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("SOCKET_WaistBag1"));
 	WaistBag2Component->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("SOCKET_WaistBag2"));
 	ShoulderBag1Component->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("SOCKET_ShoulderBag1"));
 	ShoulderBag2Component->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("SOCKET_ShoulderBag2"));
 	BackpackComponent->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("SOCKET_Backpack"));
-
-	PrimaryWeaponSheath->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("PrimarySheath"));
-	SecondaryWeaponSheath->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("SecondarySheath"));
-	BackWeaponSheath->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("BackSheath"));
 
 	RingLComponent->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("RingL"));
 	RingRComponent->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("RingR"));
@@ -552,8 +496,6 @@ void UEquipmentComponent::BeginPlay()
 	LeftBracerComponent->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
 	PrimaryWeaponComponent->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
 	SecondaryWeaponComponent->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
-	PrimaryWeaponComponentSkeletal->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
-	SecondaryWeaponComponentSkeletal->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
 	AmmoComponent->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
 	PrimaryWeaponSheath->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
 	SecondaryWeaponSheath->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
@@ -564,6 +506,12 @@ void UEquipmentComponent::BeginPlay()
 	WaistBag2Component->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
 	BackpackComponent->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
 
+	// Enforce refresh of skeletal mesh equipment that may otherwise be preloaded and ignored
+	if (auto PrimaryWeapon = GetItemAtSlot(EEquipmentSlot::Primary))
+		Equip(PrimaryWeapon, EEquipmentSlot::Primary);
+
+	if (auto SecondaryWeapon = GetItemAtSlot(EEquipmentSlot::Secondary))
+		Equip(SecondaryWeapon, EEquipmentSlot::Secondary);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -571,8 +519,12 @@ void UEquipmentComponent::BeginPlay()
 void UEquipmentComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-	// Here we list the variables we want to replicate + a condition if wanted
 	DOREPLIFETIME(UEquipmentComponent, Equipment);
+	DOREPLIFETIME(UEquipmentComponent, bIsHoldingATwoHandedWeapon);
+	DOREPLIFETIME(UEquipmentComponent, PrimaryWeaponComponent);
+	DOREPLIFETIME(UEquipmentComponent, SecondaryWeaponComponent);
+	DOREPLIFETIME(UEquipmentComponent, PrimaryWeaponSheath);
+	DOREPLIFETIME(UEquipmentComponent, SecondaryWeaponSheath);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -717,7 +669,7 @@ void UEquipmentComponent::SheathMelee()
 
 FBoxSphereBounds UEquipmentComponent::GetEquipmentOverlapBox(EEquipmentSlot Slot) const
 {
-	UStaticMeshComponent* Component = nullptr;
+	USkeletalMeshComponent* Component = nullptr;
 
 	switch (Slot)
 	{
@@ -728,12 +680,12 @@ FBoxSphereBounds UEquipmentComponent::GetEquipmentOverlapBox(EEquipmentSlot Slot
 	default: return {};
 	}
 
-	if (!IsValid(Component->GetStaticMesh()))
+	if (!IsValid(Component->GetSkeletalMeshAsset()))
 	{
 		return {};
 	}
 
-	FBoxSphereBounds MeshBounds = Component->GetStaticMesh()->GetBounds();
+	const FBoxSphereBounds MeshBounds = Component->GetSkeletalMeshAsset()->GetBounds();
 
 	return MeshBounds;
 }
@@ -785,8 +737,6 @@ void UEquipmentComponent::SetAllEquipmentCollisionDisabled()
 	LeftBracerComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
 	PrimaryWeaponComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
 	SecondaryWeaponComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
-	PrimaryWeaponComponentSkeletal->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
-	SecondaryWeaponComponentSkeletal->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
 	AmmoComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
 	PrimaryWeaponSheath->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
 	SecondaryWeaponSheath->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
@@ -796,6 +746,22 @@ void UEquipmentComponent::SetAllEquipmentCollisionDisabled()
 	WaistBag1Component->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
 	WaistBag2Component->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
 	BackpackComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
+}
+
+bool UEquipmentComponent::IsWeaponTwoHanded() const
+{
+	return bIsHoldingATwoHandedWeapon;
+}
+
+FTransform UEquipmentComponent::GetOffHandTransform() const
+{
+	FTransform Out;
+	if (PrimaryWeaponComponent && bIsHoldingATwoHandedWeapon && PrimaryWeaponComponent->GetSkeletalMeshAsset())
+	{
+		Out = PrimaryWeaponComponent->GetSocketTransform(FName("SOCKET_LeftHandPosition"), ERelativeTransformSpace::RTS_World);
+	}
+
+	return Out;
 }
 
 void UEquipmentComponent::EquipLightItem_Implementation(TSubclassOf<AInventoryLightSourceActor> LightActor) const
