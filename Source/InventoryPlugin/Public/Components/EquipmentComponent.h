@@ -135,7 +135,7 @@ protected:
 	 *
 	 * @return                      The best equipment socket for the given item and equipment slot.
 	 */
-	static EEquipmentSocket FindBestSocketForItem(const UInventoryItemEquipable* Item, EEquipmentSlot EquipSlot);
+	virtual EEquipmentSocket FindBestSocketForItem(const UInventoryItemEquipable* Item, EEquipmentSlot EquipSlot);
 
 	/**
 	 * Unsheaths an item from the specified equipment slot and places it in the appropriate live socket.

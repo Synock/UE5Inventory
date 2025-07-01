@@ -30,7 +30,9 @@ enum class EAmmoType : uint8
 {
 	Unknown UMETA(DisplayName = "Unknown"),
 	Throwable UMETA(DisplayName = "Throwable"),
+	SmallBolts UMETA(DisplayName = "SmallBolts"),
 	Bolts UMETA(DisplayName = "Bolts"),
+	GreatBolts UMETA(DisplayName = "GreatBolts"),
 	Arrows UMETA(DisplayName = "Arrows")
 };
 

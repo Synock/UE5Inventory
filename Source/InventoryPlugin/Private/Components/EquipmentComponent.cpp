@@ -155,7 +155,7 @@ EEquipmentSocket UEquipmentComponent::FindBestSocketForItem(const UInventoryItem
 	{
 	case EEquipmentSlot::Primary:
 		{
-			if (!Item->Weapon)
+			if (!Item->Weapon || Item->Unsheathable)
 			{
 				return EEquipmentSocket::Primary;
 			}
@@ -243,6 +243,9 @@ void UEquipmentComponent::Unsheath(EEquipmentSlot SlotToUnsheath)
 	{
 		return;
 	}
+
+	if (Item->Unsheathable)
+		return;
 
 	const EEquipmentSocket SheathSocket = FindBestSocketForItem(Item, SlotToUnsheath);
 

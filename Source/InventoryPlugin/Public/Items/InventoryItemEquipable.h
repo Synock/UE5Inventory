@@ -39,5 +39,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Equipable|Visual")
 	TArray<FMaterialOverride> EquipmentMeshMaterialOverride;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Weapon")
+	bool Unsheathable = false;
+
 
 };
