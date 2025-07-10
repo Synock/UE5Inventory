@@ -17,6 +17,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FFullInventoryDispatcher_Server);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FInventoryItemAdd, EBagSlot, ConsideredBag, int32, ItemID, int32, TopLeftIndex);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FInventoryItemRemove, EBagSlot, ConsideredBag, int32, TopLeftIndex);
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FInventoryBagUsageChanged, EBagSlot, ConsideredBag, float, BagUsage);
+
 USTRUCT(BlueprintType)
 struct FVariableBagStorage
 {
@@ -65,22 +67,29 @@ protected:
 
 public:
 
+	UFUNCTION()
+	void InventoryBagUsageChange(EBagSlot ConsideredBag, float BagUsage);
+
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Bag")
 	const UBagStorage* GetRelatedBagConst(EBagSlot InputSlot) const;
+	float GetBagUsage(EBagSlot Quiver);
 
 
 	UPROPERTY(BlueprintAssignable, Category = "Inventory") //this is public because its a dispatcher
 	FOnFullInventoryComponentChanged FullInventoryDispatcher;
 
-	UPROPERTY(BlueprintAssignable, BlueprintAuthorityOnly, Category = "Inventory")
+	UPROPERTY(BlueprintAssignable, Category = "Inventory")
 	//this is public because its a dispatcher
 	FFullInventoryDispatcher_Server FullInventoryDispatcher_Server;
 
-	UPROPERTY(BlueprintAssignable, BlueprintAuthorityOnly, Category = "Inventory")
+	UPROPERTY(BlueprintAssignable, Category = "Inventory")
 	FInventoryItemAdd InventoryItemAdd;
 
-	UPROPERTY(BlueprintAssignable, BlueprintAuthorityOnly, Category = "Inventory")
+	UPROPERTY(BlueprintAssignable, Category = "Inventory")
 	FInventoryItemRemove InventoryItemRemove;
+
+	UPROPERTY(BlueprintAssignable, Category = "Inventory")
+	FInventoryBagUsageChanged InventoryBagUsageChanged;
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	int32 GetItemAtIndex(EBagSlot ConsideredBag, int32 ID) const;
@@ -97,7 +106,13 @@ public:
 	//Setup bag info
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	void BagSet(EBagSlot ConsideredBag, bool InputValidity = false, int32 InputWidth = 0, int32 InputHeight = 0,
-	            EItemSize InputMaxStoreSize = EItemSize::Giant);
+	            EItemSize InputMaxStoreSize = EItemSize::Giant, float WeightReduction = 1.f);
+
+	/// @brief Initialize the bag with the given quiver parameters
+	/// This function is only used by the quiver item, it will set the ammo type limitation
+	/// If the ammo type is unknown, it will set the bag as a normal bag
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	void QuiverSpecificSetup(EBagSlot ConsideredBag = EBagSlot::Quiver, EAmmoType NewAmmoType = EAmmoType::Unknown);
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	float GetTotalWeight() const;

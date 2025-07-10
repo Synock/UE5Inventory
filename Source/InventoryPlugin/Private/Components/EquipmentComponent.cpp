@@ -11,7 +11,9 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Interfaces/EquipmentInterface.h"
 #include "Interfaces/InventoryModularCharacterInterface.h"
+#include "Items/InventoryItemBag.h"
 #include "Items/InventoryItemEquipable.h"
+#include "Items/Interfaces/InventoryItemAmmoBagInterface.h"
 
 //----------------------------------------------------------------------------------------------------------------------
 
@@ -53,7 +55,7 @@ USkeletalMeshComponent* UEquipmentComponent::GetSkeletalMeshComponentFromSocket(
 	case EEquipmentSocket::BackSheath: return BackWeaponSheath;
 	case EEquipmentSocket::Head:
 		{
-			if (auto * ModularCharacter = Cast<IInventoryModularCharacterInterface>(GetOwner()))
+			if (auto* ModularCharacter = Cast<IInventoryModularCharacterInterface>(GetOwner()))
 			{
 				return ModularCharacter->GetHelmetComponent();
 			}
@@ -125,6 +127,7 @@ bool UEquipmentComponent::UnEquip(const UInventoryItemEquipable* Item, EEquipmen
 	{
 		if (USkeletalMeshComponent* SkeletalSocket = GetSkeletalMeshComponentFromSocket(PossibleSocket))
 		{
+			UpdateEquipment(SkeletalSocket,nullptr,{});
 			SkeletalSocket->SetSkeletalMeshAsset(nullptr);
 			return true;
 		}
@@ -298,7 +301,8 @@ void UEquipmentComponent::Unsheath(EEquipmentSlot SlotToUnsheath)
 	USkeletalMeshComponent* LiveSocketComponent = GetSkeletalMeshComponentFromSocket(LiveSocket);
 	USkeletalMeshComponent* SheathSocketComponent = GetSkeletalMeshComponentFromSocket(SheathSocket);
 
-	if (SheathSocketComponent->GetSkeletalMeshAsset() == nullptr || LiveSocketComponent->GetSkeletalMeshAsset() != nullptr)
+	if (SheathSocketComponent->GetSkeletalMeshAsset() == nullptr || LiveSocketComponent->GetSkeletalMeshAsset() !=
+		nullptr)
 	{
 		return;
 	}
@@ -355,13 +359,13 @@ void UEquipmentComponent::UpdateEquipment_Implementation(USkeletalMeshComponent*
 		for (auto& Material : MaterialOverride)
 		{
 			SkeletalSocket->SetMaterial(Material.MaterialID, Material.OverrideMaterial);
-			if (UMaterialInstanceDynamic* DynMat = SkeletalSocket->CreateAndSetMaterialInstanceDynamic(Material.MaterialID))
+			if (UMaterialInstanceDynamic* DynMat = SkeletalSocket->CreateAndSetMaterialInstanceDynamic(
+				Material.MaterialID))
 			{
 				DynMat->SetVectorParameterValue(TEXT("Tint"), Material.TintColor);
 				DynMat->SetScalarParameterValue(TEXT("TintIntensity"), Material.TintIntensity);
 			}
 		}
-
 	}
 }
 
@@ -389,7 +393,9 @@ UEquipmentComponent::UEquipmentComponent()
 	BackWeaponSheath->SetIsReplicated(true);
 
 	AmmoComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("AmmoComponentMesh"));
+	AmmoVariableComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("AmmoVariableComponentMesh"));
 	AmmoComponent->SetIsReplicated(true);
+	AmmoVariableComponent->SetIsReplicated(true);
 	WaistBag1Component = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WaistBag1ComponentMesh"));
 	WaistBag1Component->SetIsReplicated(true);
 	WaistBag2Component = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WaistBag2ComponentMesh"));
@@ -466,6 +472,7 @@ void UEquipmentComponent::BeginPlay()
 	PrimaryWeaponComponent->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("SOCKET_RightHandWeapon"));
 	SecondaryWeaponComponent->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("SOCKET_LeftHandWeapon"));
 	AmmoComponent->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("SOCKET_AmmoBag"));
+	AmmoVariableComponent->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("SOCKET_AmmoBag"));
 	PrimaryWeaponSheath->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("PrimarySheath"));
 	SecondaryWeaponSheath->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("SecondarySheath"));
 	BackWeaponSheath->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("BackSheath"));
@@ -500,6 +507,7 @@ void UEquipmentComponent::BeginPlay()
 	PrimaryWeaponComponent->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
 	SecondaryWeaponComponent->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
 	AmmoComponent->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
+	AmmoVariableComponent->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
 	PrimaryWeaponSheath->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
 	SecondaryWeaponSheath->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
 	BackWeaponSheath->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
@@ -734,6 +742,8 @@ void UEquipmentComponent::SetEquipmentLight(TSubclassOf<AInventoryLightSourceAct
 	}
 }
 
+//----------------------------------------------------------------------------------------------------------------------
+
 void UEquipmentComponent::SetAllEquipmentCollisionDisabled()
 {
 	RightBracerComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
@@ -751,21 +761,86 @@ void UEquipmentComponent::SetAllEquipmentCollisionDisabled()
 	BackpackComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
 }
 
+//----------------------------------------------------------------------------------------------------------------------
+
 bool UEquipmentComponent::IsWeaponTwoHanded() const
 {
 	return bIsHoldingATwoHandedWeapon;
 }
+
+//----------------------------------------------------------------------------------------------------------------------
 
 FTransform UEquipmentComponent::GetOffHandTransform() const
 {
 	FTransform Out;
 	if (PrimaryWeaponComponent && bIsHoldingATwoHandedWeapon && PrimaryWeaponComponent->GetSkeletalMeshAsset())
 	{
-		Out = PrimaryWeaponComponent->GetSocketTransform(FName("SOCKET_LeftHandPosition"), ERelativeTransformSpace::RTS_World);
+		Out = PrimaryWeaponComponent->GetSocketTransform(FName("SOCKET_LeftHandPosition"),
+		                                                 ERelativeTransformSpace::RTS_World);
 	}
 
 	return Out;
 }
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UEquipmentComponent::UpdateBagUsage(EBagSlot BagSlot, float BagUsage)
+{
+
+	if (GetOwnerRole() == ROLE_Authority)
+	{
+		UE_LOG(LogTemp, Log, TEXT("Bag update is server side"));
+	}
+	if (BagSlot == EBagSlot::Quiver)
+	{
+		//const UInventoryItemBag* Quiver = Cast<UInventoryItemBag>();
+		//if (Quiver)
+		{
+
+			const UInventoryItemEquipable* Bag = GetItemAtSlot(EEquipmentSlot::Ammo);
+
+			if (!Bag)
+			{
+				UE_LOG(LogTemp, Error, TEXT("No bag within %d"), BagSlot);
+				return;
+			}
+
+			const IInventoryItemAmmoBagInterface* QuiverInterface = Cast<IInventoryItemAmmoBagInterface>(Bag);
+			if (!QuiverInterface)
+			{
+				UE_LOG(LogTemp, Error, TEXT("No quiver within %d"), BagSlot);
+				return;
+			}
+			if (QuiverInterface)
+			{
+				UE_LOG(LogTemp, Error, TEXT("Bag usage %f"), BagUsage);
+				if (BagUsage == 0.f)
+				{
+					// hide the ammo of the quiver
+					AmmoVariableComponent->SetStaticMesh(nullptr);
+					AmmoVariableComponent->SetVisibility(false);
+				}
+				else if (BagUsage >= QuiverInterface->GetFullMeshThreshold())
+				{
+					AmmoVariableComponent->SetStaticMesh(QuiverInterface->GetFullMesh());
+					AmmoVariableComponent->SetVisibility(true);
+				}
+				else if (BagUsage >= QuiverInterface->GetMidMeshThreshold())
+				{
+					AmmoVariableComponent->SetStaticMesh(QuiverInterface->GetMidMesh());
+					AmmoVariableComponent->SetVisibility(true);
+				}
+				else
+				{
+					AmmoVariableComponent->SetStaticMesh(QuiverInterface->GetLowMesh());
+					AmmoVariableComponent->SetVisibility(true);
+				}
+			}
+		}
+	}
+}
+
+//----------------------------------------------------------------------------------------------------------------------
 
 void UEquipmentComponent::EquipLightItem_Implementation(TSubclassOf<AInventoryLightSourceActor> LightActor) const
 {
@@ -794,6 +869,8 @@ void UEquipmentComponent::EquipLightItem_Implementation(TSubclassOf<AInventoryLi
 		SecondaryLightSource->DestroyChildActor();
 	}
 }
+
+//----------------------------------------------------------------------------------------------------------------------
 
 void UEquipmentComponent::UnEquipLightItem_Implementation() const
 {

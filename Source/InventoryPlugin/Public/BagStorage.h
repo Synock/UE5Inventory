@@ -12,6 +12,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FBagStorageModified);
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FBagStorageDispatcher_Server);
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FBagUsageChanged, EBagSlot, ConsideredBag, float, BagUsage);
+
 class UInventoryItemBase;
 /**
  * @brief Helper class to find out what slot is available
@@ -66,16 +68,34 @@ protected:
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Inventory|Bag")
 	float BagWeight = 0.f;
 
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Inventory|Bag")
+	int32 BagSlotUsage = 0;
+
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Inventory|Bag")
+	float WeightReductionRatio = 1.f;
+
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Inventory|Bag")
+	bool IsQuiver = false;
+
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Inventory|Bag")
+	EAmmoType AmmoTypeLimitation = EAmmoType::Unknown;
+
 public:
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Bag")
 	bool InitializeData(EBagSlot InputBagSlot, int32 InputWidth, int32 InputHeight,
-	                    EItemSize InputMaxStoreSize = EItemSize::Giant);
+	                    EItemSize InputMaxStoreSize = EItemSize::Giant, float InputWeightReduction = 1.f);
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Bag")
+	void InitializeQuiverData(EAmmoType AmmoType);
 
 	UPROPERTY(BlueprintAssignable, Category = "Inventory|Bag")
 	FBagStorageModified BagDispatcher;
 
 	UPROPERTY(BlueprintAssignable, Category = "Inventory|Bag")
 	FBagStorageDispatcher_Server BagStorageDispatcher_Server;
+
+	UPROPERTY(BlueprintAssignable, Category = "Inventory")
+	FBagUsageChanged BagUsageStorageChanged;
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Bag")
 	bool IsValidBag() const { return BagValidity; }
@@ -90,7 +110,7 @@ public:
 	int32 GetItemAtIndex(int32 ID) const;
 
 	UFUNCTION(Server, reliable, BlueprintCallable, Category = "Inventory|Bag")
-	void AddItemAt(int32 ItemID, int32 TopLeftIndex);
+	virtual void AddItemAt(int32 ItemID, int32 TopLeftIndex);
 
 	UFUNCTION(Server, reliable, BlueprintCallable, Category = "Inventory|Bag")
 	void RemoveItem(int32 TopLeftIndex);
@@ -114,7 +134,10 @@ public:
 	const TArray<FMinimalItemStorage>& GetBagConst() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Bag")
-	float GetBagWeight() const { return BagWeight; }
+	float GetBagWeight() const { return BagWeight * WeightReductionRatio; }
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Bag")
+	float GetBagSlotUsage() const;
 
 	GridBagSolver GetSolver() const;
 
@@ -126,4 +149,14 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category="Inventory|Bag")
 	int32 GetFirstTopLeftID(int32 ItemID);
+
+	[[nodiscard]] bool GetIsQuiver() const
+	{
+		return IsQuiver;
+	}
+
+	[[nodiscard]] EAmmoType GetAmmoTypeLimitation() const
+	{
+		return AmmoTypeLimitation;
+	}
 };

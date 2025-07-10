@@ -63,6 +63,10 @@ protected:
 	UPROPERTY(BlueprintReadWrite, Category = "Inventory|Bag")
 	EItemSize MaximumBagSize = EItemSize::Giant;
 
+	/// In case of a quiver, this will limit the ammo type that can be stored in the bag
+	UPROPERTY(BlueprintReadWrite, Category = "Inventory|Bag")
+	EAmmoType AmmoTypeLimiter = EAmmoType::Unknown;
+
 	UPROPERTY(BlueprintReadWrite, Category = "Inventory|Bag")
 	bool CanAcceptDrop = true;
 

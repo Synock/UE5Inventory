@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "InventoryItemBase.h"
+#include "Items/Interfaces/InventoryItemEquipableInterface.h"
 
 #include "InventoryItemEquipable.generated.h"
 
@@ -11,7 +12,7 @@
  *
  */
 UCLASS()
-class INVENTORYPLUGIN_API UInventoryItemEquipable : public UInventoryItemBase
+class INVENTORYPLUGIN_API UInventoryItemEquipable : public UInventoryItemBase, public IInventoryItemEquipableInterface
 {
 public:
 	GENERATED_BODY()
@@ -42,5 +43,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Weapon")
 	bool Unsheathable = false;
 
+	virtual bool IsEquipable() const override { return Equipable; }
+	virtual int32 GetEquipableSlotBitMask() const override { return EquipableSlotBitMask; }
+	virtual bool IsMultiSlotItem() const override { return MultiSlotItem; }
+	virtual bool IsShield() const override { return Shield; }
+	virtual bool IsWeapon() const override { return Weapon; }
+	virtual USkeletalMesh* GetEquipmentMesh() const override { return EquipmentMesh; }
+	virtual const TArray<FMaterialOverride>& GetEquipmentMeshMaterialOverride() const override { return EquipmentMeshMaterialOverride; }
+	virtual bool IsUnsheathable() const override { return Unsheathable; }
 
 };

@@ -63,6 +63,9 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Bag")
 	UStaticMeshComponent* AmmoComponent;
 
+	UPROPERTY(EditAnywhere, Replicated, BlueprintReadWrite, Category = "Inventory|Bag")
+	UStaticMeshComponent* AmmoVariableComponent;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Bag")
 	UStaticMeshComponent* WaistBag1Component;
 
@@ -344,4 +347,7 @@ public:
 
 	UFUNCTION(BlueprintCallable, meta = (BlueprintThreadSafe))
 	FTransform GetOffHandTransform() const;
+
+	UFUNCTION(BlueprintCallable)
+	void UpdateBagUsage(EBagSlot BagSlot, float BagUsage);
 };

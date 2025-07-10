@@ -97,7 +97,7 @@ void UBagStorage::OnRep_BagData()
 //----------------------------------------------------------------------------------------------------------------------
 
 bool UBagStorage::InitializeData(EBagSlot InputBagSlot, int32 InputWidth, int32 InputHeight,
-                                 EItemSize InputMaxStoreSize)
+                                 EItemSize InputMaxStoreSize, float InputWeightReduction)
 {
 	if (BagValidity)
 	{
@@ -112,9 +112,26 @@ bool UBagStorage::InitializeData(EBagSlot InputBagSlot, int32 InputWidth, int32 
 	Width = InputWidth;
 	Height = InputHeight;
 	MaxStoreSize = InputMaxStoreSize;
+	WeightReductionRatio = InputWeightReduction;
 
 	BagValidity = true;
 	return true;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UBagStorage::InitializeQuiverData(EAmmoType AmmoType)
+{
+	if (AmmoType != EAmmoType::Unknown)
+	{
+		IsQuiver = true;
+		AmmoTypeLimitation = AmmoType;
+	}
+	else
+	{
+		IsQuiver = false;
+		AmmoTypeLimitation = EAmmoType::Unknown;
+	}
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -125,6 +142,12 @@ const TArray<FMinimalItemStorage>& UBagStorage::GetBagConst() const
 }
 
 //----------------------------------------------------------------------------------------------------------------------
+
+float UBagStorage::GetBagSlotUsage() const
+{
+	float Usage = static_cast<float>(BagSlotUsage) / (Width * Height);
+	return Usage;
+}
 
 GridBagSolver UBagStorage::GetSolver() const
 {
@@ -215,9 +238,17 @@ void UBagStorage::RemoveItem_Implementation(int32 TopLeftIndex)
 		++ID;
 	}
 
+	const UInventoryItemBase* Item = UInventoryUtilities::GetItemFromID(ItemID, GetWorld());
+	if (!Item)
+		return;
+
 	//update the weight
-	BagWeight -= UInventoryUtilities::GetItemFromID(ItemID, GetWorld())->Weight;
+	BagWeight -= Item->Weight;
 	BagStorageDispatcher_Server.Broadcast();
+
+	BagSlotUsage -= (Item->Width * Item->Height);
+	float UsageRatio = static_cast<float>(BagSlotUsage) / (Width * Height);
+	BagUsageStorageChanged.Broadcast(LocalBagSlot, UsageRatio);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -233,6 +264,9 @@ void UBagStorage::AddItemAt_Implementation(int32 ItemID, int32 TopLeftIndex)
 	//update the weight
 	BagWeight += Item->Weight;
 	BagStorageDispatcher_Server.Broadcast();
+	BagSlotUsage += (Item->Width * Item->Height);
+	float UsageRatio = static_cast<float>(BagSlotUsage) / (Width * Height);
+	BagUsageStorageChanged.Broadcast(LocalBagSlot, UsageRatio);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -248,4 +282,8 @@ void UBagStorage::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifet
 	DOREPLIFETIME_CONDITION(UBagStorage, LocalBagSlot, COND_OwnerOnly);
 	DOREPLIFETIME_CONDITION(UBagStorage, BagValidity, COND_OwnerOnly);
 	DOREPLIFETIME_CONDITION(UBagStorage, BagWeight, COND_OwnerOnly);
+	DOREPLIFETIME_CONDITION(UBagStorage, BagSlotUsage, COND_OwnerOnly);
+	DOREPLIFETIME_CONDITION(UBagStorage, WeightReductionRatio, COND_OwnerOnly);
+	DOREPLIFETIME_CONDITION(UBagStorage, IsQuiver, COND_OwnerOnly);
+	DOREPLIFETIME_CONDITION(UBagStorage, AmmoTypeLimitation, COND_OwnerOnly);
 }

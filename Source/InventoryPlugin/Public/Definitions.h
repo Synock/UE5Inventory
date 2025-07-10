@@ -103,7 +103,8 @@ enum class EBagSlot : uint8
 	WaistBag2 = 4 UMETA(DisplayName = "WaistBag2"),
 	BackPack1 = 5 UMETA(DisplayName = "Backpack1"),
 	BackPack2 = 6 UMETA(DisplayName = "Backpack2"),
-	LastValidBag = 7,
+	Quiver = 7 UMETA(DisplayName = "Quiver"),
+	LastValidBag = 8,
 
 	LootPool = 20 UMETA(DisplayName = "Lootpool"),
 	StagingArea = 21 UMETA(DisplayName = "StagingArea"),

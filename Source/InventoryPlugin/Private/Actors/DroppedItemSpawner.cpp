@@ -27,7 +27,8 @@ ADroppedItemSpawner::ADroppedItemSpawner()
 void ADroppedItemSpawner::BeginPlay()
 {
 	Super::BeginPlay();
-	SpawnDroppedItem();
+	if (HasAuthority())
+		SpawnDroppedItem();
 }
 
 FTransform ADroppedItemSpawner::GetSpawnPosition()

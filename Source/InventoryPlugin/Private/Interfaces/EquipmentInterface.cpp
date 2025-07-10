@@ -8,6 +8,7 @@
 #include "Components/InventoryComponent.h"
 #include "GameFramework/Character.h"
 #include "Interfaces/InventoryPlayerInterface.h"
+#include "Items/InventoryItemAmmoBag.h"
 #include "Items/InventoryItemBag.h"
 #include "Items/InventoryItemBase.h"
 #include "Items/InventoryItemEquipable.h"
@@ -128,8 +129,17 @@ void IEquipmentInterface::HandleEquipmentEffect(EEquipmentSlot InSlot, const UIn
 
 		const EBagSlot AffectedSlot = UInventoryComponent::GetBagSlotFromInventory(InSlot);
 		if (IInventoryPlayerInterface* Inventory = Cast<IInventoryPlayerInterface>(Chara->GetController()))
+		{
 			Inventory->GetInventoryComponent()->BagSet(AffectedSlot, true, LocalBag->BagWidth, LocalBag->BagHeight,
-			                                           LocalBag->BagSize);
+			                                           LocalBag->BagSize,
+			                                           FMath::Clamp(0.f, 1.f, 1.f - LocalBag->WeightReduction));
+
+			if (const IInventoryItemAmmoBagInterface* LocalQuiver = Cast<IInventoryItemAmmoBagInterface>(LocalBag);
+				LocalQuiver)
+			{
+				Inventory->GetInventoryComponent()->QuiverSpecificSetup(AffectedSlot, LocalQuiver->GetAmmoType());
+			}
+		}
 	}
 
 	// Override this function do equipment specific stuff here
@@ -155,7 +165,12 @@ void IEquipmentInterface::HandleUnEquipmentEffect(EEquipmentSlot InSlot, const U
 
 		const EBagSlot AffectedSlot = UInventoryComponent::GetBagSlotFromInventory(InSlot);
 		if (IInventoryPlayerInterface* Inventory = Cast<IInventoryPlayerInterface>(Chara->GetController()))
+		{
 			Inventory->GetInventoryComponent()->BagSet(AffectedSlot, false);
+			if (const IInventoryItemAmmoBagInterface* LocalQuiver = Cast<IInventoryItemAmmoBagInterface>(LocalBag);
+				LocalQuiver)
+				Inventory->GetInventoryComponent()->QuiverSpecificSetup(AffectedSlot, EAmmoType::Unknown);
+		}
 	}
 }
 
@@ -217,7 +232,7 @@ void IEquipmentInterface::HandleTwoSlotItemUnequip(const UInventoryItemEquipable
 		{
 			const int32 localValue = 1 << i;
 
-			if ((localValue & Item->EquipableSlotBitMask )&& InSlot != static_cast<EEquipmentSlot>(i))
+			if ((localValue & Item->EquipableSlotBitMask) && InSlot != static_cast<EEquipmentSlot>(i))
 			{
 				OtherSlots.Emplace(static_cast<EEquipmentSlot>(i));
 			}

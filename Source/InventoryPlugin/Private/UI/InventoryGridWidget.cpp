@@ -10,6 +10,8 @@
 #include "Interfaces/InventoryPlayerInterface.h"
 #include "Interfaces/LootableInterface.h"
 #include "Items/InventoryItemBag.h"
+#include "Items/Interfaces/InventoryItemAmmoBagInterface.h"
+#include "Items/Interfaces/InventoryItemAmmoInterface.h"
 
 FVector2D UInventoryGridWidget::GetItemScreenFootprint(UItemWidget* Item) const
 {
@@ -205,6 +207,11 @@ void UInventoryGridWidget::InitData(AActor* Owner, EBagSlot InputBagSlot, int32 
 		ensure(BagItem);
 		ResizeBagArea(BagItem->BagWidth, BagItem->BagHeight);
 		MaximumBagSize = BagItem->BagSize;
+		if (const IInventoryItemAmmoBagInterface* AmmoBag = Cast<IInventoryItemAmmoBagInterface>(BagItem))
+		{
+			AmmoTypeLimiter = AmmoBag->GetAmmoType();
+		}
+
 		PC->GetInventoryComponent()->FullInventoryDispatcher.AddDynamic(this, &UInventoryGridWidget::Refresh);
 	}
 
@@ -365,6 +372,18 @@ bool UInventoryGridWidget::IsRoomAvailable(const UInventoryItemBase* ItemObject,
 	if (ItemObject->ItemSize > MaximumBagSize)
 		return false;
 
+	if (AmmoTypeLimiter != EAmmoType::Unknown)
+	{
+		// I really hate this kind of dynamic cast
+		// if anybody know a better way to do this, please let me know
+		if (const IInventoryItemAmmoInterface* AmmoItem = Cast<IInventoryItemAmmoInterface>(ItemObject))
+		{
+			if (AmmoItem->GetAmmoType() != AmmoTypeLimiter)
+				return false;
+		}
+		else
+			return false;
+	}
 	const int32 ItemWidth = ItemObject->Width;
 	const int32 ItemHeight = ItemObject->Height;
 	const int32 sx = TopLeftIndex % Width;
@@ -389,7 +408,6 @@ bool UInventoryGridWidget::IsRoomAvailable(const UInventoryItemBase* ItemObject,
 
 			if (ItemGrid[ID] != nullptr) //only look for empty stuff
 			{
-				UE_LOG(LogTemp, Log, TEXT("Cannot copy because %d %d %d is not empty"), x, y, ID);
 				return false;
 			}
 		}

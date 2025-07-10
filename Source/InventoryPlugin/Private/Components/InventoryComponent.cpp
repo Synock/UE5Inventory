@@ -5,6 +5,9 @@
 #include "BagStorage.h"
 #include <Net/UnrealNetwork.h>
 
+#include "Items/Interfaces/InventoryItemAmmoBagInterface.h"
+#include "Items/Interfaces/InventoryItemAmmoInterface.h"
+
 
 // Sets default values for this component's properties
 UInventoryComponent::UInventoryComponent()
@@ -25,8 +28,7 @@ UInventoryComponent::UInventoryComponent()
 		Bag->SetBagSlot(BagSlotValue);
 		Bag->SetNetAddressable();
 		Bag->SetIsReplicated(true);
-		Bag->BagDispatcher.AddDynamic(this, &UInventoryComponent::DoBroadcastChange);
-		Bag->BagStorageDispatcher_Server.AddDynamic(this, &UInventoryComponent::DoServerBroadcastChange);
+		Bag->BagDispatcher.AddUniqueDynamic(this, &UInventoryComponent::DoBroadcastChange);
 	}
 
 	//Ensure the LUT is updated locally
@@ -41,7 +43,24 @@ void UInventoryComponent::BeginPlay()
 	Super::BeginPlay();
 	for (auto& BagData : VariableBags)
 	{
-		BagData.Bag->BagDispatcher.AddDynamic(this, &UInventoryComponent::DoBroadcastChange);
+		BagData.Bag->BagDispatcher.AddUniqueDynamic(this, &UInventoryComponent::DoBroadcastChange);
+		//BagData.Bag->BagUsageStorageChanged.AddUniqueDynamic(this, &UInventoryComponent::InventoryBagUsageChange);
+
+		if (GetOwnerRole() == ROLE_Authority)
+		{
+			//UE_LOG(LogTemp, Error, TEXT("Adding bag slot %d"), BagData.Slot);
+			BagLUT.Emplace(BagData.Slot, BagData.Bag);
+			BagData.Bag->SetIsReplicated(true);
+			BagData.Bag->SetNetAddressable();
+			BagData.Bag->BagStorageDispatcher_Server.AddUniqueDynamic(this, &UInventoryComponent::DoServerBroadcastChange);
+
+			if (BagData.Slot == EBagSlot::Quiver)
+			{
+				BagData.Bag->BagUsageStorageChanged.AddUniqueDynamic(this, &UInventoryComponent::InventoryBagUsageChange);
+			}
+
+			DoServerBroadcastChange();
+		}
 	}
 }
 
@@ -62,6 +81,7 @@ void UInventoryComponent::OnRep_ReplicatedBags()
 	{
 		//UE_LOG(LogTemp, Error, TEXT("Repping bag slot %d"), BagData.Slot);
 		BagLUT.Emplace(BagData.Slot, BagData.Bag);
+		//BagData.Bag->BagUsageStorageChanged.AddUniqueDynamic(this, &UInventoryComponent::InventoryBagUsageChange);
 	}
 }
 
@@ -76,7 +96,12 @@ void UInventoryComponent::DoServerBroadcastChange()
 {
 	FullInventoryDispatcher_Server.Broadcast();
 }
+//----------------------------------------------------------------------------------------------------------------------
 
+void UInventoryComponent::InventoryBagUsageChange(EBagSlot ConsideredBag, float BagUsage)
+{
+	InventoryBagUsageChanged.Broadcast(ConsideredBag, BagUsage);
+}
 //----------------------------------------------------------------------------------------------------------------------
 
 int32 UInventoryComponent::GetItemAtIndex(EBagSlot ConsideredBag, int32 ID) const
@@ -103,7 +128,7 @@ void UInventoryComponent::AddItemAt_Implementation(EBagSlot ConsideredBag, int32
 //----------------------------------------------------------------------------------------------------------------------
 
 void UInventoryComponent::BagSet(EBagSlot ConsideredBag, bool InputValidity, int32 InputWidth, int32 InputHeight,
-                                 EItemSize InputMaxStoreSize)
+                                 EItemSize InputMaxStoreSize, float WeightReduction)
 {
 	if (ConsideredBag == EBagSlot::Pocket1 || ConsideredBag == EBagSlot::Pocket2)
 	{
@@ -112,8 +137,15 @@ void UInventoryComponent::BagSet(EBagSlot ConsideredBag, bool InputValidity, int
 	}
 
 	GetRelatedBag(ConsideredBag)->InitializeData(ConsideredBag, InputWidth, InputHeight,
-	                                             InputMaxStoreSize);
+	                                             InputMaxStoreSize, WeightReduction);
 	GetRelatedBag(ConsideredBag)->SetBagValidity(InputValidity);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UInventoryComponent::QuiverSpecificSetup(EBagSlot ConsideredBag, EAmmoType NewAmmoType)
+{
+	GetRelatedBag(ConsideredBag)->InitializeQuiverData(NewAmmoType);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -205,11 +237,23 @@ EBagSlot UInventoryComponent::FindSuitableSlot(const UInventoryItemBase* Item, i
 	{
 		if (Bag.Bag->IsValidBag())
 		{
+
 			if (Item->ItemSize > Bag.Bag->GetMaxStoreSize())
 				continue;
 
 			GridBagSolver Solver = Bag.Bag->GetSolver();
 			OutputTopLeftID = Solver.GetFirstValidTopLeft(Item);
+
+			if (const IInventoryItemAmmoBagInterface* Quiver = Cast<IInventoryItemAmmoBagInterface>(Bag.Bag); Quiver)
+			{
+				if (const IInventoryItemAmmoInterface* Ammo = Cast<IInventoryItemAmmoInterface>(Item); Ammo)
+				{
+					if (Quiver->GetAmmoType() != Ammo->GetAmmoType())
+						continue; // Skip if the item is not compatible with the quiver's ammo type
+				}
+				else
+					continue; // Skip if the item is not compatible with the quiver's ammo type
+			}
 
 			if (OutputTopLeftID != -1)
 				return Bag.Slot;
@@ -229,6 +273,7 @@ EEquipmentSlot UInventoryComponent::GetInventorySlotFromBagSlot(EBagSlot Conside
 	case EBagSlot::WaistBag2: return EEquipmentSlot::WaistBag2;
 	case EBagSlot::BackPack1: return EEquipmentSlot::BackPack1;
 	case EBagSlot::BackPack2: return EEquipmentSlot::BackPack2;
+	case EBagSlot::Quiver: return EEquipmentSlot::Ammo;
 	default: return EEquipmentSlot::Unknown;
 	}
 }
@@ -243,6 +288,7 @@ EBagSlot UInventoryComponent::GetBagSlotFromInventory(EEquipmentSlot ConsideredI
 	case EEquipmentSlot::WaistBag2: return EBagSlot::WaistBag2;
 	case EEquipmentSlot::BackPack1: return EBagSlot::BackPack1;
 	case EEquipmentSlot::BackPack2: return EBagSlot::BackPack2;
+	case EEquipmentSlot::Ammo: return EBagSlot::Quiver;
 	default: return EBagSlot::Unknown;
 	}
 }
@@ -307,6 +353,18 @@ UBagStorage* UInventoryComponent::GetRelatedBag(EBagSlot InputSlot) const
 const UBagStorage* UInventoryComponent::GetRelatedBagConst(EBagSlot InputSlot) const
 {
 	return GetRelatedBag(InputSlot);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+float UInventoryComponent::GetBagUsage(EBagSlot Quiver)
+{
+	if (auto Bag = GetRelatedBagConst(Quiver))
+	{
+		return Bag->GetBagSlotUsage();
+	}
+
+	return 0.f;
 }
 
 //----------------------------------------------------------------------------------------------------------------------
