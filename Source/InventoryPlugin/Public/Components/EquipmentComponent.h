@@ -20,6 +20,18 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnItemEquiped_Server, EEquipmentSl
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnItemUnEquiped_Server, EEquipmentSlot, Slot,
                                              const UInventoryItemEquipable*, Item);
 
+USTRUCT(BlueprintType)
+struct FEquipmentItemInstance
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Equipment|Instance")
+    const UInventoryItemEquipable* ItemData = nullptr;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Equipment|Instance")
+    float Durability = 100.0f;
+};
+
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class INVENTORYPLUGIN_API UEquipmentComponent : public UActorComponent
 {
@@ -36,7 +48,7 @@ protected:
 	virtual void BeginPlay() override;
 
 	UPROPERTY(ReplicatedUsing = OnRep_ItemList)
-	TArray<const UInventoryItemEquipable*> Equipment;
+	TArray<FEquipmentItemInstance> Equipment;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Light")
 	UChildActorComponent* SecondaryLightSource;
@@ -208,9 +220,9 @@ public:
 	bool IsSlotEmpty(EEquipmentSlot InSlot);
 
 	/**
-	 *
+	 * Returns all equipment item instances (not just pointers).
 	 */
-	const TArray<const UInventoryItemEquipable*>& GetAllEquipment() const;
+	const TArray<FEquipmentItemInstance>& GetAllEquipment() const;
 
 	/**
 	 * @brief Retrieves the inventory item equipped at the specified equipment slot.

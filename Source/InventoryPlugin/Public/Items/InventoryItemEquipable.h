@@ -39,5 +39,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Equipable|Visual")
 	TArray<FMaterialOverride> EquipmentMeshMaterialOverride;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|ItemData")
+	float Robustness = 1.f;
+
 
 };

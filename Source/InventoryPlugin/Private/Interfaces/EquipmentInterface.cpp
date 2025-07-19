@@ -28,7 +28,7 @@ UWorld* IEquipmentInterface::EquipmentGetWorldContext() const
 //----------------------------------------------------------------------------------------------------------------------
 
 // Add default functionality here for any IEquipmentInterface functions that are not pure virtual.
-const TArray<const UInventoryItemEquipable*>& IEquipmentInterface::GetAllEquipment() const
+const TArray<FEquipmentItemInstance>& IEquipmentInterface::GetAllEquipment() const
 {
 	return GetEquipmentComponentConst()->GetAllEquipment();
 }
@@ -166,9 +166,9 @@ float IEquipmentInterface::GetTotalWeight() const
 	float Sum = 0.f;
 	for (const auto& Item : GetAllEquipment())
 	{
-		if (Item)
+		if (Item.ItemData)
 		{
-			Sum += Item->Weight;
+			Sum += Item.ItemData->Weight;
 		}
 	}
 

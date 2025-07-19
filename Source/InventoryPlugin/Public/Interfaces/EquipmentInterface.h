@@ -7,6 +7,7 @@
 #include "UObject/Interface.h"
 #include "EquipmentInterface.generated.h"
 
+struct FEquipmentItemInstance;
 class UInventoryItemEquipable;
 class UEquipmentComponent;
 
@@ -35,7 +36,7 @@ public:
 	// Equipment
 	//------------------------------------------------------------------------------------------------------------------
 
-	virtual const TArray<const UInventoryItemEquipable*>& GetAllEquipment() const;
+	virtual const TArray<FEquipmentItemInstance>& GetAllEquipment() const;
 
 	/**
 	 * Retrieves the equipped item for the specified equipment slot.

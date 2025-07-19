@@ -86,5 +86,4 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|ItemData")
 	float Weight = 0.f;
-	
 };

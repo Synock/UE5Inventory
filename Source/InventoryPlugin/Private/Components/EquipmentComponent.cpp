@@ -260,7 +260,7 @@ EEquipmentSocket UEquipmentComponent::FindBestSocketForItem(const UInventoryItem
 
 void UEquipmentComponent::Unsheath(EEquipmentSlot SlotToUnsheath)
 {
-	const UInventoryItemEquipable* Item = Equipment[static_cast<int>(SlotToUnsheath)];
+	const UInventoryItemEquipable* Item = Equipment[static_cast<int>(SlotToUnsheath)].ItemData;
 
 	if (!Item)
 	{
@@ -415,7 +415,7 @@ UEquipmentComponent::UEquipmentComponent()
 	// off to improve performance if you don't need them.
 	PrimaryComponentTick.bCanEverTick = false;
 
-	Equipment.Init(nullptr, 32);
+	Equipment.Init({}, 32);
 
 	PrimaryWeaponComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("PrimaryWeaponComponentMesh"));
 	PrimaryWeaponComponent->SetIsReplicated(true);
@@ -568,9 +568,9 @@ void UEquipmentComponent::OnRep_ItemList()
 
 void UEquipmentComponent::EquipItem(const UInventoryItemEquipable* Item, EEquipmentSlot InSlot)
 {
-	if (Equipment[static_cast<int>(InSlot)] == nullptr)
+	if (Equipment.IsValidIndex(static_cast<int>(InSlot)) && Equipment[static_cast<int>(InSlot)].ItemData == nullptr)
 	{
-		Equipment[static_cast<int>(InSlot)] = Item;
+		Equipment[static_cast<int>(InSlot)].ItemData = Item;
 		Equip(Item, InSlot);
 		EquipmentDispatcher_Server.Broadcast();
 		ItemEquipedDispatcher_Server.Broadcast(InSlot, Item);
@@ -581,17 +581,16 @@ void UEquipmentComponent::EquipItem(const UInventoryItemEquipable* Item, EEquipm
 
 bool UEquipmentComponent::IsSlotEmpty(EEquipmentSlot InSlot)
 {
-	if (!Equipment[static_cast<int>(InSlot)])
+	if (!Equipment.IsValidIndex(static_cast<int>(InSlot)) || Equipment[static_cast<int>(InSlot)].ItemData == nullptr)
 	{
 		return true;
 	}
-
 	return false;
 }
 
 //----------------------------------------------------------------------------------------------------------------------
 
-const TArray<const UInventoryItemEquipable*>& UEquipmentComponent::GetAllEquipment() const
+const TArray<FEquipmentItemInstance>& UEquipmentComponent::GetAllEquipment() const
 {
 	return Equipment;
 }
@@ -600,7 +599,9 @@ const TArray<const UInventoryItemEquipable*>& UEquipmentComponent::GetAllEquipme
 
 const UInventoryItemEquipable* UEquipmentComponent::GetItemAtSlot(EEquipmentSlot InSlot) const
 {
-	return Equipment[static_cast<int>(InSlot)];
+	if (!Equipment.IsValidIndex(static_cast<int>(InSlot)))
+		return nullptr;
+	return Equipment[static_cast<int>(InSlot)].ItemData;
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -610,10 +611,10 @@ bool UEquipmentComponent::RemoveItem(EEquipmentSlot InSlot)
 	if (IsSlotEmpty(InSlot))
 		return false;
 
-	UnEquip(Equipment[static_cast<int>(InSlot)], InSlot);
-	ItemUnEquipedDispatcher_Server.Broadcast(InSlot, Equipment[static_cast<int>(InSlot)]);
+	UnEquip(Equipment[static_cast<int>(InSlot)].ItemData, InSlot);
+	ItemUnEquipedDispatcher_Server.Broadcast(InSlot, Equipment[static_cast<int>(InSlot)].ItemData);
 
-	Equipment[static_cast<int>(InSlot)] = nullptr;
+	Equipment[static_cast<int>(InSlot)].ItemData = nullptr;
 	EquipmentDispatcher_Server.Broadcast();
 	return true;
 }
@@ -633,11 +634,11 @@ void UEquipmentComponent::RemoveAll()
 float UEquipmentComponent::GetTotalWeight() const
 {
 	float TotalWeight = 0.f;
-	for (const auto& Item : Equipment)
+	for (const auto& Instance : Equipment)
 	{
-		if (Item)
+		if (Instance.ItemData)
 		{
-			TotalWeight += Item->Weight;
+			TotalWeight += Instance.ItemData->Weight;
 		}
 	}
 	return TotalWeight;
@@ -647,26 +648,24 @@ float UEquipmentComponent::GetTotalWeight() const
 
 EEquipmentSlot UEquipmentComponent::FindSuitableSlot(const UInventoryItemEquipable* Item) const
 {
-	// In the specific case of multiple slots items, if one of the slot is used, we can't equip it.
+	if (!Item)
+		return EEquipmentSlot::Unknown;
 	if (Item->MultiSlotItem)
 	{
 		EEquipmentSlot PrimarySlot = EEquipmentSlot::Unknown;
-
 		for (int32 i = static_cast<int32>(EEquipmentSlot::Unknown); i < static_cast<int32>(EEquipmentSlot::Last); ++i)
 		{
 			const int32 LocalAcceptableBitMask = 1 << i;
-
 			if (Item->EquipableSlotBitMask & LocalAcceptableBitMask)
 			{
-				if (Equipment[i])
+				if (Equipment.IsValidIndex(i) && Equipment[i].ItemData)
 					return PrimarySlot;
 			}
 		}
 	}
-
 	for (size_t i = 1; i < Equipment.Num(); ++i)
 	{
-		if (!Equipment[i])
+		if (Equipment[i].ItemData == nullptr)
 		{
 			const int32 LocalAcceptableBitMask = 1 << i;
 			const EEquipmentSlot CurrentSlot = static_cast<EEquipmentSlot>(i);
