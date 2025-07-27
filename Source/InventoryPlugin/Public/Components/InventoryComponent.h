@@ -8,6 +8,7 @@
 #include "Items/InventoryItemBase.h"
 #include "InventoryComponent.generated.h"
 
+class IInventoryItemAmmoInterface;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnWeightChanged);
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnFullInventoryComponentChanged);
@@ -74,6 +75,11 @@ public:
 	const UBagStorage* GetRelatedBagConst(EBagSlot InputSlot) const;
 	float GetBagUsage(EBagSlot Quiver);
 
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Bag")
+	bool HasCompatibleAmmoInQuiver(EAmmoType Ammo) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Bag")
+	TScriptInterface<IInventoryItemAmmoInterface> RemoveAmmoFromQuiver(EAmmoType Ammo);
 
 	UPROPERTY(BlueprintAssignable, Category = "Inventory") //this is public because its a dispatcher
 	FOnFullInventoryComponentChanged FullInventoryDispatcher;

@@ -394,6 +394,13 @@ IEquipmentInterface* IInventoryPlayerInterface::GetEquipmentForInventory()
 
 //----------------------------------------------------------------------------------------------------------------------
 
+const IEquipmentInterface* IInventoryPlayerInterface::GetConstEquipmentForInventory() const
+{
+	return Cast<IEquipmentInterface>(GetInventoryOwningActorConst());
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 //----------------------------------------------------------------------------------------------------------------------
 // Merchant related functions -- Client
 //----------------------------------------------------------------------------------------------------------------------
@@ -556,6 +563,8 @@ bool IInventoryPlayerInterface::TryToEat()
 	return false;
 }
 
+//----------------------------------------------------------------------------------------------------------------------
+
 bool IInventoryPlayerInterface::TryToDrink()
 {
 	UInventoryComponent* Inventory = GetInventoryComponent();
@@ -583,4 +592,30 @@ bool IInventoryPlayerInterface::TryToDrink()
 	}
 
 	return false;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+bool IInventoryPlayerInterface::CanSpendAmmo(EAmmoType AmmoType) const
+{
+	if (GetConstEquipmentForInventory()->HasCompatibleAmmoEquipped(AmmoType))
+		return true;
+
+	return GetInventoryComponentConst()->HasCompatibleAmmoInQuiver(AmmoType);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+TScriptInterface<IInventoryItemAmmoInterface> IInventoryPlayerInterface::SpendAmmo(EAmmoType AmmoType)
+{
+	// first if we have ammo directly in the ammo slot we remove it
+	if (auto EquippedAmmo = GetEquipmentForInventory()->RemoveAmmoEquipped(AmmoType))
+		return EquippedAmmo;
+	// Otherwise, if we have a quiver, we try to remove ammo from it
+	if (GetInventoryComponent()->HasCompatibleAmmoInQuiver(AmmoType))
+	{
+		return GetInventoryComponent()->RemoveAmmoFromQuiver(AmmoType);
+	}
+
+	return nullptr;
 }

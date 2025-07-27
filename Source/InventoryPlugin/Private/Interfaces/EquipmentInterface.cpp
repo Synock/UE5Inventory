@@ -12,6 +12,7 @@
 #include "Items/InventoryItemBag.h"
 #include "Items/InventoryItemBase.h"
 #include "Items/InventoryItemEquipable.h"
+#include "Items/Interfaces/InventoryItemAmmoInterface.h"
 
 
 bool IEquipmentInterface::EquipmentHasAuthority()
@@ -245,4 +246,37 @@ void IEquipmentInterface::HandleTwoSlotItemUnequip(const UInventoryItemEquipable
 UStaticMesh* IEquipmentInterface::GetPreferedMesh(UStaticMesh* OriginalMesh) const
 {
 	return OriginalMesh;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+bool IEquipmentInterface::HasCompatibleAmmoEquipped(EAmmoType AmmoType) const
+{
+	const auto PotentialAmmo = GetEquipmentComponentConst()->GetItemAtSlot(EEquipmentSlot::Ammo);
+
+	if (const auto Ammo = Cast<IInventoryItemAmmoInterface>(PotentialAmmo))
+	{
+		return Ammo->GetAmmoType() == AmmoType;
+	}
+
+	return false;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+TScriptInterface<IInventoryItemAmmoInterface> IEquipmentInterface::RemoveAmmoEquipped(EAmmoType AmmoType)
+{
+	auto* PotentialAmmo = GetEquipmentComponent()->GetItemAtSlot(EEquipmentSlot::Ammo);
+
+	if (const auto Ammo = Cast<IInventoryItemAmmoInterface>(PotentialAmmo))
+	{
+		if(Ammo->GetAmmoType() == AmmoType)
+		{
+			GetEquipmentComponent()->RemoveItem(EEquipmentSlot::Ammo);
+			// oh man, this sux so much, that const cast from hell
+			return TScriptInterface<IInventoryItemAmmoInterface>(const_cast<UInventoryItemEquipable*>(PotentialAmmo));
+		}
+	}
+
+	return nullptr;
 }

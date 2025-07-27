@@ -367,6 +367,13 @@ public:
 	 */
 	IEquipmentInterface* GetEquipmentForInventory();
 
+		/**
+	 * @brief Get the equipment for the inventory.
+	 *
+	 * @return Pointer to an object implementing the IEquipmentInterface.
+	 */
+	const IEquipmentInterface* GetConstEquipmentForInventory() const;
+
 	/**
 	 * @brief Get the weight changed delegate.
 	 *
@@ -857,6 +864,12 @@ public:
 
 	UFUNCTION(Blueprintable)
 	virtual bool TryToDrink();
+
+	UFUNCTION(BlueprintCallable)
+	virtual bool CanSpendAmmo(EAmmoType AmmoType) const;
+
+	UFUNCTION(BlueprintCallable)
+	virtual TScriptInterface<IInventoryItemAmmoInterface> SpendAmmo(EAmmoType AmmoType);
 
 protected:
 	//------------------------------------------------------------------------------------------------------------------

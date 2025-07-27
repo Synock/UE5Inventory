@@ -243,9 +243,8 @@ void UEquipmentComponent::Unsheath(EEquipmentSlot SlotToUnsheath)
 	const UInventoryItemEquipable* Item = Equipment[static_cast<int>(SlotToUnsheath)];
 
 	if (!Item)
-	{
 		return;
-	}
+
 
 	if (Item->Unsheathable)
 		return;
@@ -311,7 +310,7 @@ void UEquipmentComponent::Unsheath(EEquipmentSlot SlotToUnsheath)
 	SheathSocketComponent->SetSkeletalMeshAsset(nullptr);
 	LiveSocketComponent->SetSkeletalMeshAsset(MeshPointer);
 
-	bIsHoldingATwoHandedWeapon = Item->MultiSlotItem;
+	IsHoldingATwoHandedWeapon = Item->MultiSlotItem;
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -346,7 +345,7 @@ void UEquipmentComponent::Sheath()
 		ReturnSocket->SetSkeletalMeshAsset(MeshPointer);
 	}
 
-	bIsHoldingATwoHandedWeapon = false;
+	IsHoldingATwoHandedWeapon = false;
 }
 
 void UEquipmentComponent::UpdateEquipment_Implementation(USkeletalMeshComponent* SkeletalSocket,
@@ -531,7 +530,7 @@ void UEquipmentComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& 
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(UEquipmentComponent, Equipment);
-	DOREPLIFETIME(UEquipmentComponent, bIsHoldingATwoHandedWeapon);
+	DOREPLIFETIME(UEquipmentComponent, IsHoldingATwoHandedWeapon);
 	DOREPLIFETIME(UEquipmentComponent, PrimaryWeaponComponent);
 	DOREPLIFETIME(UEquipmentComponent, SecondaryWeaponComponent);
 	DOREPLIFETIME(UEquipmentComponent, PrimaryWeaponSheath);
@@ -678,6 +677,32 @@ void UEquipmentComponent::SheathMelee()
 
 //----------------------------------------------------------------------------------------------------------------------
 
+void UEquipmentComponent::UnsheathRanged()
+{
+	Unsheath(EEquipmentSlot::Range);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UEquipmentComponent::SheathRanged()
+{
+	if (PrimaryWeaponComponent->GetSkeletalMeshAsset() != nullptr)
+	{
+		USkeletalMeshComponent* ReturnSocket = GetSkeletalMeshComponentFromSocket(PrimaryWeaponOriginalSlot);
+
+		if (!ReturnSocket || ReturnSocket->GetSkeletalMeshAsset())
+			return;
+
+		USkeletalMesh* MeshPointer = PrimaryWeaponComponent->GetSkeletalMeshAsset();
+		PrimaryWeaponComponent->SetSkeletalMeshAsset(nullptr);
+		ReturnSocket->SetSkeletalMeshAsset(MeshPointer);
+	}
+
+	IsHoldingATwoHandedWeapon = false;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 FBoxSphereBounds UEquipmentComponent::GetEquipmentOverlapBox(EEquipmentSlot Slot) const
 {
 	USkeletalMeshComponent* Component = nullptr;
@@ -765,7 +790,7 @@ void UEquipmentComponent::SetAllEquipmentCollisionDisabled()
 
 bool UEquipmentComponent::IsWeaponTwoHanded() const
 {
-	return bIsHoldingATwoHandedWeapon;
+	return IsHoldingATwoHandedWeapon;
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -773,7 +798,7 @@ bool UEquipmentComponent::IsWeaponTwoHanded() const
 FTransform UEquipmentComponent::GetOffHandTransform() const
 {
 	FTransform Out;
-	if (PrimaryWeaponComponent && bIsHoldingATwoHandedWeapon && PrimaryWeaponComponent->GetSkeletalMeshAsset())
+	if (PrimaryWeaponComponent && IsHoldingATwoHandedWeapon && PrimaryWeaponComponent->GetSkeletalMeshAsset())
 	{
 		Out = PrimaryWeaponComponent->GetSocketTransform(FName("SOCKET_LeftHandPosition"),
 		                                                 ERelativeTransformSpace::RTS_World);

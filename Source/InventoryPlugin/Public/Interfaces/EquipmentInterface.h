@@ -7,6 +7,7 @@
 #include "UObject/Interface.h"
 #include "EquipmentInterface.generated.h"
 
+class IInventoryItemAmmoInterface;
 class UInventoryItemEquipable;
 class UEquipmentComponent;
 
@@ -168,6 +169,14 @@ public:
 		 * @return The static mesh to use.
 		 */
 	virtual UStaticMesh* GetPreferedMesh(UStaticMesh* OriginalMesh) const;
+
+	UFUNCTION(BlueprintCallable)
+	virtual bool HasCompatibleAmmoEquipped(EAmmoType AmmoType) const;
+
+	UFUNCTION(BlueprintCallable)
+	virtual TScriptInterface<IInventoryItemAmmoInterface> RemoveAmmoEquipped(EAmmoType AmmoType);
+
+
 
 protected:
 	/**

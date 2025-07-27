@@ -107,7 +107,7 @@ protected:
 	EEquipmentSocket SecondaryWeaponOriginalSlot = EEquipmentSocket::Unknown;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Replicated, Category = "Inventory|Equipment")
-	bool bIsHoldingATwoHandedWeapon = false;
+	bool IsHoldingATwoHandedWeapon = false;
 
 	/**
 	 * Equips the given equipable item to the specified equipment slot.
@@ -268,23 +268,27 @@ public:
 	 * This method is used to unsheathe the primary and secondary melee weapons
 	 * in the inventory. It is a Blueprint callable function that belongs to the
 	 * "Inventory|Equipment" category.
-	 *
-	 * @param None
-	 *
-	 * @return None
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Equipment")
 	void UnsheathMelee();
 
 	/**
 	 * Sheaths the melee weapon.
-	 *
-	 * @param None
-	 *
-	 * @return None
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Equipment")
 	void SheathMelee();
+
+	/**
+	 * @brief Unsheathe the ranged weapon.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Equipment")
+	void UnsheathRanged();
+
+	/**
+	 * Sheaths the melee weapon.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Equipment")
+	void SheathRanged();
 
 	/**
 	 * Get the overlap box for a specific equipment slot.

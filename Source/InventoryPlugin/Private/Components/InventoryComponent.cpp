@@ -5,6 +5,7 @@
 #include "BagStorage.h"
 #include <Net/UnrealNetwork.h>
 
+#include "InventoryUtilities.h"
 #include "Items/Interfaces/InventoryItemAmmoBagInterface.h"
 #include "Items/Interfaces/InventoryItemAmmoInterface.h"
 
@@ -365,6 +366,49 @@ float UInventoryComponent::GetBagUsage(EBagSlot Quiver)
 	}
 
 	return 0.f;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+bool UInventoryComponent::HasCompatibleAmmoInQuiver(EAmmoType Ammo) const
+{
+	auto AllItemsInQuiver = GetBagConst(EBagSlot::Quiver);
+
+	for (auto& QuiverItem : AllItemsInQuiver)
+	{
+		const UInventoryItemBase* Item = UInventoryUtilities::GetItemFromID(QuiverItem.ItemID, GetWorld());
+		if (const IInventoryItemAmmoInterface* AmmoItem = Cast<IInventoryItemAmmoInterface>(Item))
+		{
+			if (AmmoItem->GetAmmoType() == Ammo)
+			{
+				return true; // Found compatible ammo
+			}
+		}
+	}
+
+	return false; // No compatible ammo found
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+TScriptInterface<IInventoryItemAmmoInterface> UInventoryComponent::RemoveAmmoFromQuiver(EAmmoType Ammo)
+{
+	auto AllItemsInQuiver = GetBagConst(EBagSlot::Quiver);
+
+	for (auto& QuiverItem : AllItemsInQuiver)
+	{
+		UInventoryItemBase* Item = UInventoryUtilities::GetItemFromID(QuiverItem.ItemID, GetWorld());
+		if (IInventoryItemAmmoInterface* AmmoItem = Cast<IInventoryItemAmmoInterface>(Item))
+		{
+			if (AmmoItem->GetAmmoType() == Ammo)
+			{
+				RemoveItem(EBagSlot::Quiver, QuiverItem.TopLeftID);
+				return TScriptInterface<IInventoryItemAmmoInterface>(Item); // Found compatible ammo
+			}
+		}
+	}
+
+	return nullptr; // No compatible ammo found
 }
 
 //----------------------------------------------------------------------------------------------------------------------
