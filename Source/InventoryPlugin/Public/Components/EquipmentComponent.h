@@ -42,7 +42,6 @@ protected:
 	UChildActorComponent* SecondaryLightSource;
 
 	/// Weapons and Sheaths
-
 	UPROPERTY(EditAnywhere, Replicated, BlueprintReadWrite, Category = "Inventory|Weapon")
 	USkeletalMeshComponent* PrimaryWeaponComponent;
 

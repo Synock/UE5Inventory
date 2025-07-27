@@ -535,6 +535,7 @@ void UEquipmentComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& 
 	DOREPLIFETIME(UEquipmentComponent, SecondaryWeaponComponent);
 	DOREPLIFETIME(UEquipmentComponent, PrimaryWeaponSheath);
 	DOREPLIFETIME(UEquipmentComponent, SecondaryWeaponSheath);
+	DOREPLIFETIME(UEquipmentComponent, BackWeaponSheath);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -826,19 +827,19 @@ void UEquipmentComponent::UpdateBagUsage(EBagSlot BagSlot, float BagUsage)
 
 			if (!Bag)
 			{
-				UE_LOG(LogTemp, Error, TEXT("No bag within %d"), BagSlot);
+				UE_LOG(LogTemp, Warning, TEXT("No bag within %d"), BagSlot);
 				return;
 			}
 
 			const IInventoryItemAmmoBagInterface* QuiverInterface = Cast<IInventoryItemAmmoBagInterface>(Bag);
 			if (!QuiverInterface)
 			{
-				UE_LOG(LogTemp, Error, TEXT("No quiver within %d"), BagSlot);
+				UE_LOG(LogTemp, Warning, TEXT("No quiver within %d"), BagSlot);
 				return;
 			}
 			if (QuiverInterface)
 			{
-				UE_LOG(LogTemp, Error, TEXT("Bag usage %f"), BagUsage);
+				UE_LOG(LogTemp, Log, TEXT("Bag usage %f"), BagUsage);
 				if (BagUsage == 0.f)
 				{
 					// hide the ammo of the quiver
