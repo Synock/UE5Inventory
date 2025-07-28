@@ -51,6 +51,7 @@ enum class EEquipmentSocket : uint8
 	PrimarySheath,
 	SecondarySheath,
 	BackSheath,
+	RangedSheath,
 	EarL,
 	EarR,
 	RingL,

@@ -57,6 +57,9 @@ protected:
 	UPROPERTY(EditAnywhere,Replicated, BlueprintReadWrite, Category = "Inventory|Sheath")
 	USkeletalMeshComponent* BackWeaponSheath;
 
+	UPROPERTY(EditAnywhere,Replicated, BlueprintReadWrite, Category = "Inventory|Sheath")
+	USkeletalMeshComponent* RangedWeaponSheath;
+
 	/// Bags and Ammo
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Bag")

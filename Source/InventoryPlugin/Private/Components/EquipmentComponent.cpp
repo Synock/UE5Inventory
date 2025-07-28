@@ -53,6 +53,7 @@ USkeletalMeshComponent* UEquipmentComponent::GetSkeletalMeshComponentFromSocket(
 	case EEquipmentSocket::PrimarySheath: return PrimaryWeaponSheath;
 	case EEquipmentSocket::SecondarySheath: return SecondaryWeaponSheath;
 	case EEquipmentSocket::BackSheath: return BackWeaponSheath;
+	case EEquipmentSocket::RangedSheath: return RangedWeaponSheath;
 	case EEquipmentSocket::Head:
 		{
 			if (auto* ModularCharacter = Cast<IInventoryModularCharacterInterface>(GetOwner()))
@@ -127,7 +128,7 @@ bool UEquipmentComponent::UnEquip(const UInventoryItemEquipable* Item, EEquipmen
 	{
 		if (USkeletalMeshComponent* SkeletalSocket = GetSkeletalMeshComponentFromSocket(PossibleSocket))
 		{
-			UpdateEquipment(SkeletalSocket,nullptr,{});
+			UpdateEquipment(SkeletalSocket, nullptr, {});
 			SkeletalSocket->SetSkeletalMeshAsset(nullptr);
 			return true;
 		}
@@ -179,7 +180,10 @@ EEquipmentSocket UEquipmentComponent::FindBestSocketForItem(const UInventoryItem
 
 			return EEquipmentSocket::SecondarySheath;
 		}
-	case EEquipmentSlot::Range: return EEquipmentSocket::BackSheath;
+	case EEquipmentSlot::Range:
+		{
+			return EEquipmentSocket::RangedSheath;
+		}
 	case EEquipmentSlot::Ammo: return EEquipmentSocket::AmmoBag;
 	case EEquipmentSlot::Head:
 		{
@@ -245,14 +249,14 @@ void UEquipmentComponent::Unsheath(EEquipmentSlot SlotToUnsheath)
 	if (!Item)
 		return;
 
-
 	if (Item->Unsheathable)
 		return;
 
 	const EEquipmentSocket SheathSocket = FindBestSocketForItem(Item, SlotToUnsheath);
 
 	if (SheathSocket != EEquipmentSocket::PrimarySheath && SheathSocket != EEquipmentSocket::SecondarySheath &&
-		SheathSocket != EEquipmentSocket::BackSheath)
+		SheathSocket != EEquipmentSocket::BackSheath &&
+		SheathSocket != EEquipmentSocket::RangedSheath)
 	{
 		return;
 	}
@@ -277,6 +281,13 @@ void UEquipmentComponent::Unsheath(EEquipmentSlot SlotToUnsheath)
 				LiveSocket = EEquipmentSocket::Secondary;
 			}
 			else if (SlotToUnsheath == EEquipmentSlot::Range)
+			{
+				LiveSocket = EEquipmentSocket::Primary;
+			}
+		}
+	case EEquipmentSocket::RangedSheath:
+		{
+			if (SlotToUnsheath == EEquipmentSlot::Range)
 			{
 				LiveSocket = EEquipmentSocket::Primary;
 			}
@@ -391,6 +402,9 @@ UEquipmentComponent::UEquipmentComponent()
 	BackWeaponSheath = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("BackWeaponSheathComponentMesh"));
 	BackWeaponSheath->SetIsReplicated(true);
 
+	RangedWeaponSheath = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("LowerBackWeaponSheathComponentMesh"));
+	RangedWeaponSheath->SetIsReplicated(true);
+
 	AmmoComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("AmmoComponentMesh"));
 	AmmoVariableComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("AmmoVariableComponentMesh"));
 	AmmoComponent->SetIsReplicated(true);
@@ -475,6 +489,7 @@ void UEquipmentComponent::BeginPlay()
 	PrimaryWeaponSheath->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("PrimarySheath"));
 	SecondaryWeaponSheath->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("SecondarySheath"));
 	BackWeaponSheath->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("BackSheath"));
+	RangedWeaponSheath->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("LowerBackSheath"));
 
 
 	WaistBag1Component->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("SOCKET_WaistBag1"));
@@ -510,6 +525,7 @@ void UEquipmentComponent::BeginPlay()
 	PrimaryWeaponSheath->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
 	SecondaryWeaponSheath->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
 	BackWeaponSheath->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
+	RangedWeaponSheath->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
 	ShoulderBag1Component->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
 	ShoulderBag2Component->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
 	WaistBag1Component->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
@@ -522,6 +538,9 @@ void UEquipmentComponent::BeginPlay()
 
 	if (auto SecondaryWeapon = GetItemAtSlot(EEquipmentSlot::Secondary))
 		Equip(SecondaryWeapon, EEquipmentSlot::Secondary);
+
+	if (auto RangedWeapon = GetItemAtSlot(EEquipmentSlot::Range))
+		Equip(RangedWeapon, EEquipmentSlot::Range);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -536,6 +555,7 @@ void UEquipmentComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& 
 	DOREPLIFETIME(UEquipmentComponent, PrimaryWeaponSheath);
 	DOREPLIFETIME(UEquipmentComponent, SecondaryWeaponSheath);
 	DOREPLIFETIME(UEquipmentComponent, BackWeaponSheath);
+	DOREPLIFETIME(UEquipmentComponent, RangedWeaponSheath);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -780,6 +800,7 @@ void UEquipmentComponent::SetAllEquipmentCollisionDisabled()
 	PrimaryWeaponSheath->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
 	SecondaryWeaponSheath->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
 	BackWeaponSheath->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
+	RangedWeaponSheath->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
 	ShoulderBag1Component->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
 	ShoulderBag2Component->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
 	WaistBag1Component->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
@@ -812,7 +833,6 @@ FTransform UEquipmentComponent::GetOffHandTransform() const
 
 void UEquipmentComponent::UpdateBagUsage(EBagSlot BagSlot, float BagUsage)
 {
-
 	if (GetOwnerRole() == ROLE_Authority)
 	{
 		UE_LOG(LogTemp, Log, TEXT("Bag update is server side"));
@@ -822,7 +842,6 @@ void UEquipmentComponent::UpdateBagUsage(EBagSlot BagSlot, float BagUsage)
 		//const UInventoryItemBag* Quiver = Cast<UInventoryItemBag>();
 		//if (Quiver)
 		{
-
 			const UInventoryItemEquipable* Bag = GetItemAtSlot(EEquipmentSlot::Ammo);
 
 			if (!Bag)
