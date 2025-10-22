@@ -62,8 +62,8 @@ USkeletalMeshComponent* UEquipmentComponent::GetSkeletalMeshComponentFromSocket(
 			}
 			return nullptr;
 		}
-	case EEquipmentSocket::WristL: return LeftBracerComponent;
-	case EEquipmentSocket::WristR: return RightBracerComponent;
+	//case EEquipmentSocket::WristL: return LeftBracerComponent;
+	//case EEquipmentSocket::WristR: return RightBracerComponent;
 
 	default: return nullptr;
 	}
@@ -436,19 +436,78 @@ UEquipmentComponent::UEquipmentComponent()
 	WristLComponent->SetIsReplicated(true);
 	WristRComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WristRComponent"));
 	WristRComponent->SetIsReplicated(true);
-
-	LeftBracerComponent = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("BracerLComponent"));
-	LeftBracerComponent->SetIsReplicated(true);
-	RightBracerComponent = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("BracerRComponent"));
-	RightBracerComponent->SetIsReplicated(true);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
 
 void UEquipmentComponent::UpdateMasterMeshComponent(USkeletalMeshComponent* Mesh)
 {
-	RightBracerComponent->SetLeaderPoseComponent(Mesh);
-	LeftBracerComponent->SetLeaderPoseComponent(Mesh);
+	for (auto&& [MeshPointer, MeshComponent] : VariableMeshesMap)
+	{
+		MeshComponent->SetLeaderPoseComponent(Mesh);
+	}
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UEquipmentComponent::TryUpdateDynamicMeshes(const TMap<EEquipmentSlot, USkeletalMesh*>& MeshArray,
+	const TMap<EEquipmentSlot, TArray<FMaterialOverride>>& OverrideArray)
+{
+
+	TMap<EEquipmentSlot, bool> RelevantSlots;
+
+	for (auto&& [Slot, NotUsed] : VariableMeshesMap)
+	{
+		RelevantSlots.Emplace(Slot, false);
+	}
+
+	for (auto && [Slot, MeshPointer] : MeshArray)
+	{
+		RelevantSlots.FindOrAdd(Slot) = true;
+
+		//If the slot and component already exist
+		if (VariableMeshesMap.Contains(Slot))
+		{
+			auto& NewSkeletalMeshComponent = VariableMeshesMap.FindChecked(Slot);
+			if (NewSkeletalMeshComponent->GetSkeletalMeshAsset() != MeshPointer)
+			{
+				NewSkeletalMeshComponent->SetSkeletalMesh(MeshPointer);
+			}
+		}
+		else // We need to add this one
+		{
+			//FName ComponentName= *("VariableMeshComponent_" + FString::FromInt(static_cast<int>(Slot)));
+			USkeletalMeshComponent* NewSkeletalMeshComponent = NewObject<USkeletalMeshComponent>(this);
+			//USkeletalMeshComponent* NewSkeletalMeshComponent = CreateDefaultSubobject<USkeletalMeshComponent>(ComponentName);
+			NewSkeletalMeshComponent->RegisterComponent();
+			NewSkeletalMeshComponent->SetIsReplicated(true);
+			NewSkeletalMeshComponent->SetSkeletalMesh(MeshPointer);
+
+			FAttachmentTransformRules TransformRules2(EAttachmentRule::SnapToTarget, EAttachmentRule::SnapToTarget,
+								  EAttachmentRule::SnapToTarget, true);
+			NewSkeletalMeshComponent->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
+			//NewSkeletalMeshComponent->AttachToComponent(PlayerMesh, TransformRules2, FName("root"));
+			//MeshComponent->SetLeaderPoseComponent(Cast<ACharacter>(GetOwner())->GetMesh());
+
+			FAttachmentTransformRules TransformRules(EAttachmentRule::SnapToTarget, false);
+			NewSkeletalMeshComponent->AttachToComponent(Cast<ACharacter>(GetOwner())->GetMesh(), TransformRules2);
+			NewSkeletalMeshComponent->SetLeaderPoseComponent(Cast<ACharacter>(GetOwner())->GetMesh());
+			VariableMeshesMap.Emplace(Slot, NewSkeletalMeshComponent);
+		}
+	}
+
+	//cleanup obsolete slots
+	for (auto&& [Slot, SlotStatus] : RelevantSlots)
+	{
+		if (SlotStatus == false)
+		{
+			auto& NewSkeletalMeshComponent = VariableMeshesMap.FindChecked(Slot);
+			NewSkeletalMeshComponent->UnregisterComponent();
+			NewSkeletalMeshComponent->MarkAsGarbage();
+		}
+	}
+
+
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -507,17 +566,16 @@ void UEquipmentComponent::BeginPlay()
 	WristLComponent->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("WristL"));
 	WristRComponent->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("WristR"));
 
-	FAttachmentTransformRules TransformRules2(EAttachmentRule::SnapToTarget, EAttachmentRule::KeepWorld,
-	                                          EAttachmentRule::SnapToTarget, true);
-	LeftBracerComponent->AttachToComponent(PlayerMesh, TransformRules2, FName("root"));
-	LeftBracerComponent->SetLeaderPoseComponent(Cast<ACharacter>(GetOwner())->GetMesh());
-
-	RightBracerComponent->AttachToComponent(PlayerMesh, TransformRules2, FName("root"));
-	RightBracerComponent->SetLeaderPoseComponent(Cast<ACharacter>(GetOwner())->GetMesh());
-
 	//Disable camera collision for EVERY piece of equipment
-	RightBracerComponent->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
-	LeftBracerComponent->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
+	for (auto&& [MeshPointer, MeshComponent] : VariableMeshesMap)
+	{
+		FAttachmentTransformRules TransformRules2(EAttachmentRule::SnapToTarget, EAttachmentRule::KeepWorld,
+										  EAttachmentRule::SnapToTarget, true);
+		MeshComponent->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
+		MeshComponent->AttachToComponent(PlayerMesh, TransformRules2, FName("root"));
+		MeshComponent->SetLeaderPoseComponent(Cast<ACharacter>(GetOwner())->GetMesh());
+	}
+
 	PrimaryWeaponComponent->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
 	SecondaryWeaponComponent->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
 	AmmoComponent->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
@@ -792,8 +850,6 @@ void UEquipmentComponent::SetEquipmentLight(TSubclassOf<AInventoryLightSourceAct
 
 void UEquipmentComponent::SetAllEquipmentCollisionDisabled()
 {
-	RightBracerComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
-	LeftBracerComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
 	PrimaryWeaponComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
 	SecondaryWeaponComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
 	AmmoComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
@@ -806,6 +862,11 @@ void UEquipmentComponent::SetAllEquipmentCollisionDisabled()
 	WaistBag1Component->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
 	WaistBag2Component->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
 	BackpackComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
+
+	for (auto&& [MeshPointer, MeshComponent] : VariableMeshesMap)
+	{
+		MeshComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
+	}
 }
 
 //----------------------------------------------------------------------------------------------------------------------

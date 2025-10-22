@@ -31,6 +31,9 @@ public:
 
 	void UpdateMasterMeshComponent(USkeletalMeshComponent* Mesh);
 
+	/// Try to update the dynamic meshes handled by the equipment component
+	void TryUpdateDynamicMeshes(const TMap<EEquipmentSlot, USkeletalMesh*>& MeshArray,const TMap<EEquipmentSlot, TArray<FMaterialOverride>>& OverrideArray);
+
 protected:
 	// Called when the game starts
 	virtual void BeginPlay() override;
@@ -94,12 +97,6 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Equipment")
 	UStaticMeshComponent* RingRComponent;
 
-	/// Bracers and Wrist
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Equipment")
-    USkeletalMeshComponent* RightBracerComponent;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Equipment")
-	USkeletalMeshComponent* LeftBracerComponent;
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Equipment")
 	UStaticMeshComponent* WristLComponent;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Equipment")
@@ -107,6 +104,9 @@ protected:
 
 	EEquipmentSocket PrimaryWeaponOriginalSlot = EEquipmentSocket::Unknown;
 	EEquipmentSocket SecondaryWeaponOriginalSlot = EEquipmentSocket::Unknown;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Equipment")
+	TMap<EEquipmentSlot, USkeletalMeshComponent*> VariableMeshesMap;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Replicated, Category = "Inventory|Equipment")
 	bool IsHoldingATwoHandedWeapon = false;
