@@ -7,6 +7,7 @@
 #include "UObject/Interface.h"
 #include "EquipmentInterface.generated.h"
 
+struct FMaterialOverride;
 class IInventoryItemAmmoInterface;
 class UInventoryItemEquipable;
 class UEquipmentComponent;
@@ -176,7 +177,9 @@ public:
 	UFUNCTION(BlueprintCallable)
 	virtual TScriptInterface<IInventoryItemAmmoInterface> RemoveAmmoEquipped(EAmmoType AmmoType);
 
+	TArray<FMaterialOverride> GetMaterialOverridesForSlot(EEquipmentSlot Slot) const;
 
+	TMap<FString, FMaterialOverride> GetMaterialOverridesMapForSlot(EEquipmentSlot Slot) const;
 
 protected:
 	/**

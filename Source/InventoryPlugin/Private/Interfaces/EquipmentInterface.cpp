@@ -270,7 +270,7 @@ TScriptInterface<IInventoryItemAmmoInterface> IEquipmentInterface::RemoveAmmoEqu
 
 	if (const auto Ammo = Cast<IInventoryItemAmmoInterface>(PotentialAmmo))
 	{
-		if(Ammo->GetAmmoType() == AmmoType)
+		if (Ammo->GetAmmoType() == AmmoType)
 		{
 			GetEquipmentComponent()->RemoveItem(EEquipmentSlot::Ammo);
 			// oh man, this sux so much, that const cast from hell
@@ -279,4 +279,39 @@ TScriptInterface<IInventoryItemAmmoInterface> IEquipmentInterface::RemoveAmmoEqu
 	}
 
 	return nullptr;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+TArray<FMaterialOverride> IEquipmentInterface::GetMaterialOverridesForSlot(EEquipmentSlot Slot) const
+{
+	TArray<FMaterialOverride> MaterialOverrides;
+
+	if (const UInventoryItemEquipable* Item = GetEquipmentComponentConst()->GetItemAtSlot(Slot); Item && Item->
+		EquipmentMeshMaterialOverride.Num() > 0)
+	{
+		return Item->EquipmentMeshMaterialOverride;
+	}
+
+	return {};
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+TMap<FString, FMaterialOverride> IEquipmentInterface::GetMaterialOverridesMapForSlot(EEquipmentSlot Slot) const
+{
+	TMap<FString, FMaterialOverride> MaterialOverrides;
+
+	if (const UInventoryItemEquipable* Item = GetEquipmentComponentConst()->GetItemAtSlot(Slot); Item && Item->
+		EquipmentMeshMaterialOverride.Num() > 0)
+	{
+		auto& MaterialList = Item->EquipmentMesh->GetMaterials();
+		for (const FMaterialOverride& Override : Item->EquipmentMeshMaterialOverride)
+		{
+			if (Override.MaterialID < MaterialList.Num())
+				MaterialOverrides.FindOrAdd(MaterialList[Override.MaterialID].MaterialSlotName.ToString(), Override);
+		}
+	}
+
+	return MaterialOverrides;
 }

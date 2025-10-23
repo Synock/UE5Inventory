@@ -509,6 +509,19 @@ void UEquipmentComponent::TryUpdateDynamicMeshes(const TMap<EEquipmentSlot, USke
 
 
 }
+//----------------------------------------------------------------------------------------------------------------------
+
+void UEquipmentComponent::SellMaterialForAllMeshes(int MaterialID, UMaterialInstance* MaterialInstance)
+{
+	for (auto& [Slot, MeshComponent] : VariableMeshesMap)
+	{
+		USkeletalMeshComponent* Mesh = MeshComponent;
+		if (Mesh->GetNumMaterials() > MaterialID)
+		{
+			Mesh->SetMaterial(MaterialID, MaterialInstance);
+		}
+	}
+}
 
 //----------------------------------------------------------------------------------------------------------------------
 
