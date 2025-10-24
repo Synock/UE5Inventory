@@ -476,20 +476,16 @@ void UEquipmentComponent::TryUpdateDynamicMeshes(const TMap<EEquipmentSlot, USke
 		}
 		else // We need to add this one
 		{
-			//FName ComponentName= *("VariableMeshComponent_" + FString::FromInt(static_cast<int>(Slot)));
 			USkeletalMeshComponent* NewSkeletalMeshComponent = NewObject<USkeletalMeshComponent>(this);
-			//USkeletalMeshComponent* NewSkeletalMeshComponent = CreateDefaultSubobject<USkeletalMeshComponent>(ComponentName);
 			NewSkeletalMeshComponent->RegisterComponent();
 			NewSkeletalMeshComponent->SetIsReplicated(true);
 			NewSkeletalMeshComponent->SetSkeletalMesh(MeshPointer);
+			NewSkeletalMeshComponent->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
 
 			FAttachmentTransformRules TransformRules2(EAttachmentRule::SnapToTarget, EAttachmentRule::SnapToTarget,
 								  EAttachmentRule::SnapToTarget, true);
-			NewSkeletalMeshComponent->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
-			//NewSkeletalMeshComponent->AttachToComponent(PlayerMesh, TransformRules2, FName("root"));
-			//MeshComponent->SetLeaderPoseComponent(Cast<ACharacter>(GetOwner())->GetMesh());
 
-			FAttachmentTransformRules TransformRules(EAttachmentRule::SnapToTarget, false);
+
 			NewSkeletalMeshComponent->AttachToComponent(Cast<ACharacter>(GetOwner())->GetMesh(), TransformRules2);
 			NewSkeletalMeshComponent->SetLeaderPoseComponent(Cast<ACharacter>(GetOwner())->GetMesh());
 			VariableMeshesMap.Emplace(Slot, NewSkeletalMeshComponent);
@@ -585,7 +581,7 @@ void UEquipmentComponent::BeginPlay()
 		FAttachmentTransformRules TransformRules2(EAttachmentRule::SnapToTarget, EAttachmentRule::KeepWorld,
 										  EAttachmentRule::SnapToTarget, true);
 		MeshComponent->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
-		MeshComponent->AttachToComponent(PlayerMesh, TransformRules2, FName("root"));
+		MeshComponent->AttachToComponent(PlayerMesh, TransformRules2);
 		MeshComponent->SetLeaderPoseComponent(Cast<ACharacter>(GetOwner())->GetMesh());
 	}
 
