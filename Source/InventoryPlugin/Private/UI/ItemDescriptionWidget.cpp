@@ -202,3 +202,29 @@ UTexture2D* UItemDescriptionWidget::GetTextureIcon() const
 {
 	return ObservedItem->Icon;
 }
+
+//----------------------------------------------------------------------------------------------------------------------
+
+FString UItemDescriptionWidget::GetDurabilityConditionString() const
+{
+	const float DurabilityPercent = GetDurabilityPercentage();
+
+	if (DurabilityPercent >= 100.0f)
+		return "Pristine";
+	if (DurabilityPercent >= 75.0f)
+		return "Pristine";
+	if (DurabilityPercent >= 50.0f)
+		return "Good";
+	if (DurabilityPercent >= 25.0f)
+		return "Worn";
+	if (DurabilityPercent > 0.0f)
+		return "Tattered";
+	return "Broken";
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+FString UItemDescriptionWidget::GetDurabilityString() const
+{
+	return "Condition: " + GetDurabilityConditionString();
+}

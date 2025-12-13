@@ -109,7 +109,7 @@ void UInventoryGridWidget::CreateNewItem(UCanvasPanel* GridCanvasPanel, const FM
 	UItemWidget* ItemWidget = Cast<UItemWidget>(CreateWidget(GetOwningPlayer(), ItemWidgetClass));
 
 	ItemWidget->SetParentGrid(this);
-	ItemWidget->InitData(Item, GetOwningPlayerPawn(), TileSize, ItemStorage.TopLeftID, BagID);
+	ItemWidget->InitData(Item, GetOwningPlayerPawn(), TileSize, ItemStorage.TopLeftID, BagID, EEquipmentSlot::Unknown, ItemStorage.Durability);
 
 	AddItemWidgetToGrid(GridCanvasPanel, ItemWidget, ItemStorage.TopLeftID);
 	RegisterNewItem(ItemStorage.TopLeftID, ItemWidget);

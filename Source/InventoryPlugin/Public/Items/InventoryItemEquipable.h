@@ -43,6 +43,15 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Weapon")
 	bool Unsheathable = false;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Equipable|Durability")
+	float Durability = 100.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Equipable|Durability")
+	float TotalDurability = 100.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Equipable|Durability")
+	float DurabilityModifier = 1.0f;
+
 	virtual bool IsEquipable() const override { return Equipable; }
 	virtual int32 GetEquipableSlotBitMask() const override { return EquipableSlotBitMask; }
 	virtual bool IsMultiSlotItem() const override { return MultiSlotItem; }

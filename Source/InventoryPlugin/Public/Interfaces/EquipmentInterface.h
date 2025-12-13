@@ -1,6 +1,4 @@
-﻿// Copyright 2022 Maximilien (Synock) Guislain
-
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "InventoryItem.h"
@@ -60,6 +58,15 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Equipment")
 	virtual void EquipItem(EEquipmentSlot InSlot, int32 InItemId);
+
+	/**
+	 * Equip an item with specific durability value.
+	 * @param InSlot The equipment slot to equip the item in.
+	 * @param InItemId The ID of the item to equip.
+	 * @param Durability The current durability of the item.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Equipment")
+	virtual void EquipItemWithDurability(EEquipmentSlot InSlot, int32 InItemId, float Durability);
 
 	/**
 	 * Tries to automatically equip an item based on its ID.

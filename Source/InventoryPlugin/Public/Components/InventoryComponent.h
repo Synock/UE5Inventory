@@ -101,7 +101,7 @@ public:
 	int32 GetItemAtIndex(EBagSlot ConsideredBag, int32 ID) const;
 
 	UFUNCTION(Server, reliable, BlueprintCallable, Category = "Inventory")
-	void AddItemAt(EBagSlot ConsideredBag, int32 ItemID, int32 TopLeftIndex);
+	void AddItemAt(EBagSlot ConsideredBag, int32 ItemID, int32 TopLeftIndex, float Durability = 100.0f);
 
 	UFUNCTION(Server, reliable, BlueprintCallable, Category = "Inventory")
 	void RemoveItem(EBagSlot ConsideredBag, int32 TopLeftIndex);

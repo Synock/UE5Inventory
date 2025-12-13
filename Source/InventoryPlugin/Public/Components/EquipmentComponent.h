@@ -42,6 +42,10 @@ protected:
 	UPROPERTY(ReplicatedUsing = OnRep_ItemList)
 	TArray<const UInventoryItemEquipable*> Equipment;
 
+	// Durability tracking for equipped items (current condition only)
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Inventory|Equipment|Durability")
+	TArray<float> EquipmentDurability;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Light")
 	UChildActorComponent* SecondaryLightSource;
 
@@ -208,6 +212,24 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Equipment")
 	void EquipItem(const UInventoryItemEquipable* Item, EEquipmentSlot InSlot);
+
+	/**
+	 * Equip an item with specific durability value
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Equipment")
+	void EquipItemWithDurability(const UInventoryItemEquipable* Item, EEquipmentSlot InSlot, float Durability);
+
+	/**
+	 * Get current durability for an equipped item
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Equipment")
+	bool GetEquipmentDurability(EEquipmentSlot InSlot, float& OutDurability) const;
+
+	/**
+	 * Set current durability for an equipped item
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Equipment")
+	void SetEquipmentDurability(EEquipmentSlot InSlot, float Durability);
 
 	/**
 	 *

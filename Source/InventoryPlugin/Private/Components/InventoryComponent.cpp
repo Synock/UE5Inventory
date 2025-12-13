@@ -120,9 +120,9 @@ void UInventoryComponent::RemoveItem_Implementation(EBagSlot ConsideredBag, int3
 
 //----------------------------------------------------------------------------------------------------------------------
 
-void UInventoryComponent::AddItemAt_Implementation(EBagSlot ConsideredBag, int32 ItemID, int32 TopLeftIndex)
+void UInventoryComponent::AddItemAt_Implementation(EBagSlot ConsideredBag, int32 ItemID, int32 TopLeftIndex, float Durability)
 {
-	GetRelatedBag(ConsideredBag)->AddItemAt(ItemID, TopLeftIndex);
+	GetRelatedBag(ConsideredBag)->AddItemAt(ItemID, TopLeftIndex, Durability);
 	InventoryItemAdd.Broadcast(ConsideredBag, ItemID, TopLeftIndex);
 }
 

@@ -13,14 +13,14 @@
 
 void UEquipmentSlotWidget::InitData()
 {
-	Refresh();
-
 	IInventoryPlayerInterface* PC = GetInventoryPlayerInterface();
 	IEquipmentInterface* EquipmentInterface = PC->GetEquipmentForInventory();
 	UEquipmentComponent* EquipmentComponent = EquipmentInterface->GetEquipmentComponent();
 
 	check(EquipmentInterface);
 	check(EquipmentComponent);
+
+	Refresh();
 	EquipmentComponent->EquipmentDispatcher.AddDynamic(this, &UEquipmentSlotWidget::Refresh);
 	EquipmentComponent->EquipmentDispatcher.AddUniqueDynamic(this, &UEquipmentSlotWidget::ResetTransaction);
 }
@@ -124,10 +124,29 @@ void UEquipmentSlotWidget::InnerRefresh()
 {
 	if (IInventoryPlayerInterface* PC = GetInventoryPlayerInterface())
 	{
-		const IEquipmentInterface* EquipmentInterface = PC->GetEquipmentForInventory();
+		IEquipmentInterface* EquipmentInterface = PC->GetEquipmentForInventory();
 		check(EquipmentInterface);
 		const UInventoryItemEquipable* Equipment = EquipmentInterface->GetEquippedItem(SlotID);
 		Item = Equipment;
+
+		// Fetch durability and max durability from equipment
+		if (Equipment)
+		{
+			// Get max durability from item definition
+			MaxDurability = FMath::Max(1.0f, Equipment->TotalDurability);
+
+			// Get current durability from equipment component
+			float EquipmentDurability = MaxDurability; // Default to max
+			if (EquipmentInterface->GetEquipmentComponent()->GetEquipmentDurability(SlotID, EquipmentDurability))
+			{
+				Durability = EquipmentDurability;
+			}
+			else
+			{
+				Durability = MaxDurability; // Fallback to max if not found
+			}
+		}
+
 		UGenericSlotWidget::InnerRefresh();
 
 		if (Equipment && Equipment->MultiSlotItem && ParentComponent)

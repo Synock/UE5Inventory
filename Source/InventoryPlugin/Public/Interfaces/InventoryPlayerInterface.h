@@ -502,6 +502,16 @@ public:
 	virtual void PlayerAddItem(int32 InTopLeft, EBagSlot InSlot, int32 InItemId);
 
 	/**
+	 * Add an item with specific durability to the player's inventory.
+	 * @param InTopLeft The top left position in the bag grid.
+	 * @param InSlot The bag slot where the item will be added.
+	 * @param InItemId The ID of the item to add.
+	 * @param Durability The current durability of the item.
+	 */
+	UFUNCTION()
+	virtual void PlayerAddItemWithDurability(int32 InTopLeft, EBagSlot InSlot, int32 InItemId, float Durability);
+
+	/**
 	 * \brief Removes an item from the player's inventory or bank.
 	 *
 	 * This function checks if the owning actor has authority before removing the item.

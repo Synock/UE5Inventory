@@ -253,9 +253,14 @@ void UBagStorage::RemoveItem_Implementation(int32 TopLeftIndex)
 
 //----------------------------------------------------------------------------------------------------------------------
 
-void UBagStorage::AddItemAt_Implementation(int32 ItemID, int32 TopLeftIndex)
+void UBagStorage::AddItemAt_Implementation(int32 ItemID, int32 TopLeftIndex, float Durability)
 {
-	Items.Add({ItemID, TopLeftIndex});
+	FMinimalItemStorage NewItem;
+	NewItem.ItemID = ItemID;
+	NewItem.TopLeftID = TopLeftIndex;
+	NewItem.Durability = Durability;
+
+	Items.Add(NewItem);
 
 	const UInventoryItemBase* Item = UInventoryUtilities::GetItemFromID(ItemID, GetWorld());
 	if (!Item)

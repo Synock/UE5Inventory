@@ -79,9 +79,9 @@ IInventoryPlayerInterface* UItemWidget::GetInventoryPlayerInterface() const
 
 void UItemWidget::InitData(const UInventoryItemBase* InputItem, AActor* InputOwner, float InputTileSize,
                            int32 InputTopLeftID,
-                           EBagSlot InputBagID, EEquipmentSlot InputOriginalSlotID)
+                           EBagSlot InputBagID, EEquipmentSlot InputOriginalSlotID, float InputDurability)
 {
-	InitBareData(InputItem, InputOwner, InputTileSize);
+	InitBareData(InputItem, InputOwner, InputTileSize, InputDurability);
 	TopLeftID = InputTopLeftID;
 	BagID = InputBagID;
 	OriginalSlotID = InputOriginalSlotID;

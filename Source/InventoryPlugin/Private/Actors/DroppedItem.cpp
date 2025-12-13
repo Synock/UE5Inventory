@@ -37,10 +37,23 @@ void ADroppedItem::InitializeFromItem(UInventoryItemBase* Item, bool AllowToRota
 		}
 
 		ItemID = Item->ItemID;
+		Durability = 100.0f;  // Default durability
 	}
 }
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void ADroppedItem::InitializeFromItemWithDurability(UInventoryItemBase* Item, float InDurability, bool AllowToRotate)
+{
+	InitializeFromItem(Item, AllowToRotate);
+	Durability = InDurability;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
 
 void ADroppedItem::BeginPlay()
 {
 	Super::BeginPlay();
 }
+
+

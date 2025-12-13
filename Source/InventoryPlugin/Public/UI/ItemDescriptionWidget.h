@@ -1,6 +1,4 @@
-﻿// Copyright 2022 Maximilien (Synock) Guislain
-
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
@@ -22,7 +20,13 @@ protected:
 
 	UPROPERTY(BlueprintReadWrite)
 	UInventoryItemBase* ObservedItem = nullptr;
-	
+
+	UPROPERTY(BlueprintReadWrite, Category = "Inventory|Durability")
+	float ItemDurability = 100.0f;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Inventory|Durability")
+	float ItemMaxDurability = 100.0f;
+
 	UFUNCTION(BlueprintCallable)
 	bool IsLore() const;
 
@@ -60,7 +64,38 @@ protected:
 
 	UFUNCTION(BlueprintCallable)
 	virtual UTexture2D* GetTextureIcon() const;
-	
+
+	UFUNCTION(BlueprintCallable)
+	void SetItemDurability(float InDurability) { ItemDurability = FMath::Clamp(InDurability, 0.0f, ItemMaxDurability); }
+
+	UFUNCTION(BlueprintCallable)
+	void SetItemMaxDurability(float InMaxDurability) { ItemMaxDurability = FMath::Max(1.0f, InMaxDurability); }
+
+	UFUNCTION(BlueprintCallable)
+	void SetItemDurabilityWithMax(float InDurability, float InMaxDurability)
+	{
+		ItemMaxDurability = FMath::Max(1.0f, InMaxDurability);
+		ItemDurability = FMath::Clamp(InDurability, 0.0f, ItemMaxDurability);
+	}
+
+	UFUNCTION(BlueprintCallable)
+	float GetItemDurability() const { return ItemDurability; }
+
+	UFUNCTION(BlueprintCallable)
+	float GetItemMaxDurability() const { return ItemMaxDurability; }
+
+	UFUNCTION(BlueprintCallable)
+	float GetDurabilityPercentage() const
+	{
+		return ItemMaxDurability > 0.0f ? (ItemDurability / ItemMaxDurability) * 100.0f : 100.0f;
+	}
+
+	UFUNCTION(BlueprintCallable)
+	FString GetDurabilityConditionString() const;
+
+	UFUNCTION(BlueprintCallable)
+	virtual FString GetDurabilityString() const;
+
 public:
-	
+
 };

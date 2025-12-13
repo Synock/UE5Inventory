@@ -9,7 +9,7 @@
 #include "Engine/World.h"
 
 ADroppedItem* IInventoryGameModeInterface::SpawnItemFromActor(AActor* SpawningActor, uint32 ItemID,
-	const FVector& DesiredDropLocation, bool ClampOnGround)
+	const FVector& DesiredDropLocation, bool ClampOnGround, float Durability)
 {
 
 		if (!SpawningActor)
@@ -33,7 +33,7 @@ ADroppedItem* IInventoryGameModeInterface::SpawnItemFromActor(AActor* SpawningAc
 		return Item;
 }
 
-ADroppedItem* IInventoryGameModeInterface::SpawnItemFromActorRaw(AActor* SpawningActor, UInventoryItemBase* ItemToSpawn)
+ADroppedItem* IInventoryGameModeInterface::SpawnItemFromActorRaw(AActor* SpawningActor, UInventoryItemBase* ItemToSpawn, float Durability)
 {
 	if (!SpawningActor)
 		return nullptr;

@@ -29,4 +29,7 @@ struct FMinimalItemStorage
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Item")
 	int32 TopLeftID = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Item|Durability")
+	float Durability = 100.0f;
 };

@@ -50,6 +50,9 @@ public:
 	void Init(const TArray<int32>& LootableItems);
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory|LootPool")
+	void InitWithDurability(const TArray<FMinimalItemStorage>& LootableItems);
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory|LootPool")
 	int32 GetItemAtIndex(int32 ID) const;
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory|LootPool")

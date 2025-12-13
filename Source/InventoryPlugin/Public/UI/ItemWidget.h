@@ -47,7 +47,7 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void InitData(const UInventoryItemBase* InputItem, AActor* InputOwner, float InputTileSize,
 	              int32 InputTopLeftID = 0, EBagSlot InputBagID = EBagSlot::Unknown,
-	              EEquipmentSlot InputOriginalSlotID = EEquipmentSlot::Unknown);
+	              EEquipmentSlot InputOriginalSlotID = EEquipmentSlot::Unknown, float InputDurability = 100.0f);
 
 	virtual void StopDrag() override;
 

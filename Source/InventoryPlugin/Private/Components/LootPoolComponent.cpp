@@ -59,6 +59,55 @@ void ULootPoolComponent::Init(const TArray<int32>& LootableItems)
 
 //----------------------------------------------------------------------------------------------------------------------
 
+void ULootPoolComponent::InitWithDurability(const TArray<FMinimalItemStorage>& LootableItems)
+{
+	if (!GetOwner()->HasAuthority())
+		return;
+
+	TArray<FMinimalItemStorage> ValidItems;
+	ValidItems.Reserve(LootableItems.Num());
+
+	for (const FMinimalItemStorage& ItemStorage : LootableItems)
+	{
+		const UInventoryItemBase* LocalItem = UInventoryUtilities::GetItemFromID(ItemStorage.ItemID, GetWorld());
+
+		if (!LocalItem)
+			continue;
+
+		if (LocalItem->LoreItem)
+		{
+			auto* GM = Cast<IInventoryGameModeInterface>(
+				UGameplayStatics::GetGameMode(GetWorld()));
+			if (GM->DelayedLoreItemValidation(LocalItem, this))
+			{
+				continue;
+			}
+		}
+
+		ValidItems.Add(ItemStorage);
+	}
+
+	GridBagSolver Solver(Width, Height);
+	for (const FMinimalItemStorage& ItemStorage : ValidItems)
+	{
+		const UInventoryItemBase* LocalItem = UInventoryUtilities::GetItemFromID(ItemStorage.ItemID, GetWorld());
+		int32 TopLeft = Solver.GetFirstValidTopLeft(LocalItem);
+
+		if (TopLeft >= 0)
+		{
+			FMinimalItemStorage NewItem;
+			NewItem.ItemID = ItemStorage.ItemID;
+			NewItem.TopLeftID = TopLeft;
+			NewItem.Durability = ItemStorage.Durability;  // Preserve durability!
+
+			Items.Add(NewItem);
+			Solver.RecordData(LocalItem, TopLeft);
+		}
+	}
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 void ULootPoolComponent::OnRep_LootPool()
 {
 	LootPoolDispatcher.Broadcast();

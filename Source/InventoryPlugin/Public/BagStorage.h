@@ -110,7 +110,7 @@ public:
 	int32 GetItemAtIndex(int32 ID) const;
 
 	UFUNCTION(Server, reliable, BlueprintCallable, Category = "Inventory|Bag")
-	virtual void AddItemAt(int32 ItemID, int32 TopLeftIndex);
+	virtual void AddItemAt(int32 ItemID, int32 TopLeftIndex, float Durability = 100.0f);
 
 	UFUNCTION(Server, reliable, BlueprintCallable, Category = "Inventory|Bag")
 	void RemoveItem(int32 TopLeftIndex);

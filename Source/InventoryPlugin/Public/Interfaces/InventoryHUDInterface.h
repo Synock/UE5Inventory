@@ -1,5 +1,4 @@
-﻿// Copyright 2022 Maximilien (Synock) Guislain
-
+﻿
 #pragma once
 
 #include "CoreMinimal.h"
@@ -292,6 +291,20 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, BlueprintCosmetic, Category = "Inventory")
 	void DisplayItemDescription(const UInventoryItemBase* Item, float X, float Y);
+
+	/**
+	 * Display the description of an inventory item with durability information at a specified position on the screen.
+	 *
+	 * @param Item The inventory item whose description needs to be displayed.
+	 * @param X The X coordinate of the position where the description should be displayed.
+	 * @param Y The Y coordinate of the position where the description should be displayed.
+	 * @param Durability The current durability of the item (absolute value).
+	 * @param MaxDurability The maximum durability of the item (to calculate percentage).
+	 *
+	 * This function extends DisplayItemDescription by including durability information.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, BlueprintCosmetic, Category = "Inventory")
+	void DisplayItemDescriptionWithDurability(const UInventoryItemBase* Item, float X, float Y, float Durability, float MaxDurability);
 
 	/**
 	 * \brief Displays the text of a book item at the specified location.

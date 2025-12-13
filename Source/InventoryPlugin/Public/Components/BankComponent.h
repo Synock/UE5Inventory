@@ -146,9 +146,10 @@ public:
 	 *
 	 * @param ItemID The ID of the item to be added.
 	 * @param TopLeftIndex The top left index of the item in the bank pool.
+	 * @param Durability The current durability of the item.
 	 */
 	UFUNCTION(Server, Reliable, BlueprintCallable, Category = "Inventory|BankPool")
-	void AddItem(int32 ItemID, int32 TopLeftIndex);
+	void AddItem(int32 ItemID, int32 TopLeftIndex, float Durability = 100.0f);
 
 	/**
 	 * @brief Removes an item at the specified index.

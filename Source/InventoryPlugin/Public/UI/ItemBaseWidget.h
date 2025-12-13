@@ -26,6 +26,12 @@ protected :
 	UPROPERTY(BlueprintReadWrite, Category = "Inventory|Item")
 	const UInventoryItemBase* Item = nullptr;
 
+	UPROPERTY(BlueprintReadWrite, Category = "Inventory|Item|Durability")
+	float Durability = 100.0f;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Inventory|Item|Durability")
+	float MaxDurability = 100.0f;
+
 	UPROPERTY(BlueprintReadWrite, Category = "Inventory|UI|Click")
 	float RightClickMaxDuration = 0.5f;
 
@@ -82,7 +88,7 @@ protected :
 
 public:
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic)
-	void InitBareData(const UInventoryItemBase* InputItem, AActor* InputOwner, float InputTileSize);
+	void InitBareData(const UInventoryItemBase* InputItem, AActor* InputOwner, float InputTileSize, float InputDurability = 100.0f);
 
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic)
 	virtual void StopDrag();
@@ -90,6 +96,14 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic)
 	const UInventoryItemBase* GetReferencedItem() const { return Item; }
 
+	UFUNCTION(BlueprintCallable, BlueprintCosmetic)
+	float GetDurability() const { return Durability; }
+
+	UFUNCTION(BlueprintCallable, BlueprintCosmetic)
+	float GetMaxDurability() const { return MaxDurability; }
+
 	UFUNCTION(BlueprintImplementableEvent, BlueprintCosmetic)
 	void Refresh();
 };
+
+

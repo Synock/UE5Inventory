@@ -62,6 +62,22 @@ void IEquipmentInterface::EquipItem(EEquipmentSlot InSlot, int32 InItemId)
 
 //----------------------------------------------------------------------------------------------------------------------
 
+void IEquipmentInterface::EquipItemWithDurability(EEquipmentSlot InSlot, int32 InItemId, float Durability)
+{
+	if (!EquipmentHasAuthority())
+		return;
+
+	const UInventoryItemEquipable* LocalItem = Cast<UInventoryItemEquipable>(
+		UInventoryUtilities::GetItemFromID(InItemId, EquipmentGetWorldContext()));
+
+	if (!LocalItem)
+		return;
+
+	GetEquipmentComponent()->EquipItemWithDurability(LocalItem, InSlot, Durability);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 bool IEquipmentInterface::TryAutoEquip(int32 InItemId, EEquipmentSlot& PossibleEquipment) const
 {
 	const UInventoryItemEquipable* LocalItem = Cast<UInventoryItemEquipable>(

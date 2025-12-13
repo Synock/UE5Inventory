@@ -55,9 +55,10 @@ void UItemBaseWidget::DisplayDescription(const FPointerEvent& InMouseEvent)
 
 	if (IInventoryPlayerInterface* PC = Cast<IInventoryPlayerInterface>(GetOwningPlayer()))
 	{
-		PC->GetInventoryHUDInterface()->Execute_DisplayItemDescription(PC->GetInventoryHUDObject(), Item,
+		PC->GetInventoryHUDInterface()->Execute_DisplayItemDescriptionWithDurability(PC->GetInventoryHUDObject(), Item,
 		                                                               InMouseEvent.GetScreenSpacePosition().X,
-		                                                               InMouseEvent.GetScreenSpacePosition().Y);
+		                                                               InMouseEvent.GetScreenSpacePosition().Y,
+		                                                               Durability, MaxDurability);
 	}
 }
 
@@ -114,11 +115,23 @@ void UItemBaseWidget::RightClickTimerFunction()
 
 //----------------------------------------------------------------------------------------------------------------------
 
-void UItemBaseWidget::InitBareData(const UInventoryItemBase* InputItem, AActor* InputOwner, float InputTileSize)
+void UItemBaseWidget::InitBareData(const UInventoryItemBase* InputItem, AActor* InputOwner, float InputTileSize, float InputDurability)
 {
 	Item = InputItem;
 	Owner = InputOwner;
 	TileSize = InputTileSize;
+
+	// Get max durability from item if it's equipable
+	if (const UInventoryItemEquipable* EquipableItem = Cast<UInventoryItemEquipable>(InputItem))
+	{
+		MaxDurability = FMath::Max(1.0f, EquipableItem->TotalDurability);
+	}
+	else
+	{
+		MaxDurability = 100.0f; // Default for non-equipable items
+	}
+
+	Durability = FMath::Clamp(InputDurability, 0.0f, MaxDurability);
 }
 
 //----------------------------------------------------------------------------------------------------------------------

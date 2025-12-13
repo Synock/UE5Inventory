@@ -1,4 +1,4 @@
-﻿// Copyright 2022 Maximilien (Synock) Guislain
+﻿
 
 #include "Interfaces/InventoryPlayerInterface.h"
 
@@ -181,6 +181,19 @@ void IInventoryPlayerInterface::PlayerAddItem(int32 InTopLeft, EBagSlot InSlot, 
 		GetBankComponent()->AddItem(InItemId, InTopLeft);
 	else
 		GetInventoryComponent()->AddItemAt(InSlot, InItemId, InTopLeft);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryPlayerInterface::PlayerAddItemWithDurability(int32 InTopLeft, EBagSlot InSlot, int32 InItemId, float Durability)
+{
+	if (!GetInventoryOwningActor()->HasAuthority())
+		return;
+
+	if (InSlot == EBagSlot::BankPool)
+		GetBankComponent()->AddItem(InItemId, InTopLeft, Durability);
+	else
+		GetInventoryComponent()->AddItemAt(InSlot, InItemId, InTopLeft, Durability);
 }
 
 //----------------------------------------------------------------------------------------------------------------------

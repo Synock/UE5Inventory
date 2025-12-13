@@ -389,6 +389,7 @@ UEquipmentComponent::UEquipmentComponent()
 	PrimaryComponentTick.bCanEverTick = false;
 
 	Equipment.Init(nullptr, 32);
+	EquipmentDurability.Init(100.0f, 32);
 
 	PrimaryWeaponComponent = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("PrimaryWeaponComponentMesh"));
 	PrimaryWeaponComponent->SetIsReplicated(true);
@@ -616,6 +617,7 @@ void UEquipmentComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& 
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(UEquipmentComponent, Equipment);
+	DOREPLIFETIME(UEquipmentComponent, EquipmentDurability);
 	DOREPLIFETIME(UEquipmentComponent, IsHoldingATwoHandedWeapon);
 	DOREPLIFETIME(UEquipmentComponent, PrimaryWeaponComponent);
 	DOREPLIFETIME(UEquipmentComponent, SecondaryWeaponComponent);
@@ -639,9 +641,65 @@ void UEquipmentComponent::EquipItem(const UInventoryItemEquipable* Item, EEquipm
 	if (Equipment[static_cast<int>(InSlot)] == nullptr)
 	{
 		Equipment[static_cast<int>(InSlot)] = Item;
+
+		// Initialize with default durability from item definition
+		int32 SlotIndex = static_cast<int>(InSlot);
+		if (EquipmentDurability.Num() <= SlotIndex)
+		{
+			EquipmentDurability.SetNum(Equipment.Num());
+		}
+		EquipmentDurability[SlotIndex] = Item->Durability;
+
 		Equip(Item, InSlot);
 		EquipmentDispatcher_Server.Broadcast();
 		ItemEquipedDispatcher_Server.Broadcast(InSlot, Item);
+	}
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UEquipmentComponent::EquipItemWithDurability(const UInventoryItemEquipable* Item, EEquipmentSlot InSlot, float Durability)
+{
+	if (Equipment[static_cast<int>(InSlot)] == nullptr)
+	{
+		Equipment[static_cast<int>(InSlot)] = Item;
+
+		// Ensure durability array is sized correctly
+		int32 SlotIndex = static_cast<int>(InSlot);
+		if (EquipmentDurability.Num() <= SlotIndex)
+		{
+			EquipmentDurability.SetNum(Equipment.Num());
+		}
+
+		EquipmentDurability[SlotIndex] = Durability;
+
+		Equip(Item, InSlot);
+		EquipmentDispatcher_Server.Broadcast();
+		ItemEquipedDispatcher_Server.Broadcast(InSlot, Item);
+	}
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+bool UEquipmentComponent::GetEquipmentDurability(EEquipmentSlot InSlot, float& OutDurability) const
+{
+	int32 SlotIndex = static_cast<int>(InSlot);
+	if (EquipmentDurability.IsValidIndex(SlotIndex) && Equipment[SlotIndex] != nullptr)
+	{
+		OutDurability = EquipmentDurability[SlotIndex];
+		return true;
+	}
+	return false;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UEquipmentComponent::SetEquipmentDurability(EEquipmentSlot InSlot, float Durability)
+{
+	int32 SlotIndex = static_cast<int>(InSlot);
+	if (EquipmentDurability.IsValidIndex(SlotIndex))
+	{
+		EquipmentDurability[SlotIndex] = Durability;
 	}
 }
 
