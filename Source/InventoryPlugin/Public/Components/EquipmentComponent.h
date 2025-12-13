@@ -20,6 +20,9 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnItemEquiped_Server, EEquipmentSl
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnItemUnEquiped_Server, EEquipmentSlot, Slot,
                                              const UInventoryItemEquipable*, Item);
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnEquipmentDurabilityChanged_Server, EEquipmentSlot, Slot,
+                                             float, NewDurability);
+
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class INVENTORYPLUGIN_API UEquipmentComponent : public UActorComponent
 {
@@ -43,7 +46,7 @@ protected:
 	TArray<const UInventoryItemEquipable*> Equipment;
 
 	// Durability tracking for equipped items (current condition only)
-	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Inventory|Equipment|Durability")
+	UPROPERTY(ReplicatedUsing = OnRep_EquipmentDurability, BlueprintReadOnly, Category = "Inventory|Equipment|Durability")
 	TArray<float> EquipmentDurability;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Light")
@@ -198,6 +201,12 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Inventory|Equipment")
 	FOnItemUnEquiped_Server ItemUnEquipedDispatcher_Server;
 
+	UPROPERTY(BlueprintAssignable, Category = "Inventory|Equipment")
+	FOnEquipmentDurabilityChanged_Server EquipmentDurabilityChangedDispatcher_Server;
+
+	UFUNCTION()
+	void OnRep_EquipmentDurability();
+
 	UFUNCTION(NetMulticast, reliable)
 	void UpdateEquipment(USkeletalMeshComponent* SkeletalSocket, USkeletalMesh* LocalItem, const TArray<FMaterialOverride>& MaterialOverride);
 
@@ -230,6 +239,16 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Equipment")
 	void SetEquipmentDurability(EEquipmentSlot InSlot, float Durability);
+
+	/**
+	 * Reduce equipment durability based on damage mitigated by armor
+	 * @param InSlot The equipment slot of the weapon
+	 * @param MitigatedBluntDamage Blunt damage mitigated by armor (relative loss = 0.25)
+	 * @param MitigatedSlashDamage Slash damage mitigated by armor (relative loss = 1.0)
+	 * @param MitigatedPierceDamage Pierce damage mitigated by armor (relative loss = 1.5)
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Equipment")
+	void ReduceEquipmentDurability(EEquipmentSlot InSlot, float MitigatedBluntDamage, float MitigatedSlashDamage, float MitigatedPierceDamage);
 
 	/**
 	 *

@@ -35,7 +35,23 @@ void UCoinComponent::OnRep_PurseData()
 
 void UCoinComponent::EditCoinContent(int32 InputCP, int32 InputSP, int32 InputGP, int32 InputPP)
 {
-	PurseContent += {InputCP, InputSP, InputGP, InputPP};
+	if (GetOwnerRole() != ROLE_Authority)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Client attempted to edit purse directly - blocked"));
+		return;
+	}
+
+	const int64 NewCP = static_cast<int64>(PurseContent.CopperPieces) + InputCP;
+	const int64 NewSP = static_cast<int64>(PurseContent.SilverPieces) + InputSP;
+	const int64 NewGP = static_cast<int64>(PurseContent.GoldPieces) + InputGP;
+	const int64 NewPP = static_cast<int64>(PurseContent.PlatinumPieces) + InputPP;
+
+	// Clamp to valid range [0, INT32_MAX] to prevent underflow/overflow exploits
+	PurseContent.CopperPieces = FMath::Clamp(NewCP, 0LL, static_cast<int64>(INT32_MAX));
+	PurseContent.SilverPieces = FMath::Clamp(NewSP, 0LL, static_cast<int64>(INT32_MAX));
+	PurseContent.GoldPieces = FMath::Clamp(NewGP, 0LL, static_cast<int64>(INT32_MAX));
+	PurseContent.PlatinumPieces = FMath::Clamp(NewPP, 0LL, static_cast<int64>(INT32_MAX));
+
 	PurseDispatcher_Server.Broadcast();
 }
 
@@ -101,7 +117,31 @@ void UCoinComponent::AddCoins(const FCoinValue& CoinValue)
 
 void UCoinComponent::LootPurse(UCoinComponent* OtherPurse)
 {
-	EditCoinContent(OtherPurse->GetCP(), OtherPurse->GetSP(), OtherPurse->GetGP(), OtherPurse->GetPP());
+
+	if (GetOwnerRole() != ROLE_Authority)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Client attempted to loot purse - blocked"));
+		return;
+	}
+
+	// Validate other purse exists and is not self
+	if (!OtherPurse || OtherPurse == this)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Invalid purse loot attempt"));
+		return;
+	}
+
+	AActor* OtherOwner = OtherPurse->GetOwner();
+	if (!OtherOwner)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Other purse has no owner"));
+		return;
+	}
+
+	// TODO: Add lootability check via ILootableInterface when available
+	// For now, we assume the GameMode has already validated loot rights
+
+	AddCoins(OtherPurse->GetPurseContent());
 	OtherPurse->ClearPurse();
 }
 

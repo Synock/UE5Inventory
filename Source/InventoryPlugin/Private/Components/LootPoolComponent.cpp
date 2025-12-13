@@ -117,6 +117,13 @@ void ULootPoolComponent::OnRep_LootPool()
 
 void ULootPoolComponent::AddItem_Implementation(int32 ItemID, int32 TopLeftIndex)
 {
+
+	if (!GetOwner() || !GetOwner()->HasAuthority())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("AddItem called without authority"));
+		return;
+	}
+
 	Items.Add({ItemID, TopLeftIndex});
 }
 
@@ -167,6 +174,13 @@ bool ULootPoolComponent::AddItemSomewhere(int32 ItemID)
 
 void ULootPoolComponent::RemoveItem_Implementation(int32 TopLeftIndex)
 {
+
+	if (!GetOwner() || !GetOwner()->HasAuthority())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("RemoveItem called without authority"));
+		return;
+	}
+
 	auto& Bag = Items;
 	int32 ID = 0;
 	for (const auto& Item : Bag)

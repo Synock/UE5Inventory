@@ -24,10 +24,17 @@ FCoinValue::FCoinValue(float ValueAsFloat)
 
 FCoinValue& FCoinValue::operator+=(const FCoinValue& OtherCoinValue)
 {
-	CopperPieces += OtherCoinValue.CopperPieces;
-	SilverPieces += OtherCoinValue.SilverPieces;
-	GoldPieces += OtherCoinValue.GoldPieces;
-	PlatinumPieces += OtherCoinValue.PlatinumPieces;
+
+	const int64 NewCP = static_cast<int64>(CopperPieces) + OtherCoinValue.CopperPieces;
+	const int64 NewSP = static_cast<int64>(SilverPieces) + OtherCoinValue.SilverPieces;
+	const int64 NewGP = static_cast<int64>(GoldPieces) + OtherCoinValue.GoldPieces;
+	const int64 NewPP = static_cast<int64>(PlatinumPieces) + OtherCoinValue.PlatinumPieces;
+
+	CopperPieces = FMath::Clamp(NewCP, 0LL, static_cast<int64>(INT32_MAX));
+	SilverPieces = FMath::Clamp(NewSP, 0LL, static_cast<int64>(INT32_MAX));
+	GoldPieces = FMath::Clamp(NewGP, 0LL, static_cast<int64>(INT32_MAX));
+	PlatinumPieces = FMath::Clamp(NewPP, 0LL, static_cast<int64>(INT32_MAX));
+
 	return *this;
 }
 

@@ -149,6 +149,9 @@ void UEquipmentSlotWidget::InnerRefresh()
 
 		UGenericSlotWidget::InnerRefresh();
 
+		// Update tooltip to show item name or clear it
+		UpdateTooltip();
+
 		if (Equipment && Equipment->MultiSlotItem && ParentComponent)
 		{
 			for (int32 i = static_cast<int32>(EEquipmentSlot::Unknown); i < static_cast<int32>(EEquipmentSlot::Last); ++
@@ -203,6 +206,9 @@ void UEquipmentSlotWidget::HideItem()
 	Item = nullptr;
 
 	UGenericSlotWidget::InnerRefresh();
+
+	// Clear tooltip when item is removed
+	UpdateTooltip();
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -324,5 +330,21 @@ void UEquipmentSlotWidget::UpdateTextSlots()
 	{
 		TextSlot1->SetText(FText::FromString(SlotName));
 		TextSlot2->SetVisibility(ESlateVisibility::Collapsed);
+	}
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UEquipmentSlotWidget::UpdateTooltip()
+{
+	if (Item && !Item->Name.IsEmpty())
+	{
+		// Set tooltip to item name when equipped
+		SetToolTipText(FText::FromString(Item->Name));
+	}
+	else
+	{
+		// Clear tooltip when no item equipped
+		SetToolTipText(FText::GetEmpty());
 	}
 }

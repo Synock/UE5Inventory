@@ -29,6 +29,12 @@ void UMerchantComponent::OnRep_DynamicPool()
 
 void UMerchantComponent::RemoveItemID_Implementation(int32 ItemID)
 {
+	if (!GetOwner() || !GetOwner()->HasAuthority())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("RemoveItemID called without authority"));
+		return;
+	}
+
 	//This method is retarded, please find something else T___T
 
 	UE_LOG(LogTemp, Log, TEXT("Removing Item %d "), ItemID);
@@ -129,6 +135,13 @@ void UMerchantComponent::InitStatic_Implementation(const TArray<int32>& Merchant
 
 void UMerchantComponent::AddItem_Implementation(int32 ItemID)
 {
+
+	if (!GetOwner() || !GetOwner()->HasAuthority())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("AddItem called without authority"));
+		return;
+	}
+
 	// Somehow i will find a less retarded way to do that
 
 	for (const auto& StaticItem : StaticMerchantPool)

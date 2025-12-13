@@ -284,6 +284,7 @@ void UEquipmentComponent::Unsheath(EEquipmentSlot SlotToUnsheath)
 			{
 				LiveSocket = EEquipmentSocket::Primary;
 			}
+			break;
 		}
 	case EEquipmentSocket::RangedSheath:
 		{
@@ -332,9 +333,17 @@ void UEquipmentComponent::Sheath()
 	{
 		USkeletalMeshComponent* ReturnSocket = GetSkeletalMeshComponentFromSocket(PrimaryWeaponOriginalSlot);
 
-		if (!ReturnSocket || ReturnSocket->GetSkeletalMeshAsset())
+
+		if (!ReturnSocket)
 		{
+			UE_LOG(LogTemp, Error, TEXT("Invalid return socket for primary weapon sheathing"));
 			return;
+		}
+
+		// If sheath already has mesh, log warning but continue (overwrite)
+		if (ReturnSocket->GetSkeletalMeshAsset())
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Primary sheath socket already occupied, overwriting"));
 		}
 
 		USkeletalMesh* MeshPointer = PrimaryWeaponComponent->GetSkeletalMeshAsset();
@@ -346,9 +355,17 @@ void UEquipmentComponent::Sheath()
 	{
 		USkeletalMeshComponent* ReturnSocket = GetSkeletalMeshComponentFromSocket(SecondaryWeaponOriginalSlot);
 
-		if (!ReturnSocket || ReturnSocket->GetSkeletalMeshAsset())
+
+		if (!ReturnSocket)
 		{
+			UE_LOG(LogTemp, Error, TEXT("Invalid return socket for secondary weapon sheathing"));
 			return;
+		}
+
+		// If sheath already has mesh, log warning but continue (overwrite)
+		if (ReturnSocket->GetSkeletalMeshAsset())
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Secondary sheath socket already occupied, overwriting"));
 		}
 
 		USkeletalMesh* MeshPointer = SecondaryWeaponComponent->GetSkeletalMeshAsset();
@@ -636,6 +653,14 @@ void UEquipmentComponent::OnRep_ItemList()
 
 //----------------------------------------------------------------------------------------------------------------------
 
+void UEquipmentComponent::OnRep_EquipmentDurability()
+{
+	// Broadcast to notify UI widgets that durability has changed
+	EquipmentDispatcher.Broadcast();
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 void UEquipmentComponent::EquipItem(const UInventoryItemEquipable* Item, EEquipmentSlot InSlot)
 {
 	if (Equipment[static_cast<int>(InSlot)] == nullptr)
@@ -700,6 +725,40 @@ void UEquipmentComponent::SetEquipmentDurability(EEquipmentSlot InSlot, float Du
 	if (EquipmentDurability.IsValidIndex(SlotIndex))
 	{
 		EquipmentDurability[SlotIndex] = Durability;
+	}
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UEquipmentComponent::ReduceEquipmentDurability(EEquipmentSlot InSlot, float MitigatedBluntDamage,
+	float MitigatedSlashDamage, float MitigatedPierceDamage)
+{
+	int32 SlotIndex = static_cast<int>(InSlot);
+	if (!EquipmentDurability.IsValidIndex(SlotIndex) || Equipment[SlotIndex] == nullptr)
+	{
+		return;
+	}
+
+	const UInventoryItemEquipable* Item = Equipment[SlotIndex];
+	if (!Item)
+	{
+		return;
+	}
+
+	// Calculate durability loss based on mitigated damage and damage type multipliers
+	// Blunt: 0.25, Slash: 1.0, Pierce: 1.5
+	const float DurabilityModifier = (Item->DurabilityModifier != 0.0f) ? Item->DurabilityModifier : 1.0f;
+	const float DurabilityLoss = ((MitigatedBluntDamage * 0.25f) +
+	                              (MitigatedSlashDamage * 1.0f) +
+	                              (MitigatedPierceDamage * 1.5f)) / DurabilityModifier;
+
+	if (DurabilityLoss > 0.0f)
+	{
+		float CurrentDurability = EquipmentDurability[SlotIndex];
+		CurrentDurability = FMath::Max(0.0f, CurrentDurability - DurabilityLoss);
+		EquipmentDurability[SlotIndex] = CurrentDurability;
+
+		// Durability is saved in batch on logout/zone change, not on every change
 	}
 }
 
@@ -973,10 +1032,7 @@ void UEquipmentComponent::UpdateBagUsage(EBagSlot BagSlot, float BagUsage)
 			const UInventoryItemEquipable* Bag = GetItemAtSlot(EEquipmentSlot::Ammo);
 
 			if (!Bag)
-			{
-				UE_LOG(LogTemp, Warning, TEXT("No bag within %d"), BagSlot);
 				return;
-			}
 
 			const IInventoryItemAmmoBagInterface* QuiverInterface = Cast<IInventoryItemAmmoBagInterface>(Bag);
 			if (!QuiverInterface)

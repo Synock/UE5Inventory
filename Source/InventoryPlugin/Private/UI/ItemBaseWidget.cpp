@@ -30,6 +30,10 @@ FReply UItemBaseWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, con
 {
 	ClickEvent = InMouseEvent;
 
+	const FString ButtonName = UKismetInputLibrary::PointerEvent_GetEffectingButton(InMouseEvent).ToString();
+	UE_LOG(LogTemp, Verbose, TEXT("NativeOnMouseButtonDown: Button=%s, Widget=%s, Item=%s"),
+	       *ButtonName, *GetName(), Item ? *Item->Name : TEXT("None"));
+
 	if (UKismetInputLibrary::PointerEvent_GetEffectingButton(InMouseEvent) != FKey("RightMouseButton"))
 	{
 		LeftClickEffect();
@@ -38,6 +42,7 @@ FReply UItemBaseWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, con
 	}
 
 	IsRightClicking = true;
+	UE_LOG(LogTemp, Log, TEXT("Right-click started on widget %s, starting timer..."), *GetName());
 
 	GetWorld()->GetTimerManager().SetTimer(RightClickTimerHandle, this, &UItemBaseWidget::RightClickTimerFunction,
 	                                       RightClickMaxDuration,
@@ -51,7 +56,9 @@ FReply UItemBaseWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, con
 void UItemBaseWidget::DisplayDescription(const FPointerEvent& InMouseEvent)
 {
 	if (!Item)
+	{
 		return;
+	}
 
 	if (IInventoryPlayerInterface* PC = Cast<IInventoryPlayerInterface>(GetOwningPlayer()))
 	{
@@ -109,6 +116,7 @@ void UItemBaseWidget::UpdateItemImage()
 void UItemBaseWidget::RightClickTimerFunction()
 {
 	IsRightClicking = false;
+	UE_LOG(LogTemp, Log, TEXT("Right-click timer completed on widget %s, displaying description..."), *GetName());
 	//RightClickLongEffect();
 	DisplayDescription(ClickEvent);
 }

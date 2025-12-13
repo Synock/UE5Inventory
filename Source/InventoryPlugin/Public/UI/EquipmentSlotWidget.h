@@ -72,6 +72,9 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void UpdateTextSlots();
 
+	UFUNCTION(BlueprintCallable)
+	void UpdateTooltip();
+
 	[[nodiscard]] EEquipmentSlot GetSlotID() const
 	{
 		return SlotID;
