@@ -1,11 +1,33 @@
-// Copyright 2022 Maximilien (Synock) Guislain
-
-
 #include "UI/Merchant/MerchantSellWidget.h"
+#include "UI/Merchant/CoinDisplayWidget.h"
 #include "InventoryUtilities.h"
 #include "Interfaces/InventoryPlayerInterface.h"
 #include "Components/MerchantComponent.h"
 #include "Items/InventoryItemBase.h"
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UMerchantSellWidget::OnBuySellButtonClicked()
+{
+	// Route to correct handler based on merchant mode
+	if (MerchantMode == EMerchantWindowMode::Sell)
+	{
+		// Merchant is selling to player (player buying from merchant)
+		HandleBuyClick();
+	}
+	else if (MerchantMode == EMerchantWindowMode::Buy)
+	{
+		// Merchant is buying from player (player selling to merchant)
+		HandleSellClick();
+	}
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UMerchantSellWidget::OnDoneButtonClicked()
+{
+	StopTrading();
+}
 
 //----------------------------------------------------------------------------------------------------------------------
 
@@ -79,7 +101,10 @@ void UMerchantSellWidget::HandleBuyClick()
 
 	PC->PlayerBuyFromMerchant(SelectedItemId, TransactionValue);
 
-	BuySellButtonPointer->SetIsEnabled(false);
+	if (BuySellButton)
+	{
+		BuySellButton->SetIsEnabled(false);
+	}
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -107,14 +132,17 @@ void UMerchantSellWidget::HandleSellClick()
 
 	UpdateItemPreview();
 
-	BuySellButtonPointer->SetIsEnabled(false);
+	if (BuySellButton)
+	{
+		BuySellButton->SetIsEnabled(false);
+	}
 }
 
 //----------------------------------------------------------------------------------------------------------------------
 
 void UMerchantSellWidget::UpdateItemPreview()
 {
-	if (!ImageIconPreviewPointer)
+	if (!ItemIconPreview)
 		return;
 
 	if (SelectedItemId <= 0)
@@ -125,35 +153,73 @@ void UMerchantSellWidget::UpdateItemPreview()
 
 	const UInventoryItemBase* LocalBareItem = UInventoryUtilities::GetItemFromID(SelectedItemId, GetWorld());
 
-	UTexture2D* Image = LocalBareItem->Icon;
-
-	if (Image)
+	if (!LocalBareItem)
 	{
-		ImageIconPreviewPointer->SetBrushFromTexture(Image);
-		ImageIconPreviewPointer->SetVisibility(ESlateVisibility::Visible);
+		HideItemPreview();
+		return;
 	}
 
+	// Update icon
+	if (UTexture2D* Image = LocalBareItem->Icon)
+	{
+		ItemIconPreview->SetBrushFromTexture(Image);
+		ItemIconPreview->SetVisibility(ESlateVisibility::Visible);
+	}
 
-	CurrentItemNamePointer->SetText(FText::FromString(LocalBareItem->Name));
-	CurrentItemNamePointer->SetVisibility(ESlateVisibility::Visible);
+	// Update name
+	if (ItemName)
+	{
+		ItemName->SetText(FText::FromString(LocalBareItem->Name));
+		ItemName->SetVisibility(ESlateVisibility::Visible);
+	}
 
+	// Update price
 	UpdatePricePreview();
 
-	BuySellButtonPointer->SetIsEnabled(!IsWorthless());
+	// Update button
+	if (BuySellButton)
+	{
+		BuySellButton->SetIsEnabled(!IsWorthless());
+	}
 
-	BuySellButtonTextPointer->SetText(MerchantMode != EMerchantWindowMode::Buy
-		                                  ? FText::FromString("Buy")
-		                                  : FText::FromString("Sell"));
+	if (BuySellButtonText)
+	{
+		BuySellButtonText->SetText(MerchantMode != EMerchantWindowMode::Buy
+			                           ? FText::FromString("Buy")
+			                           : FText::FromString("Sell"));
+	}
 }
 
 //----------------------------------------------------------------------------------------------------------------------
 
 void UMerchantSellWidget::HideItemPreview()
 {
-	ImageIconPreviewPointer->SetVisibility(ESlateVisibility::Hidden);
-	CurrentItemNamePointer->SetVisibility(ESlateVisibility::Hidden);
-	CurrentItemPricePointer->SetVisibility(ESlateVisibility::Hidden);
-	BuySellButtonPointer->SetIsEnabled(false);
+	if (ItemIconPreview)
+	{
+		ItemIconPreview->SetVisibility(ESlateVisibility::Hidden);
+	}
+
+	if (ItemName)
+	{
+		ItemName->SetVisibility(ESlateVisibility::Hidden);
+	}
+
+	// Hide text-based price if present
+	if (ItemPriceText)
+	{
+		ItemPriceText->SetVisibility(ESlateVisibility::Hidden);
+	}
+
+	// Hide coin display widget if present
+	if (ItemPrice)
+	{
+		ItemPrice->SetVisibility(ESlateVisibility::Hidden);
+	}
+
+	if (BuySellButton)
+	{
+		BuySellButton->SetIsEnabled(false);
+	}
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -161,32 +227,26 @@ void UMerchantSellWidget::HideItemPreview()
 void UMerchantSellWidget::UpdatePricePreview()
 {
 	const FCoinValue CurrentValue = GetSelectedItemPrice();
-	const FString PriceString = FString::FormatAsNumber(CurrentValue.PlatinumPieces) + "p" +
-		FString::FormatAsNumber(CurrentValue.GoldPieces) + "g" +
-		FString::FormatAsNumber(CurrentValue.SilverPieces) + "s" +
-		FString::FormatAsNumber(CurrentValue.CopperPieces) + "c";
 
-	CurrentItemPricePointer->SetText(FText::FromString(PriceString));
-	CurrentItemPricePointer->SetVisibility(ESlateVisibility::Visible);
+	// Prefer CoinDisplayWidget if available
+	if (ItemPrice)
+	{
+		ItemPrice->SetCoinValue(CurrentValue);
+		ItemPrice->SetVisibility(ESlateVisibility::Visible);
+	}
+	// Fall back to TextBlock display
+	else if (ItemPriceText)
+	{
+		const FString PriceString = FString::FormatAsNumber(CurrentValue.PlatinumPieces) + "p " +
+			FString::FormatAsNumber(CurrentValue.GoldPieces) + "g " +
+			FString::FormatAsNumber(CurrentValue.SilverPieces) + "s " +
+			FString::FormatAsNumber(CurrentValue.CopperPieces) + "c";
+
+		ItemPriceText->SetText(FText::FromString(PriceString));
+		ItemPriceText->SetVisibility(ESlateVisibility::Visible);
+	}
 }
 
-
-//----------------------------------------------------------------------------------------------------------------------
-
-void UMerchantSellWidget::InitUIInternal(UButton* BuySellButton, UImage* ImageIconPreview, UTextBlock* CurrentItemName,
-                                         UTextBlock* BuySellButtonText, UTextBlock* CurrentItemPrice,
-                                         UMerchantItemListWidget* ItemListWidget,
-                                         UPurseWidget* MerchantPurseWidget, UTextBlock* MerchantNameText)
-{
-	BuySellButtonPointer = BuySellButton;
-	ImageIconPreviewPointer = ImageIconPreview;
-	CurrentItemNamePointer = CurrentItemName;
-	BuySellButtonTextPointer = BuySellButtonText;
-	CurrentItemPricePointer = CurrentItemPrice;
-	ListWidgetPointer = ItemListWidget;
-	MerchantPursePointer = MerchantPurseWidget;
-	MerchantNameTextPointer = MerchantNameText;
-}
 
 //----------------------------------------------------------------------------------------------------------------------
 
@@ -286,11 +346,36 @@ void UMerchantSellWidget::InitMerchantData(AActor* InputMerchantActor)
 			MerchantActor.SetObject(InputMerchantActor);
 			MerchantActor.SetInterface(Cast<IMerchantInterface>(InputMerchantActor));
 
-			MerchantPursePointer->InitWidget(MerchantActor->GetCoinComponent());
+			if (MerchantPurse)
+			{
+				MerchantPurse->InitWidget(MerchantActor->GetCoinComponent());
+			}
+
 			MerchantActor->GetMerchantDispatcher().AddDynamic(this, &UMerchantSellWidget::Refresh);
 			MerchantActor->GetCoinComponent()->PurseDispatcher.AddDynamic(this, &UMerchantSellWidget::Refresh);
 
-			MerchantNameTextPointer->SetText(FText::FromString(MerchantActor->GetMerchantName()));
+			// Bind to item list selection changes
+			if (ItemList)
+			{
+				ItemList->SelectionChangedDelegate.AddDynamic(this, &UMerchantSellWidget::OnItemListSelectionChanged);
+			}
+
+			// Bind BuySellButton click event
+			if (BuySellButton)
+			{
+				BuySellButton->OnClicked.AddDynamic(this, &UMerchantSellWidget::OnBuySellButtonClicked);
+			}
+
+			// Bind DoneButton click event (optional)
+			if (DoneButton)
+			{
+				DoneButton->OnClicked.AddDynamic(this, &UMerchantSellWidget::OnDoneButtonClicked);
+			}
+
+			if (MerchantNameText)
+			{
+				MerchantNameText->SetText(FText::FromString(MerchantActor->GetMerchantName()));
+			}
 
 			Refresh();
 		}
@@ -307,19 +392,47 @@ void UMerchantSellWidget::DeInitMerchantData()
 		MerchantActor->GetCoinComponent()->PurseDispatcher.Clear();
 		MerchantActor = nullptr;
 	}
+
+	// Unbind from item list selection changes
+	if (ItemList)
+	{
+		ItemList->SelectionChangedDelegate.RemoveAll(this);
+	}
+
+	// Unbind button click events
+	if (BuySellButton)
+	{
+		BuySellButton->OnClicked.RemoveAll(this);
+	}
+
+	if (DoneButton)
+	{
+		DoneButton->OnClicked.RemoveAll(this);
+	}
 }
 
 //----------------------------------------------------------------------------------------------------------------------
 
 void UMerchantSellWidget::Refresh()
 {
-	MerchantPursePointer->Refresh();
-	ListWidgetPointer->ClearList();
-	InitListFromStatic(ListWidgetPointer);
-	InitListFromDynamic(ListWidgetPointer);
-	if(MerchantCanSell(SelectedItemId))
+	if (MerchantPurse)
 	{
-		BuySellButtonPointer->SetIsEnabled(true);
+		MerchantPurse->Refresh();
+	}
+
+	if (ItemList)
+	{
+		ItemList->ClearList();
+		InitListFromStatic(ItemList);
+		InitListFromDynamic(ItemList);
+	}
+
+	if (MerchantCanSell(SelectedItemId))
+	{
+		if (BuySellButton)
+		{
+			BuySellButton->SetIsEnabled(true);
+		}
 	}
 	else
 	{
@@ -345,7 +458,29 @@ void UMerchantSellWidget::AssignSellData(int32 ItemID, int32 TopLeft, EBagSlot O
 	MerchantMode = EMerchantWindowMode::Buy;
 
 	UpdateItemPreview();
-	ListWidgetPointer->ClearSelection();
+
+	if (ItemList)
+	{
+		ItemList->ClearSelection();
+	}
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UMerchantSellWidget::OnItemListSelectionChanged(int32 ItemID)
+{
+	// Reset buy-specific data
+	MerchantBuyOriginSlot = EBagSlot::Unknown;
+	MerchantBuyOriginTopLeft = -1;
+
+	// Update selected item
+	SelectedItemId = ItemID;
+
+	// Set mode to Sell (player buying from merchant)
+	MerchantMode = EMerchantWindowMode::Sell;
+
+	// Update the item preview
+	UpdateItemPreview();
 }
 
 //----------------------------------------------------------------------------------------------------------------------
