@@ -23,6 +23,9 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnItemUnEquiped_Server, EEquipment
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnEquipmentDurabilityChanged_Server, EEquipmentSlot, Slot,
                                              float, NewDurability);
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnEquipmentDurabilityWarning, EEquipmentSlot, Slot,
+                                               float, DurabilityPercent, const UInventoryItemEquipable*, Item);
+
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class INVENTORYPLUGIN_API UEquipmentComponent : public UActorComponent
 {
@@ -204,6 +207,9 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Inventory|Equipment")
 	FOnEquipmentDurabilityChanged_Server EquipmentDurabilityChangedDispatcher_Server;
 
+	UPROPERTY(BlueprintAssignable, Category = "Inventory|Equipment")
+	FOnEquipmentDurabilityWarning DurabilityWarningDispatcher;
+
 	UFUNCTION()
 	void OnRep_EquipmentDurability();
 
@@ -241,14 +247,12 @@ public:
 	void SetEquipmentDurability(EEquipmentSlot InSlot, float Durability);
 
 	/**
-	 * Reduce equipment durability based on damage mitigated by armor
-	 * @param InSlot The equipment slot of the weapon
-	 * @param MitigatedBluntDamage Blunt damage mitigated by armor (relative loss = 0.25)
-	 * @param MitigatedSlashDamage Slash damage mitigated by armor (relative loss = 1.0)
-	 * @param MitigatedPierceDamage Pierce damage mitigated by armor (relative loss = 1.5)
+	 * Reduce equipment durability for a specific slot
+	 * @param InSlot The equipment slot to reduce durability for
+	 * @param DurabilityReduction Amount of durability to reduce (already calculated with modifiers)
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Equipment")
-	void ReduceEquipmentDurability(EEquipmentSlot InSlot, float MitigatedBluntDamage, float MitigatedSlashDamage, float MitigatedPierceDamage);
+	void ReduceEquipmentDurability(EEquipmentSlot InSlot, float DurabilityReduction);
 
 	/**
 	 *

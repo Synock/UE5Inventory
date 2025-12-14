@@ -730,8 +730,7 @@ void UEquipmentComponent::SetEquipmentDurability(EEquipmentSlot InSlot, float Du
 
 //----------------------------------------------------------------------------------------------------------------------
 
-void UEquipmentComponent::ReduceEquipmentDurability(EEquipmentSlot InSlot, float MitigatedBluntDamage,
-	float MitigatedSlashDamage, float MitigatedPierceDamage)
+void UEquipmentComponent::ReduceEquipmentDurability(EEquipmentSlot InSlot, float DurabilityReduction)
 {
 	int32 SlotIndex = static_cast<int>(InSlot);
 	if (!EquipmentDurability.IsValidIndex(SlotIndex) || Equipment[SlotIndex] == nullptr)
@@ -739,26 +738,40 @@ void UEquipmentComponent::ReduceEquipmentDurability(EEquipmentSlot InSlot, float
 		return;
 	}
 
-	const UInventoryItemEquipable* Item = Equipment[SlotIndex];
-	if (!Item)
+	if (DurabilityReduction > 0.0f)
 	{
-		return;
-	}
+		const UInventoryItemEquipable* Item = Equipment[SlotIndex];
+		if (!Item || Item->TotalDurability <= 0.0f)
+		{
+			return;
+		}
 
-	// Calculate durability loss based on mitigated damage and damage type multipliers
-	// Blunt: 0.25, Slash: 1.0, Pierce: 1.5
-	const float DurabilityModifier = (Item->DurabilityModifier != 0.0f) ? Item->DurabilityModifier : 1.0f;
-	const float DurabilityLoss = ((MitigatedBluntDamage * 0.25f) +
-	                              (MitigatedSlashDamage * 1.0f) +
-	                              (MitigatedPierceDamage * 1.5f)) / DurabilityModifier;
+		float OldDurability = EquipmentDurability[SlotIndex];
+		float NewDurability = FMath::Max(0.0f, OldDurability - DurabilityReduction);
+		EquipmentDurability[SlotIndex] = NewDurability;
 
-	if (DurabilityLoss > 0.0f)
-	{
-		float CurrentDurability = EquipmentDurability[SlotIndex];
-		CurrentDurability = FMath::Max(0.0f, CurrentDurability - DurabilityLoss);
-		EquipmentDurability[SlotIndex] = CurrentDurability;
+		// Calculate durability percentages
+		float OldPercent = (OldDurability / Item->TotalDurability) * 100.0f;
+		float NewPercent = (NewDurability / Item->TotalDurability) * 100.0f;
 
-		// Durability is saved in batch on logout/zone change, not on every change
+		// Check for threshold crossings and broadcast warnings
+		// Thresholds: 50%, 25%, 10%, 0%
+		if (OldPercent > 50.0f && NewPercent <= 50.0f)
+		{
+			DurabilityWarningDispatcher.Broadcast(InSlot, NewPercent, Item);
+		}
+		else if (OldPercent > 25.0f && NewPercent <= 25.0f)
+		{
+			DurabilityWarningDispatcher.Broadcast(InSlot, NewPercent, Item);
+		}
+		else if (OldPercent > 10.0f && NewPercent <= 10.0f)
+		{
+			DurabilityWarningDispatcher.Broadcast(InSlot, NewPercent, Item);
+		}
+		else if (OldPercent > 0.0f && NewPercent <= 0.0f)
+		{
+			DurabilityWarningDispatcher.Broadcast(InSlot, NewPercent, Item);
+		}
 	}
 }
 

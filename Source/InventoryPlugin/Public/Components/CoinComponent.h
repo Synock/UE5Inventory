@@ -45,6 +45,17 @@ public:
 	void OnRep_PurseData();
 
 	/**
+	 * @brief Get the current coin value in the purse.
+	 *
+	 * This function returns a constant reference to the FCoinValue object representing
+	 * the current coin value in the purse.
+	 *
+	 * @return A constant reference to the FCoinValue object representing the purse content.
+	 */
+	UFUNCTION(BlueprintCallable, Category="Inventory|Purse")
+	const FCoinValue& GetCoinValue() const { return PurseContent; }
+
+	/**
 	 * @brief PurseDispatcher Variable
 	 *
 	 * @details This variable is a BlueprintAssignable property that belongs to the Inventory|Purse category.

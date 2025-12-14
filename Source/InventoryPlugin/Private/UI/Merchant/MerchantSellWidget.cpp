@@ -416,9 +416,8 @@ void UMerchantSellWidget::DeInitMerchantData()
 void UMerchantSellWidget::Refresh()
 {
 	if (MerchantPurse)
-	{
 		MerchantPurse->Refresh();
-	}
+
 
 	if (ItemList)
 	{

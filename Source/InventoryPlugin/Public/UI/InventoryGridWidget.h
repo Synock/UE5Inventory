@@ -40,7 +40,7 @@ class INVENTORYPLUGIN_API UInventoryGridWidget : public UUserWidget
 
 protected:
 	UPROPERTY(BlueprintReadWrite, Category = "Inventory|UI")
-	float TileSize = 40;
+	float TileSize = 40.0f;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Inventory|UI")
 	TArray<FInventoryLine> Lines;
@@ -49,7 +49,7 @@ protected:
 	bool DrawDropLocation = false;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Inventory|UI")
-	int32 DraggedItemTopLeftID;
+	int32 DraggedItemTopLeftID = INDEX_NONE;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Inventory|Bag")
 	EBagSlot BagID = EBagSlot::Unknown;
@@ -72,13 +72,17 @@ protected:
 
 	//Actor owning the bag
 	UPROPERTY(BlueprintReadWrite, Category = "Inventory|Data")
-	TObjectPtr<AActor> ActorOwner = GetOwningPlayerPawn();
+	TObjectPtr<AActor> ActorOwner = nullptr;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Inventory|Data")
-	TArray<UItemWidget*> ItemGrid;
+	TArray<TObjectPtr<UItemWidget>> ItemGrid;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Inventory|Data")
-	TArray<UItemWidget*> ItemList;
+	TArray<TObjectPtr<UItemWidget>> ItemList;
+
+	// Fast lookup map for item retrieval (optimization)
+	UPROPERTY(Transient)
+	TMap<int32, TObjectPtr<UItemWidget>> ItemLookupMap;
 
 	IInventoryPlayerInterface* GetInventoryPlayerInterface() const;
 
@@ -186,4 +190,12 @@ protected:
 
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Inventory|UI")
 	void FullRefresh(UCanvasPanel* GridCanvasPanel);
+
+private:
+	// Helper methods for validation and safety
+	bool IsValidGridIndex(int32 Index) const;
+	bool IsValidCoordinate(int32 X, int32 Y) const;
+	bool IsWithinGridBounds(int32 TopLeftIndex, int32 ItemWidth, int32 ItemHeight) const;
+	void ClearItemLookupMap();
+	void RebuildItemLookupMap();
 };

@@ -1,6 +1,3 @@
-// Copyright 2022 Maximilien (Synock) Guislain
-
-
 #include "Components/CoinComponent.h"
 #include <Net/UnrealNetwork.h>
 
