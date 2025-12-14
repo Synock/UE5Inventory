@@ -27,6 +27,8 @@ protected:
 	UPROPERTY(BlueprintReadWrite, Category = "Inventory|Durability")
 	float ItemMaxDurability = 100.0f;
 
+public:
+
 	UFUNCTION(BlueprintCallable)
 	bool IsLore() const;
 
@@ -96,6 +98,5 @@ protected:
 	UFUNCTION(BlueprintCallable)
 	virtual FString GetDurabilityString() const;
 
-public:
 
 };

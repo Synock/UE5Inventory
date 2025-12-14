@@ -1,15 +1,16 @@
-// Copyright 2022 Maximilien (Synock) Guislain
-
 #pragma once
 
 #include <CoreMinimal.h>
 #include <Blueprint/IUserObjectListEntry.h>
 #include <Blueprint/UserWidget.h>
 #include <UObject/Object.h>
+#include <Components/Image.h>
+#include <Components/TextBlock.h>
 
 #include "CoinValue.h"
 #include "MerchantItemWidget.generated.h"
 
+class UCoinDisplayWidget;
 
 USTRUCT(BlueprintType)
 struct FMerchantItemDataStruct
@@ -47,7 +48,9 @@ public:
 
 
 /**
+ * @class UMerchantItemWidget
  *
+ * Displays item icon, name, quantity, and price using dedicated UI elements.
  */
 UCLASS(BlueprintType)
 class INVENTORYPLUGIN_API UMerchantItemWidget : public UUserWidget, public IUserObjectListEntry
@@ -55,14 +58,53 @@ class INVENTORYPLUGIN_API UMerchantItemWidget : public UUserWidget, public IUser
 	GENERATED_BODY()
 
 protected:
-	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent)
-	void InitData(const FMerchantItemDataStruct& ItemData);
+	//------------------------------------------------------------------------------------------------------------------
+	// UI Elements (BindWidget)
+	//------------------------------------------------------------------------------------------------------------------
 
-	UPROPERTY(BlueprintReadOnly)
-	int32 ItemID;
+	/** Item icon image */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "Merchant|Item|UI")
+	UImage* ItemIcon = nullptr;
+
+	/** Item name text */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "Merchant|Item|UI")
+	UTextBlock* ItemName = nullptr;
+
+	/** Item quantity text */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "Merchant|Item|UI")
+	UTextBlock* ItemQuantity = nullptr;
+
+	/** Coin display widget for price */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "Merchant|Item|UI")
+	UCoinDisplayWidget* ItemPrice = nullptr;
+
+	//------------------------------------------------------------------------------------------------------------------
+	// Internal Data
+	//------------------------------------------------------------------------------------------------------------------
+
+	UPROPERTY(BlueprintReadOnly, Category = "Merchant|Item")
+	int32 ItemID = 0;
+
+	//------------------------------------------------------------------------------------------------------------------
+	// Internal Functions
+	//------------------------------------------------------------------------------------------------------------------
+
+	/**
+	 * @brief Update all UI elements with the provided data
+	 * @param ItemData The merchant item data to display
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Merchant|Item")
+	void UpdateDisplay(const FMerchantItemDataStruct& ItemData);
 
 	virtual FReply NativeOnMouseButtonUp(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
 
 public:
 	virtual void NativeOnListItemObjectSet(UObject* ListItemObject) override;
+
+	/**
+	 * @brief Get the current item ID
+	 * @return The item ID
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Merchant|Item")
+	int32 GetItemID() const { return ItemID; }
 };
