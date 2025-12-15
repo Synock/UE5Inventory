@@ -1,6 +1,4 @@
-﻿
-
-#include "Interfaces/InventoryPlayerInterface.h"
+﻿#include "Interfaces/InventoryPlayerInterface.h"
 
 #include "InventoryUtilities.h"
 #include "Components/BankComponent.h"
@@ -185,7 +183,8 @@ void IInventoryPlayerInterface::PlayerAddItem(int32 InTopLeft, EBagSlot InSlot, 
 
 //----------------------------------------------------------------------------------------------------------------------
 
-void IInventoryPlayerInterface::PlayerAddItemWithDurability(int32 InTopLeft, EBagSlot InSlot, int32 InItemId, float Durability)
+void IInventoryPlayerInterface::PlayerAddItemWithDurability(int32 InTopLeft, EBagSlot InSlot, int32 InItemId,
+                                                            float Durability)
 {
 	if (!GetInventoryOwningActor()->HasAuthority())
 		return;
@@ -198,15 +197,42 @@ void IInventoryPlayerInterface::PlayerAddItemWithDurability(int32 InTopLeft, EBa
 
 //----------------------------------------------------------------------------------------------------------------------
 
-void IInventoryPlayerInterface::PlayerRemoveItem(int32 TopLeft, EBagSlot Slot)
+float IInventoryPlayerInterface::PlayerRemoveItem(int32 TopLeft, EBagSlot Slot)
 {
 	if (!GetInventoryOwningActor()->HasAuthority())
-		return;
+		return 100.0f;
+
+	// Capture durability before removing
+	float Durability = 100.0f;
 
 	if (Slot == EBagSlot::BankPool)
+	{
+		const TArray<FMinimalItemStorage>& BankItems = GetBankComponent()->GetBagConst();
+		for (const FMinimalItemStorage& Item : BankItems)
+		{
+			if (Item.TopLeftID == TopLeft)
+			{
+				Durability = Item.Durability;
+				break;
+			}
+		}
 		GetBankComponent()->RemoveItem(TopLeft);
+	}
 	else
+	{
+		const TArray<FMinimalItemStorage>& BagItems = GetInventoryComponent()->GetBagConst(Slot);
+		for (const FMinimalItemStorage& Item : BagItems)
+		{
+			if (Item.TopLeftID == TopLeft)
+			{
+				Durability = Item.Durability;
+				break;
+			}
+		}
 		GetInventoryComponent()->RemoveItem(Slot, TopLeft);
+	}
+
+	return Durability;
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -225,7 +251,10 @@ void IInventoryPlayerInterface::PlayerMoveItem(int32 InTopLeft, EBagSlot InSlot,
                                                EBagSlot OutSlot)
 {
 	if (GetTransactionBoolean())
+	{
+		GetInventoryHUDInterface()->Execute_ForceRefreshInventory(GetInventoryHUDObject());
 		return;
+	}
 
 	SetTransactionBoolean(true);
 
@@ -469,6 +498,34 @@ void IInventoryPlayerInterface::StopMerchantTrade()
 
 //----------------------------------------------------------------------------------------------------------------------
 
+void IInventoryPlayerInterface::RepairTrade(AActor* InputRepairerActor)
+{
+	Server_RepairTrade(InputRepairerActor);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryPlayerInterface::StopRepairTrade()
+{
+	Server_StopRepairTrade();
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryPlayerInterface::PlayerRepairEquipment(EEquipmentSlot Slot, const FCoinValue& Price)
+{
+	Server_PlayerRepairEquipment(Slot, Price);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryPlayerInterface::PlayerRepairAllEquipment(const FCoinValue& TotalPrice)
+{
+	Server_PlayerRepairAllEquipment(TotalPrice);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 float IInventoryPlayerInterface::GetTotalWeight()
 {
 	return GetInventoryComponent()->GetTotalWeight() + GetEquipmentForInventory()->GetTotalWeight() +
@@ -561,7 +618,8 @@ bool IInventoryPlayerInterface::TryToEat()
 		const TArray<FMinimalItemStorage>& BagItems = Inventory->GetBagConst(BagSlot);
 		for (const FMinimalItemStorage& ItemStorage : BagItems)
 		{
-			const UInventoryItemBase* Item = UInventoryUtilities::GetItemFromID(ItemStorage.ItemID, GetInventoryOwningActor()->GetWorld());
+			const UInventoryItemBase* Item = UInventoryUtilities::GetItemFromID(
+				ItemStorage.ItemID, GetInventoryOwningActor()->GetWorld());
 			if (const UInventoryItemActionnable* ActionnableItem = Cast<UInventoryItemActionnable>(Item))
 			{
 				if (ActionnableItem->HungerValue > 0.f)
@@ -592,7 +650,8 @@ bool IInventoryPlayerInterface::TryToDrink()
 		const TArray<FMinimalItemStorage>& BagItems = Inventory->GetBagConst(BagSlot);
 		for (const FMinimalItemStorage& ItemStorage : BagItems)
 		{
-			const UInventoryItemBase* Item = UInventoryUtilities::GetItemFromID(ItemStorage.ItemID, GetInventoryOwningActor()->GetWorld());
+			const UInventoryItemBase* Item = UInventoryUtilities::GetItemFromID(
+				ItemStorage.ItemID, GetInventoryOwningActor()->GetWorld());
 			if (const UInventoryItemActionnable* ActionnableItem = Cast<UInventoryItemActionnable>(Item))
 			{
 				if (ActionnableItem->ThirstValue > 0.f)

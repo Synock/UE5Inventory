@@ -1,6 +1,4 @@
-﻿// Copyright 2022 Maximilien (Synock) Guislain
-
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "EquipmentInterface.h"
@@ -522,10 +520,10 @@ public:
 	 * \param TopLeft The index of the item to be removed.
 	 * \param Slot The slot from which the item is to be removed.
 	 *
-	 * \return None.
+	 * \return The durability of the removed item (100.0f if not found).
 	 */
 	UFUNCTION()
-	virtual void PlayerRemoveItem(int32 TopLeft, EBagSlot Slot);
+	virtual float PlayerRemoveItem(int32 TopLeft, EBagSlot Slot);
 
 	/**
 	 * Retrieves the item at the specified position in the player's inventory.
@@ -802,6 +800,41 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Merchant")
 	virtual void StopMerchantTrade();
 
+	//------------------------------------------------------------------------------------------------------------------
+	// Repair
+	//------------------------------------------------------------------------------------------------------------------
+
+	/**
+	 * @brief Initiates a repair interaction with a repairer NPC.
+	 *
+	 * @param InputRepairerActor The repairer NPC actor with whom the repair is being initiated.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Repair")
+	virtual void RepairTrade(AActor* InputRepairerActor);
+
+	/**
+	 * @brief Stops the repair trade interaction.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Repair")
+	virtual void StopRepairTrade();
+
+	/**
+	 * @brief Repair a specific equipment slot item.
+	 *
+	 * @param Slot The equipment slot to repair
+	 * @param Price The cost to repair the item
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Repair")
+	virtual void PlayerRepairEquipment(EEquipmentSlot Slot, const FCoinValue& Price);
+
+	/**
+	 * @brief Repair all equipped items at once.
+	 *
+	 * @param TotalPrice The total cost to repair all items
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Repair")
+	virtual void PlayerRepairAllEquipment(const FCoinValue& TotalPrice);
+
 	/**
 	 * \brief Calculate the total weight of the player's inventory.
 	 *
@@ -899,6 +932,23 @@ protected:
 	//UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory|Merchant")
 	virtual void Server_PlayerSellToMerchant(EBagSlot OutSlot, int32 ItemId, int32 TopLeft, const FCoinValue& Price) =
 	0;
+
+	//------------------------------------------------------------------------------------------------------------------
+	// Repair -- Server
+	//------------------------------------------------------------------------------------------------------------------
+	//UFUNCTION(Server, Reliable, Category = "Inventory|Repair")
+	virtual void Server_RepairTrade(AActor* InputRepairerActor) = 0;
+
+	//UFUNCTION(Server, Reliable, Category = "Inventory|Repair")
+	virtual void Server_StopRepairTrade() = 0;
+
+	//Repair specific equipment slot
+	//UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory|Repair")
+	virtual void Server_PlayerRepairEquipment(EEquipmentSlot Slot, const FCoinValue& Price) = 0;
+
+	//Repair all equipped items
+	//UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory|Repair")
+	virtual void Server_PlayerRepairAllEquipment(const FCoinValue& TotalPrice) = 0;
 
 	//UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory")
 	virtual void Server_PlayerAutoEquipItem(int32 InTopLeft, EBagSlot InSlot, int32 InItemId) = 0;

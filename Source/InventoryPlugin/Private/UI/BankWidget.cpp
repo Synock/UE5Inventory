@@ -4,6 +4,7 @@
 #include "UI/BankWidget.h"
 
 #include "Components/BankComponent.h"
+#include "Components/Button.h"
 #include "Interfaces/InventoryPlayerInterface.h"
 #include "UI/InventoryGridWidget.h"
 #include "UI/Currency/DynamicPurseWidget.h"
@@ -60,16 +61,39 @@ void UBankWidget::NativeConstruct()
 	{
 		UE_LOG(LogTemp, Error, TEXT("BankWidget::NativeConstruct - DynamicPurse is null (check BindWidget)"));
 	}
+
+	// Bind button click events (optional buttons)
+	if (ReorganiseButton)
+	{
+		ReorganiseButton->OnClicked.AddDynamic(this, &UBankWidget::OnReorganiseButtonClicked);
+	}
 }
 
 //----------------------------------------------------------------------------------------------------------------------
 
 void UBankWidget::NativeDestruct()
 {
+	// Clear any active timer
+	if (ReorganiseTimerHandle.IsValid())
+	{
+		GetWorld()->GetTimerManager().ClearTimer(ReorganiseTimerHandle);
+	}
+
 	// Clean up inventory grid
 	if (InventoryGrid)
 	{
 		InventoryGrid->DeInitData();
+	}
+
+	// Unbind button click events
+	if (ReorganiseButton)
+	{
+		ReorganiseButton->OnClicked.RemoveAll(this);
+	}
+
+	if (DoneButton)
+	{
+		DoneButton->OnClicked.RemoveAll(this);
 	}
 
 	Super::NativeDestruct();
@@ -95,3 +119,45 @@ void UBankWidget::ReorganizeContent()
 		UE_LOG(LogTemp, Warning, TEXT("BankWidget::ReorganizeContent - Failed to get InventoryPlayerInterface"));
 	}
 }
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UBankWidget::OnReorganiseButtonClicked()
+{
+	// Disable the button immediately to prevent spam clicking
+	if (ReorganiseButton)
+	{
+		ReorganiseButton->SetIsEnabled(false);
+	}
+
+	// Perform the reorganization
+	ReorganizeContent();
+
+	// Start timer to re-enable button after delay
+	if (ReorganiseDelay > 0.f)
+	{
+		GetWorld()->GetTimerManager().SetTimer(
+			ReorganiseTimerHandle,
+			this,
+			&UBankWidget::EnableReorganiseButton,
+			ReorganiseDelay,
+			false
+		);
+	}
+	else
+	{
+		// If delay is 0 or negative, re-enable immediately
+		EnableReorganiseButton();
+	}
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UBankWidget::EnableReorganiseButton()
+{
+	if (ReorganiseButton)
+	{
+		ReorganiseButton->SetIsEnabled(true);
+	}
+}
+

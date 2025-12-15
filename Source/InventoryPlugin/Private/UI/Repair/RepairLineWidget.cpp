@@ -1,0 +1,185 @@
+// Copyright 2022 Maximilien (Synock) Guislain
+
+#include "UI/Repair/RepairLineWidget.h"
+#include "UI/Merchant/CoinDisplayWidget.h"
+#include "UI/Repair/RepairWidget.h"
+#include "InventoryUtilities.h"
+#include "Interfaces/InventoryPlayerInterface.h"
+#include "Kismet/KismetInputLibrary.h"
+#include "Components/Image.h"
+#include "Components/TextBlock.h"
+#include "Components/Button.h"
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void URepairLineWidget::NativeConstruct()
+{
+	Super::NativeConstruct();
+
+	// Bind repair button click event
+	if (RepairButton)
+	{
+		RepairButton->OnClicked.AddDynamic(this, &URepairLineWidget::OnRepairButtonClicked);
+	}
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void URepairLineWidget::NativeOnListItemObjectSet(UObject* ListItemObject)
+{
+	IUserObjectListEntry::NativeOnListItemObjectSet(ListItemObject);
+
+	URepairLineData* Data = Cast<URepairLineData>(ListItemObject);
+
+	if (Data)
+	{
+		UpdateDisplay(Data->Data);
+		ItemID = Data->Data.ItemID;
+		ItemSlot = Data->Data.Slot;
+		CurrentDurability = Data->Data.CurrentDurability;
+		MaxDurability = Data->Data.MaxDurability;
+	}
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void URepairLineWidget::UpdateDisplay(const FRepairLineDataStruct& ItemData)
+{
+	// Update item icon
+	if (ItemIcon && ItemData.Icon)
+	{
+		ItemIcon->SetBrushFromTexture(ItemData.Icon);
+		ItemIcon->SetVisibility(ESlateVisibility::Visible);
+	}
+	else if (ItemIcon)
+	{
+		ItemIcon->SetVisibility(ESlateVisibility::Collapsed);
+	}
+
+	// Update item name
+	if (ItemName)
+	{
+		ItemName->SetText(FText::FromString(ItemData.ItemName));
+	}
+
+	// Update equipment slot
+	if (EquipmentSlot)
+	{
+		FString SlotDisplayName = GetEquipmentSlotDisplayName(ItemData.Slot);
+		EquipmentSlot->SetText(FText::FromString(SlotDisplayName));
+	}
+
+	// Update repair cost using CoinDisplayWidget
+	if (RepairCost)
+	{
+		RepairCost->SetCoinValue(ItemData.RepairCost);
+	}
+
+	// Update repair button state based on durability
+	if (RepairButton)
+	{
+		// Disable button if item is at full durability
+		bool bNeedsRepair = ItemData.CurrentDurability < ItemData.MaxDurability;
+		RepairButton->SetIsEnabled(bNeedsRepair);
+	}
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void URepairLineWidget::OnRepairButtonClicked()
+{
+	// Find the parent repair widget and call its repair item function
+	URepairWidget* ParentRepairWidget = nullptr;
+
+	// Try to find it in the widget hierarchy
+	UWidget* Parent = GetParent();
+	while (Parent && !ParentRepairWidget)
+	{
+		ParentRepairWidget = Cast<URepairWidget>(Parent);
+		if (!ParentRepairWidget)
+		{
+			Parent = Parent->GetParent();
+		}
+	}
+
+	if (ParentRepairWidget)
+	{
+		ParentRepairWidget->RepairItem(ItemID, ItemSlot);
+	}
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+FString URepairLineWidget::GetEquipmentSlotDisplayName(EEquipmentSlot EquipmentSlotToRetrieve) const
+{
+	// Convert enum to human-readable string
+	switch (EquipmentSlotToRetrieve)
+	{
+		case EEquipmentSlot::Primary:
+			return TEXT("Primary");
+		case EEquipmentSlot::Secondary:
+			return TEXT("Secondary");
+		case EEquipmentSlot::Range:
+			return TEXT("Range");
+		case EEquipmentSlot::Ammo:
+			return TEXT("Ammo");
+		case EEquipmentSlot::Head:
+			return TEXT("Head");
+		case EEquipmentSlot::Face:
+			return TEXT("Face");
+		case EEquipmentSlot::EarL:
+			return TEXT("Left Ear");
+		case EEquipmentSlot::EarR:
+			return TEXT("Right Ear");
+		case EEquipmentSlot::Neck:
+			return TEXT("Neck");
+		case EEquipmentSlot::Shoulders:
+			return TEXT("Shoulders");
+		case EEquipmentSlot::Back:
+			return TEXT("Back");
+		case EEquipmentSlot::Torso:
+			return TEXT("Torso");
+		case EEquipmentSlot::WristL:
+			return TEXT("Left Wrist");
+		case EEquipmentSlot::WristR:
+			return TEXT("Right Wrist");
+		case EEquipmentSlot::Hands:
+			return TEXT("Hands");
+		case EEquipmentSlot::FingerL:
+			return TEXT("Left Finger");
+		case EEquipmentSlot::FingerR:
+			return TEXT("Right Finger");
+		case EEquipmentSlot::Waist:
+			return TEXT("Waist");
+		case EEquipmentSlot::Legs:
+			return TEXT("Legs");
+		case EEquipmentSlot::Foot:
+			return TEXT("Foot");
+		case EEquipmentSlot::Arms:
+			return TEXT("Arms");
+		case EEquipmentSlot::Unknown:
+		default:
+			return TEXT("Unknown");
+	}
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+FReply URepairLineWidget::NativeOnMouseButtonUp(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
+{
+	if (UKismetInputLibrary::PointerEvent_GetEffectingButton(InMouseEvent) == FKey("RightMouseButton"))
+	{
+		if (IInventoryPlayerInterface* PC = Cast<IInventoryPlayerInterface>(GetOwningPlayer()))
+		{
+			PC->GetInventoryHUDInterface()->Execute_DisplayItemDescription(
+				PC->GetInventoryHUDObject(), UInventoryUtilities::GetItemFromID(ItemID, GetWorld()),
+				InMouseEvent.GetScreenSpacePosition().X,
+				InMouseEvent.GetScreenSpacePosition().Y);
+		}
+	}
+
+	return Super::NativeOnMouseButtonUp(InGeometry, InMouseEvent);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+

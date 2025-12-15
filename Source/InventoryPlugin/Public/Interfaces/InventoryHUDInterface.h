@@ -1,5 +1,4 @@
-﻿
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "InventoryItem.h"
@@ -234,6 +233,22 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, BlueprintCosmetic, Category = "Inventory")
 	void HideMerchantScreen();
+
+	/**
+	 * @brief Displays the repair screen for a repairer NPC.
+	 *
+	 * @param RepairerActor The repairer actor to display the screen for.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, BlueprintCosmetic, Category = "Inventory")
+	void DisplayRepairScreen(AActor* RepairerActor);
+
+	/**
+	 * @brief Hides the repair screen.
+	 *
+	 * This function is a blueprint callable and implementable event used to hide the repair screen.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, BlueprintCosmetic, Category = "Inventory")
+	void HideRepairScreen();
 
 	/**
 	 * UFUNCTION macro for the TryPresentSellItem method.

@@ -8,6 +8,7 @@
 
 class UInventoryGridWidget;
 class UDynamicPurseWidget;
+class UButton;
 
 /**
  * @class UBankWidget
@@ -34,6 +35,21 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "Inventory|Bank|UI")
 	UDynamicPurseWidget* DynamicPurse = nullptr;
 
+	/** Button to reorganize bank contents */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "Inventory|Bank|UI")
+	UButton* ReorganiseButton = nullptr;
+
+	/** Button to close the bank window */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "Inventory|Bank|UI")
+	UButton* DoneButton = nullptr;
+
+	/** Delay in seconds before reorganise button can be pressed again */
+	UPROPERTY(BlueprintReadWrite, Category = "Inventory|Bank|UI")
+	float ReorganiseDelay = 5.f;
+
+	/** Timer handle for reorganise button cooldown */
+	FTimerHandle ReorganiseTimerHandle;
+
 	//------------------------------------------------------------------------------------------------------------------
 	// Lifecycle
 	//------------------------------------------------------------------------------------------------------------------
@@ -50,6 +66,22 @@ protected:
 	 * Called automatically by UMG when the widget is destroyed
 	 */
 	virtual void NativeDestruct() override;
+
+	//------------------------------------------------------------------------------------------------------------------
+	// Button Handlers
+	//------------------------------------------------------------------------------------------------------------------
+
+	/**
+	 * @brief Handle ReorganiseButton click - calls ReorganizeContent
+	 */
+	UFUNCTION()
+	void OnReorganiseButtonClicked();
+
+	/**
+	 * @brief Re-enable the reorganise button after cooldown
+	 */
+	UFUNCTION()
+	void EnableReorganiseButton();
 
 public:
 	/**
