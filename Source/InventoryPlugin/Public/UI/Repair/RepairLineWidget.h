@@ -112,6 +112,10 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = "Repair|Line")
 	float MaxDurability = 100.0f;
 
+	/** Reference to the parent repair widget */
+	UPROPERTY(BlueprintReadOnly, Category = "Repair|Line")
+	TObjectPtr<class URepairWidget> ParentRepairWidget = nullptr;
+
 	//------------------------------------------------------------------------------------------------------------------
 	// Internal Functions
 	//------------------------------------------------------------------------------------------------------------------
@@ -140,6 +144,13 @@ protected:
 
 public:
 	virtual void NativeOnListItemObjectSet(UObject* ListItemObject) override;
+
+	/**
+	 * @brief Set the parent repair widget reference
+	 * @param InParentWidget The parent URepairWidget that owns this list
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Repair|Line")
+	void SetParentRepairWidget(URepairWidget* InParentWidget);
 
 	/**
 	 * @brief Get the current item ID

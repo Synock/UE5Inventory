@@ -522,7 +522,8 @@ void UInventoryGridWidget::DeInitData()
 	{
 		if (IInventoryPlayerInterface* PC = GetInventoryPlayerInterface())
 		{
-			PC->GetInventoryComponent()->FullInventoryDispatcher.RemoveAll(this);
+			if (auto IC =  PC->GetInventoryComponent())
+				IC->FullInventoryDispatcher.RemoveAll(this);
 		}
 	}
 

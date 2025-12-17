@@ -25,6 +25,13 @@ void URepairLineWidget::NativeConstruct()
 
 //----------------------------------------------------------------------------------------------------------------------
 
+void URepairLineWidget::SetParentRepairWidget(URepairWidget* InParentWidget)
+{
+	ParentRepairWidget = InParentWidget;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 void URepairLineWidget::NativeOnListItemObjectSet(UObject* ListItemObject)
 {
 	IUserObjectListEntry::NativeOnListItemObjectSet(ListItemObject);
@@ -80,7 +87,17 @@ void URepairLineWidget::UpdateDisplay(const FRepairLineDataStruct& ItemData)
 	{
 		// Disable button if item is at full durability
 		bool bNeedsRepair = ItemData.CurrentDurability < ItemData.MaxDurability;
-		RepairButton->SetIsEnabled(bNeedsRepair);
+
+		// Check if parent repair widget has repair in progress
+		bool bRepairInProgress = false;
+
+		if (ParentRepairWidget)
+		{
+			bRepairInProgress = ParentRepairWidget->IsRepairInProgress();
+		}
+
+		// Enable button only if needs repair AND no repair is in progress
+		RepairButton->SetIsEnabled(bNeedsRepair && !bRepairInProgress);
 	}
 }
 
@@ -88,22 +105,11 @@ void URepairLineWidget::UpdateDisplay(const FRepairLineDataStruct& ItemData)
 
 void URepairLineWidget::OnRepairButtonClicked()
 {
-	// Find the parent repair widget and call its repair item function
-	URepairWidget* ParentRepairWidget = nullptr;
-
-	// Try to find it in the widget hierarchy
-	UWidget* Parent = GetParent();
-	while (Parent && !ParentRepairWidget)
-	{
-		ParentRepairWidget = Cast<URepairWidget>(Parent);
-		if (!ParentRepairWidget)
-		{
-			Parent = Parent->GetParent();
-		}
-	}
-
+	// Use the stored parent repair widget reference
 	if (ParentRepairWidget)
 	{
+		RepairButton->SetIsEnabled(false);
+		RepairCost->SetCoinValue({});
 		ParentRepairWidget->RepairItem(ItemID, ItemSlot);
 	}
 }

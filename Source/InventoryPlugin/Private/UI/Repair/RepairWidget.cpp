@@ -3,6 +3,7 @@
 #include "UI/Merchant/CoinDisplayWidget.h"
 #include "InventoryUtilities.h"
 #include "Interfaces/InventoryPlayerInterface.h"
+#include "Interfaces/EquipmentInterface.h"
 #include "Components/EquipmentComponent.h"
 #include "Items/InventoryItemEquipable.h"
 #include "Components/ListView.h"
@@ -23,6 +24,23 @@ void URepairWidget::NativeConstruct()
 	if (CloseButton)
 	{
 		CloseButton->OnClicked.AddDynamic(this, &URepairWidget::OnCloseButtonClicked);
+	}
+
+	// Bind list view entry initialization to set parent widget reference
+	if (RepairItemList)
+	{
+		RepairItemList->OnEntryWidgetGenerated().AddUObject(this, &URepairWidget::OnRepairLineWidgetGenerated);
+	}
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void URepairWidget::OnRepairLineWidgetGenerated(UUserWidget& GeneratedWidget)
+{
+	// Set the parent repair widget reference on newly generated line widgets
+	if (URepairLineWidget* LineWidget = Cast<URepairLineWidget>(&GeneratedWidget))
+	{
+		LineWidget->SetParentRepairWidget(this);
 	}
 }
 
@@ -137,14 +155,37 @@ void URepairWidget::UpdateRepairAllCostDisplay()
 		RepairAllCost->SetCoinValue(TotalRepairCost);
 	}
 
-	// Enable repair all button only if there are items to repair
+	// Check if transaction is in progress
+	const bool bTransactionInProgress = IsRepairInProgress();
+
+	// Update Repair All button
 	if (RepairAllButton)
 	{
+		// Check if there are items to repair
 		const bool bHasItemsToRepair = RepairableItems.ContainsByPredicate([](const FRepairItemData& Item)
 		{
 			return Item.bNeedsRepair;
 		});
-		RepairAllButton->SetIsEnabled(bHasItemsToRepair);
+
+		// Check if player can afford repair all
+		const bool bCanAffordRepairAll = CanAffordRepairAll();
+
+		// Enable button only if: has items to repair, can afford, and no repair in progress
+		const bool bShouldEnable = bHasItemsToRepair && bCanAffordRepairAll && !bTransactionInProgress;
+		RepairAllButton->SetIsEnabled(bShouldEnable);
+
+	}
+
+	// Disable close button during transactions
+	if (CloseButton)
+	{
+		CloseButton->SetIsEnabled(!bTransactionInProgress);
+	}
+
+	// Disable repair item list during transactions
+	if (RepairItemList)
+	{
+		RepairItemList->SetIsEnabled(!bTransactionInProgress);
 	}
 }
 
@@ -158,6 +199,12 @@ void URepairWidget::OnRepairAllButtonClicked()
 		return;
 	}
 
+	// Check if already processing a transaction
+	if (Player->GetTransactionBoolean())
+	{
+		return;
+	}
+
 	// Check if player can afford repair all
 	if (!Player->PlayerCanPayAmount(TotalRepairCost))
 	{
@@ -165,13 +212,18 @@ void URepairWidget::OnRepairAllButtonClicked()
 		return;
 	}
 
+	// Set transaction boolean to disable buttons
+	Player->SetTransactionBoolean(true);
+
+	// Update UI to reflect disabled state
+	UpdateRepairAllCostDisplay();
+
 	// Call player interface to repair all equipment
 	Player->PlayerRepairAllEquipment(TotalRepairCost);
 
 	OnRepairSuccessfulDelegate.Broadcast();
 
-	// Refresh the list
-	Refresh();
+	// Note: Refresh will be called from OnRepairTransactionComplete when server responds
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -196,6 +248,12 @@ void URepairWidget::RepairItem(int32 ItemID, EEquipmentSlot EquipmentSlot)
 		return;
 	}
 
+	// Check if already processing a transaction
+	if (Player->GetTransactionBoolean())
+	{
+		return;
+	}
+
 	// Find the item in the repairable items list
 	const FRepairItemData* ItemToRepair = RepairableItems.FindByPredicate([ItemID, EquipmentSlot](const FRepairItemData& Item)
 	{
@@ -214,13 +272,18 @@ void URepairWidget::RepairItem(int32 ItemID, EEquipmentSlot EquipmentSlot)
 		return;
 	}
 
+	// Set transaction boolean to disable buttons
+	Player->SetTransactionBoolean(true);
+
+	// Update UI to reflect disabled state
+	UpdateRepairAllCostDisplay();
+
 	// Call player interface to repair specific item
 	Player->PlayerRepairEquipment(EquipmentSlot, ItemToRepair->RepairCost);
 
 	OnRepairSuccessfulDelegate.Broadcast();
 
-	// Refresh the list
-	Refresh();
+	// Note: Refresh will be called from OnRepairTransactionComplete when server responds
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -274,3 +337,61 @@ bool URepairWidget::CanAffordRepairAll() const
 
 //----------------------------------------------------------------------------------------------------------------------
 
+void URepairWidget::OnRepairTransactionComplete()
+{
+	// Reset transaction state to re-enable buttons
+	if (IInventoryPlayerInterface* Player = Cast<IInventoryPlayerInterface>(GetOwningPlayer()))
+	{
+		Player->ResetTransaction();
+	}
+
+	// Bind to equipment dispatcher to refresh when durability replication completes
+	// This is more robust than a timer, especially with network latency
+	if (AActor* OwningActor = GetOwningPlayerPawn())
+	{
+		if (IEquipmentInterface* EquipmentInterface = Cast<IEquipmentInterface>(OwningActor))
+		{
+			if (UEquipmentComponent* EquipmentComp = EquipmentInterface->GetEquipmentComponent())
+			{
+				// Bind one-shot delegate to refresh when durability changes are replicated
+				FScriptDelegate RefreshDelegate;
+				RefreshDelegate.BindUFunction(this, FName("OnEquipmentDurabilityReplicated"));
+				EquipmentComp->EquipmentDispatcher.Add(RefreshDelegate);
+				return;
+			}
+		}
+	}
+
+	// Fallback if we couldn't bind to dispatcher
+	Refresh();
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void URepairWidget::OnEquipmentDurabilityReplicated()
+{
+	// Unbind from dispatcher (one-shot behavior)
+	if (AActor* OwningActor = GetOwningPlayerPawn())
+	{
+		if (IEquipmentInterface* EquipmentInterface = Cast<IEquipmentInterface>(OwningActor))
+		{
+			if (UEquipmentComponent* EquipmentComp = EquipmentInterface->GetEquipmentComponent())
+			{
+				EquipmentComp->EquipmentDispatcher.RemoveAll(this);
+			}
+		}
+	}
+
+	// Now refresh with updated durability values
+	Refresh();
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+bool URepairWidget::IsRepairInProgress() const
+{
+	IInventoryPlayerInterface* Player = Cast<IInventoryPlayerInterface>(GetOwningPlayer());
+	return Player && Player->GetTransactionBoolean();
+}
+
+//----------------------------------------------------------------------------------------------------------------------

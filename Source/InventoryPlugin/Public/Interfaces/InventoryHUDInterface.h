@@ -251,6 +251,15 @@ public:
 	void HideRepairScreen();
 
 	/**
+	 * @brief Called when a repair transaction completes on the server.
+	 *
+	 * This event notifies the HUD that repairs have finished processing server-side.
+	 * Use this to re-enable UI buttons and refresh the repair widget display.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, BlueprintCosmetic, Category = "Inventory")
+	void OnRepairTransactionComplete();
+
+	/**
 	 * UFUNCTION macro for the TryPresentSellItem method.
 	 *
 	 * This method is a BlueprintCallable, BlueprintImplementableEvent, and BlueprintCosmetic.
