@@ -1024,4 +1024,135 @@ protected:
 
 	//UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory|Key")
 	virtual void Server_PlayerRemoveKeyToInventory(int32 KeyId) = 0;
+
+	//------------------------------------------------------------------------------------------------------------------
+	// Trade -- Server
+	//------------------------------------------------------------------------------------------------------------------
+
+	/**
+	 * @brief Request to start a trade with another player (server)
+	 * @param OtherPlayerCharacter The player character to trade with
+	 */
+	//UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory|Trade")
+	virtual void Server_PlayerRequestTrade(ACharacter* OtherPlayerCharacter) = 0;
+
+	/**
+	 * @brief Accept an incoming trade request (server)
+	 * @param RequestingPlayerCharacter The player character who requested the trade
+	 */
+	//UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory|Trade")
+	virtual void Server_PlayerAcceptTradeRequest(ACharacter* RequestingPlayerCharacter) = 0;
+
+	/**
+	 * @brief Decline an incoming trade request (server)
+	 * @param RequestingPlayerCharacter The player character who requested the trade
+	 */
+	//UFUNCTION(Server, Reliable, Category = "Inventory|Trade")
+	virtual void Server_PlayerDeclineTradeRequest(ACharacter* RequestingPlayerCharacter) = 0;
+
+	/**
+	 * @brief Add an item to our trade offer (server, validated)
+	 * @param ItemID The item ID
+	 * @param BagSlot The source bag
+	 * @param TopLeft The source position
+	 */
+	//UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory|Trade")
+	virtual void Server_PlayerAddItemToTrade(int32 ItemID, EBagSlot BagSlot, int32 TopLeft) = 0;
+
+	/**
+	 * @brief Remove an item from our trade offer (server)
+	 * @param SlotIndex The trade slot to clear (0-7)
+	 */
+	//UFUNCTION(Server, Reliable, Category = "Inventory|Trade")
+	virtual void Server_PlayerRemoveItemFromTrade(int32 SlotIndex) = 0;
+
+	/**
+	 * @brief Set coin amount for our trade offer (server, validated)
+	 * @param CoinAmount The coin to offer
+	 */
+	//UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory|Trade")
+	virtual void Server_PlayerSetTradeCoin(const FCoinValue& CoinAmount) = 0;
+
+	/**
+	 * @brief Toggle trade acceptance (server)
+	 * @param bAccept True to accept, false to unaccept
+	 */
+	//UFUNCTION(Server, Reliable, Category = "Inventory|Trade")
+	virtual void Server_PlayerToggleTradeAcceptance(bool bAccept) = 0;
+
+	/**
+	 * @brief Cancel the current trade (server)
+	 */
+	//UFUNCTION(Server, Reliable, Category = "Inventory|Trade")
+	virtual void Server_PlayerCancelTrade() = 0;
+
+public:
+	//------------------------------------------------------------------------------------------------------------------
+	// Trade -- Local Wrappers (Call Server_ counterparts)
+	//------------------------------------------------------------------------------------------------------------------
+
+	/**
+	 * @brief Request to start a trade with another player
+	 * Calls Server_PlayerRequestTrade on the server
+	 * @param OtherPlayerCharacter The player character to trade with
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Trade")
+	virtual void PlayerRequestTrade(ACharacter* OtherPlayerCharacter);
+
+	/**
+	 * @brief Accept an incoming trade request
+	 * Calls Server_PlayerAcceptTradeRequest on the server
+	 * @param RequestingPlayerCharacter The player character who requested the trade
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Trade")
+	virtual void PlayerAcceptTradeRequest(ACharacter* RequestingPlayerCharacter);
+
+	/**
+	 * @brief Decline an incoming trade request
+	 * Calls Server_PlayerDeclineTradeRequest on the server
+	 * @param RequestingPlayerCharacter The player character who requested the trade
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Trade")
+	virtual void PlayerDeclineTradeRequest(ACharacter* RequestingPlayerCharacter);
+
+	/**
+	 * @brief Add an item to our trade offer
+	 * Calls Server_PlayerAddItemToTrade on the server
+	 * @param ItemID The item ID
+	 * @param BagSlot The source bag
+	 * @param TopLeft The source position
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Trade")
+	virtual void PlayerAddItemToTrade(int32 ItemID, EBagSlot BagSlot, int32 TopLeft);
+
+	/**
+	 * @brief Remove an item from our trade offer
+	 * Calls Server_PlayerRemoveItemFromTrade on the server
+	 * @param SlotIndex The trade slot to clear (0-7)
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Trade")
+	virtual void PlayerRemoveItemFromTrade(int32 SlotIndex);
+
+	/**
+	 * @brief Set coin amount for our trade offer
+	 * Calls Server_PlayerSetTradeCoin on the server
+	 * @param CoinAmount The coin to offer
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Trade")
+	virtual void PlayerSetTradeCoin(const FCoinValue& CoinAmount);
+
+	/**
+	 * @brief Toggle trade acceptance
+	 * Calls Server_PlayerToggleTradeAcceptance on the server
+	 * @param bAccept True to accept, false to unaccept
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Trade")
+	virtual void PlayerToggleTradeAcceptance(bool bAccept);
+
+	/**
+	 * @brief Cancel the current trade
+	 * Calls Server_PlayerCancelTrade on the server
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Trade")
+	virtual void PlayerCancelTrade();
 };

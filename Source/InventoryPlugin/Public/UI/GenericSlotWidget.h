@@ -4,11 +4,17 @@
 
 #include "CoreMinimal.h"
 #include "ItemBaseWidget.h"
+#include "Components/Image.h"
 #include "GenericSlotWidget.generated.h"
 
 class IInventoryPlayerInterface;
+
 /**
+ * @class UGenericSlotWidget
  *
+ * Base widget for inventory item slots using modern BindWidget pattern.
+ * Provides common functionality for displaying items in slots with background images.
+ * Can be enabled/disabled and handles item drop validation.
  */
 UCLASS()
 class INVENTORYPLUGIN_API UGenericSlotWidget : public UItemBaseWidget
@@ -16,41 +22,88 @@ class INVENTORYPLUGIN_API UGenericSlotWidget : public UItemBaseWidget
 	GENERATED_BODY()
 
 protected:
+	//------------------------------------------------------------------------------------------------------------------
+	// UI Elements (BindWidget)
+	//------------------------------------------------------------------------------------------------------------------
 
-	UPROPERTY(BlueprintReadWrite, Category = "Inventory")
+	/** Background image for the slot (optional) */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "Inventory|Slot|UI")
 	UImage* BackgroundImagePointer = nullptr;
 
-	UPROPERTY(BlueprintReadWrite, Category = "Inventory")
+	//------------------------------------------------------------------------------------------------------------------
+	// State
+	//------------------------------------------------------------------------------------------------------------------
+
+	/** Whether this slot is currently enabled and can accept items */
+	UPROPERTY(BlueprintReadWrite, Category = "Inventory|Slot")
 	bool EnabledSlot = true;
 
-	UFUNCTION(BlueprintCallable)
+	//------------------------------------------------------------------------------------------------------------------
+	// Protected Functions
+	//------------------------------------------------------------------------------------------------------------------
+
+	/**
+	 * @brief Updates the visibility of the item image based on whether an item is present
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Slot")
 	void UpdateItemImageVisibility();
 
-	UFUNCTION(BlueprintCallable)
+	/**
+	 * @brief Updates the slot state (enabled/disabled)
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Slot")
 	void UpdateSlotState();
 
-	UFUNCTION(BlueprintCallable)
+	/**
+	 * @brief Handles when an item is dropped onto this slot
+	 * @param InputItem The item widget being dropped
+	 * @return True if the drop was handled successfully
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Slot")
 	virtual bool HandleItemDrop(class UItemWidget* InputItem);
 
+	/**
+	 * @brief Gets the inventory player interface from the owning player
+	 * @return Pointer to the inventory player interface
+	 */
 	IInventoryPlayerInterface* GetInventoryPlayerInterface() const;
 
-	UFUNCTION(BlueprintCallable)
+	/**
+	 * @brief Internal refresh function that updates visibility and state
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Slot")
 	virtual void InnerRefresh();
 
-	UFUNCTION()
+	/**
+	 * @brief Resets any pending transaction on the inventory interface
+	 */
+	UFUNCTION(Category = "Inventory|Slot")
 	void ResetTransaction();
 
-	UFUNCTION(BlueprintCallable)
+	/**
+	 * @brief Hides the item from display
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Slot")
 	virtual void HideItem();
 
-	public:
+public:
+	//------------------------------------------------------------------------------------------------------------------
+	// Public Interface
+	//------------------------------------------------------------------------------------------------------------------
 
-	UFUNCTION(BlueprintCallable)
+	/**
+	 * @brief Checks if an item can be dropped into this slot
+	 * @param InputItem The item to check
+	 * @return True if the item can be dropped into this slot
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Slot")
 	bool CanDropItem(const UInventoryItemBase* InputItem) const;
 
-	UFUNCTION(BlueprintCallable)
+	/**
+	 * @brief Checks if this slot currently has an item equipped
+	 * @return True if an item is present in this slot
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Inventory|Slot")
 	bool IsItemEquipped() const { return Item != nullptr; }
-
-
 
 };

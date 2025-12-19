@@ -413,6 +413,78 @@ TScriptInterface<IInventoryItemAmmoInterface> UInventoryComponent::RemoveAmmoFro
 
 //----------------------------------------------------------------------------------------------------------------------
 
+bool UInventoryComponent::CanReceiveAllItems(TArray<UInventoryItemBase*> ItemArray)
+{
+	if (ItemArray.Num() == 0)
+		return true;
+
+	// Lazily create solvers only when we need them for a specific bag
+	TMap<EBagSlot, GridBagSolver> TempSolvers;
+
+	// Try to place each item
+	for (UInventoryItemBase* Item : ItemArray)
+	{
+		if (!Item)
+			continue;
+
+		bool bItemPlaced = false;
+
+		// Try to find a suitable bag for this item
+		for (const auto& BagData : VariableBags)
+		{
+			if (!BagData.Bag->IsValidBag())
+				continue;
+
+			// Check item size compatibility - early exit before creating solver
+			if (Item->ItemSize > BagData.Bag->GetMaxStoreSize())
+				continue;
+
+			// Check quiver compatibility if applicable - early exit before creating solver
+			if (const IInventoryItemAmmoBagInterface* Quiver = Cast<IInventoryItemAmmoBagInterface>(BagData.Bag))
+			{
+				if (const IInventoryItemAmmoInterface* Ammo = Cast<IInventoryItemAmmoInterface>(Item))
+				{
+					if (Quiver->GetAmmoType() != Ammo->GetAmmoType())
+						continue; // Skip if ammo type doesn't match
+				}
+				else
+				{
+					continue; // Skip if item is not ammo but bag is a quiver
+				}
+			}
+
+			// Lazily get or create the temporary solver for this bag
+			GridBagSolver* TempSolver = TempSolvers.Find(BagData.Slot);
+			if (!TempSolver)
+			{
+				// First time accessing this bag - create solver with current state
+				GridBagSolver NewSolver = BagData.Bag->GetSolver();
+				TempSolvers.Add(BagData.Slot, NewSolver);
+				TempSolver = TempSolvers.Find(BagData.Slot);
+			}
+
+			// Try to find a valid position in this bag
+			int32 TopLeftID = TempSolver->GetFirstValidTopLeft(Item);
+			if (TopLeftID != -1)
+			{
+				// Item can be placed here, record it in the temporary solver
+				TempSolver->RecordData(Item, TopLeftID);
+				bItemPlaced = true;
+				break;
+			}
+		}
+
+		// If this item couldn't be placed anywhere, we can't receive all items
+		if (!bItemPlaced)
+			return false;
+	}
+
+	// All items were successfully placed in the simulation
+	return true;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 void UInventoryComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);

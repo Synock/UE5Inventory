@@ -691,3 +691,64 @@ TScriptInterface<IInventoryItemAmmoInterface> IInventoryPlayerInterface::SpendAm
 
 	return nullptr;
 }
+
+//----------------------------------------------------------------------------------------------------------------------
+// Trade related functions -- Client (Wrappers for Server RPCs)
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryPlayerInterface::PlayerRequestTrade(ACharacter* OtherPlayerCharacter)
+{
+	Server_PlayerRequestTrade(OtherPlayerCharacter);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryPlayerInterface::PlayerAcceptTradeRequest(ACharacter* RequestingPlayerCharacter)
+{
+	Server_PlayerAcceptTradeRequest(RequestingPlayerCharacter);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryPlayerInterface::PlayerDeclineTradeRequest(ACharacter* RequestingPlayerCharacter)
+{
+	Server_PlayerDeclineTradeRequest(RequestingPlayerCharacter);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryPlayerInterface::PlayerAddItemToTrade(int32 ItemID, EBagSlot BagSlot, int32 TopLeft)
+{
+	Server_PlayerAddItemToTrade(ItemID, BagSlot, TopLeft);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryPlayerInterface::PlayerRemoveItemFromTrade(int32 SlotIndex)
+{
+	Server_PlayerRemoveItemFromTrade(SlotIndex);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryPlayerInterface::PlayerSetTradeCoin(const FCoinValue& CoinAmount)
+{
+	Server_PlayerSetTradeCoin(CoinAmount);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryPlayerInterface::PlayerToggleTradeAcceptance(bool bAccept)
+{
+	Server_PlayerToggleTradeAcceptance(bAccept);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryPlayerInterface::PlayerCancelTrade()
+{
+	Server_PlayerCancelTrade();
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+

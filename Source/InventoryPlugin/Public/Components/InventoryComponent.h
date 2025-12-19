@@ -81,6 +81,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Bag")
 	TScriptInterface<IInventoryItemAmmoInterface> RemoveAmmoFromQuiver(EAmmoType Ammo);
 
+	// Check if we can receive all items in the array
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Bag")
+	bool CanReceiveAllItems(TArray<UInventoryItemBase*> ItemArray);
+
 	UPROPERTY(BlueprintAssignable, Category = "Inventory") //this is public because its a dispatcher
 	FOnFullInventoryComponentChanged FullInventoryDispatcher;
 

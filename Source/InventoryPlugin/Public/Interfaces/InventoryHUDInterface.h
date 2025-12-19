@@ -5,6 +5,7 @@
 #include "UObject/Interface.h"
 #include "InventoryHUDInterface.generated.h"
 
+class UInventoryItemBase;
 enum class EBagSlot : uint8;
 // This class does not need to be modified.
 UINTERFACE()
@@ -358,4 +359,10 @@ public:
 	 */
 	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable, Category = "Inventory")
 	void ForceRefreshStagingAreaPossibilities();
+
+	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, BlueprintCosmetic, Category = "Inventory")
+	void OpenTradeWindow();
+
+	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, BlueprintCosmetic, Category = "Inventory")
+	void CloseTradeWindow();
 };
