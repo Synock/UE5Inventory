@@ -131,6 +131,12 @@ void UCurrencySelectionWidget::OnOkButtonClicked()
 void UCurrencySelectionWidget::InitWidget(UCoinComponent* OriginCoinComponent, UCoinComponent* DestinationCoinComponent,
                                           ECurrencyType InputCurrencyType, ECurrencyType OutputCurrencyType, bool AllowForCurrencyChangeState)
 {
+	if (!DestinationCoinComponent)
+		return;
+
+	if (DestinationCoinComponent == OriginCoinComponent)
+		return;
+
 	check(OriginCoinComponent);
 	check(DestinationCoinComponent);
 

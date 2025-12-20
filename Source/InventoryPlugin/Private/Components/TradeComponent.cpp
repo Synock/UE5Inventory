@@ -121,6 +121,17 @@ void UTradeComponent::OnRep_IsTrading()
 // Server-Only Trade Management
 //----------------------------------------------------------------------------------------------------------------------
 
+void UTradeComponent::StageItemForTrade(int32 ItemID, EBagSlot BagSlot, int32 TopLeft)
+{
+	// Store the item to be added when trade actually starts
+	StagedItem = FTradeItemSlot(ItemID, BagSlot, TopLeft);
+
+	UE_LOG(LogTemp, Log, TEXT("TradeComponent: Staged item for trade - ItemID=%d, BagSlot=%d, TopLeft=%d"),
+		ItemID, static_cast<int32>(BagSlot), TopLeft);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 bool UTradeComponent::StartTrade(ACharacter* OtherTrader)
 {
 	// Server authority check
@@ -132,8 +143,9 @@ bool UTradeComponent::StartTrade(ACharacter* OtherTrader)
 		return false;
 
 	APlayerController* OtherTraderController = Cast<APlayerController>(OtherTrader->GetController());
+
 	// Invalid partner
-	if (!OtherTrader || OtherTrader == GetOwner())
+	if (!OtherTrader || OtherTraderController == GetOwner())
 		return false;
 
 	// Check if other trader can trade
@@ -154,10 +166,25 @@ bool UTradeComponent::StartTrade(ACharacter* OtherTrader)
 	TradePartner = OtherTrader;
 	bIsTrading = true;
 
+	APlayerController* CurrentPC = Cast<APlayerController>(GetOwner());
+	AActor* SelfActor = CurrentPC->GetPawn();
+
 	// Initialize partner's trade state
 	OtherTradeComponent->ResetTradeState();
-	OtherTradeComponent->TradePartner = GetOwner();
+	OtherTradeComponent->TradePartner =SelfActor;
 	OtherTradeComponent->bIsTrading = true;
+
+	// If we have a staged item, add it to the trade automatically
+	if (StagedItem.IsValid())
+	{
+		UE_LOG(LogTemp, Log, TEXT("TradeComponent: Auto-adding staged item to trade - ItemID=%d"),
+			StagedItem.ItemID);
+
+		AddItemToOffer(StagedItem.ItemID, StagedItem.SourceBagSlot, StagedItem.SourceTopLeft);
+
+		// Clear staged item
+		StagedItem = FTradeItemSlot();
+	}
 
 	return true;
 }
@@ -567,6 +594,9 @@ void UTradeComponent::ResetTradeState()
 	OurOffer.Reset();
 	TheirOffer.Reset();
 	bIsTrading = false;
+
+	// Clear staged item (in case trade was cancelled before starting)
+	StagedItem = FTradeItemSlot();
 
 	// Clear coin components
 	if (OurCoinOffer)

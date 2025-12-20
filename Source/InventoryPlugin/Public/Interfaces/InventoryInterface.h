@@ -26,4 +26,6 @@ public:
 	virtual UInventoryComponent* GetInventoryComponent() = 0;
 
 	virtual const UInventoryComponent* GetInventoryComponentConst() const = 0;
+
+	virtual FString GetInventoryOwnerName() const;
 };

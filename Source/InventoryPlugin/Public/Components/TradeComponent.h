@@ -123,6 +123,13 @@ protected:
 	UCoinComponent* TheirCoinOffer = nullptr;
 
 	//------------------------------------------------------------------------------------------------------------------
+	// Staged Item (for drop-to-trade feature)
+	//------------------------------------------------------------------------------------------------------------------
+
+	// Item staged to be added when trade starts (not replicated, server-side only)
+	FTradeItemSlot StagedItem;
+
+	//------------------------------------------------------------------------------------------------------------------
 	// Replication Callbacks
 	//------------------------------------------------------------------------------------------------------------------
 
@@ -202,6 +209,15 @@ public:
 	 * @return True if trade started successfully
 	 */
 	bool StartTrade(ACharacter* OtherTrader);
+
+	/**
+	 * @brief Stage an item to be automatically added when trade starts
+	 * This is useful for the drop-to-trade feature where an item is dropped on a player
+	 * @param ItemID The item ID to stage
+	 * @param BagSlot The bag containing the item
+	 * @param TopLeft The position in the bag
+	 */
+	void StageItemForTrade(int32 ItemID, EBagSlot BagSlot, int32 TopLeft);
 
 	/**
 	 * @brief Cancel the current trade session (server-only)

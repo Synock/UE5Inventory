@@ -9,6 +9,7 @@
 #include "Interfaces/TradeInterface.h"
 #include "InventoryUtilities.h"
 #include "GameFramework/PlayerController.h"
+#include "Interfaces/InventoryInterface.h"
 
 // Forward declare to avoid circular dependency
 class AMainPlayerController;
@@ -96,10 +97,10 @@ void UTradeWidget::InitializeTrade(UTradeComponent* InTradeComponent)
 
 	if (TradeComponent->GetTradePartner() && TheirNameText)
 	{
-		ITradeInterface* TheirTradeInterface = Cast<ITradeInterface>(TradeComponent->GetTradePartner()->GetOwner());
+		IInventoryInterface* TheirTradeInterface = Cast<IInventoryInterface>(TradeComponent->GetTradePartner());
 		if (TheirTradeInterface)
 		{
-			TheirNameText->SetText(FText::FromString(TheirTradeInterface->GetTraderName()));
+			TheirNameText->SetText(FText::FromString(TheirTradeInterface->GetInventoryOwnerName()));
 		}
 	}
 
