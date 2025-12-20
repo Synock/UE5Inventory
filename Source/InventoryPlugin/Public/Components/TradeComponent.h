@@ -294,6 +294,12 @@ private:
 	IInventoryPlayerInterface* GetInventoryInterface() const;
 
 	/**
+	 * @brief Helper to get the partner's trade component
+	 * Handles the conversion from TradePartner (Character/Pawn) to Controller to TradeComponent
+	 */
+	UTradeComponent* GetPartnerTradeComponent() const;
+
+	/**
 	 * @brief Helper to reset all trade state
 	 */
 	void ResetTradeState();

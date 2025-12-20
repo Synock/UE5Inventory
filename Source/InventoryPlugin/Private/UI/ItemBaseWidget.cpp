@@ -140,6 +140,8 @@ void UItemBaseWidget::InitBareData(const UInventoryItemBase* InputItem, AActor* 
 	}
 
 	Durability = FMath::Clamp(InputDurability, 0.0f, MaxDurability);
+
+	UpdateItemImage();
 }
 
 //----------------------------------------------------------------------------------------------------------------------

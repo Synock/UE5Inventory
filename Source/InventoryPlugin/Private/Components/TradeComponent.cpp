@@ -203,12 +203,9 @@ void UTradeComponent::CancelTrade()
 	}
 
 	// Notify partner
-	if (ITradeInterface* PartnerInterface = Cast<ITradeInterface>(TradePartner))
+	if (UTradeComponent* PartnerComponent = GetPartnerTradeComponent())
 	{
-		if (UTradeComponent* PartnerComponent = PartnerInterface->GetTradeComponent())
-		{
-			PartnerComponent->ResetTradeState();
-		}
+		PartnerComponent->ResetTradeState();
 	}
 
 	ResetTradeState();
@@ -252,12 +249,9 @@ bool UTradeComponent::AddItemToOffer(int32 ItemID, EBagSlot BagSlot, int32 TopLe
 	TheirOffer.bAccepted = false;
 
 	// Update partner's view
-	if (ITradeInterface* PartnerInterface = Cast<ITradeInterface>(TradePartner))
+	if (UTradeComponent* PartnerComponent = GetPartnerTradeComponent())
 	{
-		if (UTradeComponent* PartnerComponent = PartnerInterface->GetTradeComponent())
-		{
-			PartnerComponent->UpdatePartnerOffer(OurOffer);
-		}
+		PartnerComponent->UpdatePartnerOffer(OurOffer);
 	}
 
 	return true;
@@ -283,12 +277,9 @@ bool UTradeComponent::RemoveItemFromOffer(int32 SlotIndex)
 	TheirOffer.bAccepted = false;
 
 	// Update partner's view
-	if (ITradeInterface* PartnerInterface = Cast<ITradeInterface>(TradePartner))
+	if (UTradeComponent* PartnerComponent = GetPartnerTradeComponent())
 	{
-		if (UTradeComponent* PartnerComponent = PartnerInterface->GetTradeComponent())
-		{
-			PartnerComponent->UpdatePartnerOffer(OurOffer);
-		}
+		PartnerComponent->UpdatePartnerOffer(OurOffer);
 	}
 
 	return true;
@@ -326,12 +317,9 @@ bool UTradeComponent::SetCoinOffer(const FCoinValue& CoinAmount)
 	TheirOffer.bAccepted = false;
 
 	// Update partner's view
-	if (ITradeInterface* PartnerInterface = Cast<ITradeInterface>(TradePartner))
+	if (UTradeComponent* PartnerComponent = GetPartnerTradeComponent())
 	{
-		if (UTradeComponent* PartnerComponent = PartnerInterface->GetTradeComponent())
-		{
-			PartnerComponent->UpdatePartnerOffer(OurOffer);
-		}
+		PartnerComponent->UpdatePartnerOffer(OurOffer);
 	}
 
 	return true;
@@ -350,12 +338,9 @@ void UTradeComponent::SetAcceptance(bool bAccept)
 	OurOffer.bAccepted = bAccept;
 
 	// Update partner's view
-	if (ITradeInterface* PartnerInterface = Cast<ITradeInterface>(TradePartner))
+	if (UTradeComponent* PartnerComponent = GetPartnerTradeComponent())
 	{
-		if (UTradeComponent* PartnerComponent = PartnerInterface->GetTradeComponent())
-		{
-			PartnerComponent->UpdatePartnerOffer(OurOffer);
-		}
+		PartnerComponent->UpdatePartnerOffer(OurOffer);
 	}
 
 	// If both accepted, execute trade
@@ -407,11 +392,7 @@ bool UTradeComponent::ExecuteTrade()
 		return false;
 
 	// Get partner component
-	ITradeInterface* PartnerInterface = Cast<ITradeInterface>(TradePartner);
-	if (!PartnerInterface)
-		return false;
-
-	UTradeComponent* PartnerComponent = PartnerInterface->GetTradeComponent();
+	UTradeComponent* PartnerComponent = GetPartnerTradeComponent();
 	if (!PartnerComponent)
 		return false;
 
@@ -584,6 +565,29 @@ bool UTradeComponent::ValidatePartnerHasSpace() const
 IInventoryPlayerInterface* UTradeComponent::GetInventoryInterface() const
 {
 	return Cast<IInventoryPlayerInterface>(GetOwner());
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+UTradeComponent* UTradeComponent::GetPartnerTradeComponent() const
+{
+	if (!TradePartner)
+		return nullptr;
+
+	// TradePartner is a Character/Pawn, need to get the controller
+	ACharacter* PartnerCharacter = Cast<ACharacter>(TradePartner);
+	if (!PartnerCharacter)
+		return nullptr;
+
+	APlayerController* PartnerController = Cast<APlayerController>(PartnerCharacter->GetController());
+	if (!PartnerController)
+		return nullptr;
+
+	ITradeInterface* PartnerInterface = Cast<ITradeInterface>(PartnerController);
+	if (!PartnerInterface)
+		return nullptr;
+
+	return PartnerInterface->GetTradeComponent();
 }
 
 //----------------------------------------------------------------------------------------------------------------------

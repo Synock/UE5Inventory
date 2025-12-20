@@ -27,6 +27,12 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = "Trade")
 	bool bIsOurSlot = true;
 
+	/**
+	 * @brief Handle item drops on this slot
+	 */
+	virtual bool NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent,
+	                          UDragDropOperation* InOperation) override;
+
 public:
 	/**
 	 * @brief Initialize the trade slot
