@@ -10,61 +10,104 @@
 
 void UStagingAreaWidget::InitData()
 {
-
-
 	IInventoryPlayerInterface* PC = GetInventoryPlayerInterface();
+	if (!PC)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("StagingAreaWidget::InitData - No inventory player interface found"));
+		return;
+	}
 
 	StagingComponent = PC->GetStagingAreaItems();
-	PC->GetStagingAreaItems()->StagingAreaDispatcher.AddUniqueDynamic(this, &UStagingAreaWidget::Refresh);
-	//PC->GetStagingAreaItems()->StagingAreaDispatcher.AddUniqueDynamic(this, &UStagingAreaSlotWidget::ResetTransaction)
+	if (!StagingComponent)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("StagingAreaWidget::InitData - No staging component found"));
+		return;
+	}
+
+	// Bind to staging area updates
+	StagingComponent->StagingAreaDispatcher.AddUniqueDynamic(this, &UStagingAreaWidget::Refresh);
+
 	Refresh();
 }
 
+//----------------------------------------------------------------------------------------------------------------------
+
 void UStagingAreaWidget::Refresh()
 {
-	if(!IsVisible())
+	if (!IsVisible())
 		return;
 
-	int32 SID = 0;
-	for(auto & StagingItem : StagingComponent->GetStagingAreaItems())
+	if (!StagingComponent)
 	{
-		int32 LocalID = SID++;
-		GetItemSlotFromID(LocalID)->InitBareData(UInventoryUtilities::GetItemFromID(StagingItem, GetWorld()),GetOwningPlayer(), 40.f);
-		GetItemSlotFromID(LocalID)->SetToolTipText(FText::FromString(GetItemSlotFromID(LocalID)->GetReferencedItem()->Name));
-		GetItemSlotFromID(LocalID)->Refresh();
+		UE_LOG(LogTemp, Warning, TEXT("StagingAreaWidget::Refresh - Staging component is null"));
+		return;
 	}
 
-	for(int32 NID = SID; NID < 8; ++NID)
+	const TArray<int32>& StagingItems = StagingComponent->GetStagingAreaItems();
+
+	// Update slots with staged items
+	int32 SlotIndex = 0;
+	for (const int32 StagingItemID : StagingItems)
 	{
-		GetItemSlotFromID(NID)->InitBareData({},GetOwningPlayer(), 40.f);
-		GetItemSlotFromID(NID)->SetToolTipText({});
-		GetItemSlotFromID(NID)->Refresh();
+		if (SlotIndex >= MaxStagingSlots)
+			break;
+
+		UStagingAreaSlotWidget* SlotWidget = GetItemSlotFromID(SlotIndex);
+		if (!SlotWidget)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("StagingAreaWidget::Refresh - Slot %d is null"), SlotIndex);
+			SlotIndex++;
+			continue;
+		}
+
+		const UInventoryItemBase* Item = UInventoryUtilities::GetItemFromID(StagingItemID, GetWorld());
+		SlotWidget->InitBareData(Item, GetOwningPlayer(), 40.f);
+
+		if (Item)
+		{
+			SlotWidget->SetToolTipText(FText::FromString(Item->Name));
+		}
+
+		SlotWidget->Refresh();
+		SlotIndex++;
+	}
+
+	// Clear remaining empty slots
+	for (int32 EmptySlotIndex = SlotIndex; EmptySlotIndex < MaxStagingSlots; ++EmptySlotIndex)
+	{
+		UStagingAreaSlotWidget* SlotWidget = GetItemSlotFromID(EmptySlotIndex);
+		if (!SlotWidget)
+			continue;
+
+		SlotWidget->InitBareData(nullptr, GetOwningPlayer(), 40.f);
+		SlotWidget->SetToolTipText(FText::GetEmpty());
+		SlotWidget->Refresh();
 	}
 }
+
+//----------------------------------------------------------------------------------------------------------------------
 
 IInventoryPlayerInterface* UStagingAreaWidget::GetInventoryPlayerInterface() const
 {
 	return Cast<IInventoryPlayerInterface>(GetOwningPlayer());
 }
 
-UStagingAreaSlotWidget* UStagingAreaWidget::GetItemSlotFromID(int32 ID)
-{
-	if(ID == 0)
-		return Slot0;
-	if(ID == 1)
-		return Slot1;
-	if(ID == 2)
-		return Slot2;
-	if(ID == 3)
-		return Slot3;
-	if(ID == 4)
-		return Slot4;
-	if(ID == 5)
-		return Slot5;
-	if(ID == 6)
-		return Slot6;
-	if(ID == 7)
-		return Slot7;
+//----------------------------------------------------------------------------------------------------------------------
 
-	return nullptr;
+UStagingAreaSlotWidget* UStagingAreaWidget::GetItemSlotFromID(int32 ID) const
+{
+	switch (ID)
+	{
+	case 0: return Slot0;
+	case 1: return Slot1;
+	case 2: return Slot2;
+	case 3: return Slot3;
+	case 4: return Slot4;
+	case 5: return Slot5;
+	case 6: return Slot6;
+	case 7: return Slot7;
+	default:
+		UE_LOG(LogTemp, Warning, TEXT("StagingAreaWidget::GetItemSlotFromID - Invalid slot ID: %d"), ID);
+		return nullptr;
+	}
 }

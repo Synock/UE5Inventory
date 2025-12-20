@@ -223,12 +223,12 @@ void UEquipmentSlotWidget::DisableAndRefresh(const UInventoryItemEquipable* Inpu
 	{
 		UTexture2D* Tex = InputItem->Icon;
 
-		if (!ItemImagePointer)
+		if (!ItemImage)
 			return;
 
-		ItemImagePointer->SetDesiredSizeOverride({TileSize, TileSize});
-		ItemImagePointer->SetBrushFromTexture(Tex);
-		ItemImagePointer->SetVisibility(ESlateVisibility::Visible);
+		ItemImage->SetDesiredSizeOverride({TileSize, TileSize});
+		ItemImage->SetBrushFromTexture(Tex);
+		ItemImage->SetVisibility(ESlateVisibility::Visible);
 	}
 }
 

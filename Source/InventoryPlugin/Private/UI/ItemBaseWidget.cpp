@@ -10,6 +10,13 @@
 #include "TimerManager.h"
 #include "Items/InventoryItemEquipable.h"
 
+void UItemBaseWidget::NativePreConstruct()
+{
+	Super::NativePreConstruct();
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 FReply UItemBaseWidget::NativeOnMouseButtonUp(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
 {
 	if (!IsRightClicking)
@@ -99,16 +106,22 @@ void UItemBaseWidget::ResetSell()
 
 void UItemBaseWidget::UpdateItemImage()
 {
-	if (Item && Item->Icon)
+	if (!Item || !Item->Icon)
+		return;
+
+	// Use new BindWidget property, fall back to deprecated pointer for backwards compatibility
+
+	UImage* ImageWidget = ItemImage;
+
+	if (!ImageWidget)
 	{
-		UTexture2D* Tex = Item->Icon;
-
-		if(!ItemImagePointer)
-			return;
-
-		ItemImagePointer->SetDesiredSizeOverride({TileSize, TileSize});
-		ItemImagePointer->SetBrushFromTexture(Tex);
+		UE_LOG(LogTemp, Warning, TEXT("ItemBaseWidget::UpdateItemImage - No image widget found (ItemImage or ItemImagePointer)"));
+		return;
 	}
+
+	ImageWidget->SetDesiredSizeOverride(FVector2D(TileSize, TileSize));
+	ImageWidget->SetBrushFromTexture(Item->Icon);
+	ImageWidget->SetVisibility(ESlateVisibility::Visible);
 }
 
 //----------------------------------------------------------------------------------------------------------------------

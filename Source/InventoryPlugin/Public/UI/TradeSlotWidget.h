@@ -33,6 +33,11 @@ protected:
 	virtual bool NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent,
 	                          UDragDropOperation* InOperation) override;
 
+	/**
+	 * @brief Handle mouse button down events, including right-click for item inspection
+	 */
+	virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+
 public:
 	/**
 	 * @brief Initialize the trade slot

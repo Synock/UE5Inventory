@@ -1037,6 +1037,13 @@ protected:
 	virtual void Server_PlayerRequestTrade(ACharacter* OtherPlayerCharacter) = 0;
 
 	/**
+	 * @brief Request to start a trade with another player (server)
+	 * @param OtherPlayerCharacter The player character to trade with
+	 */
+	//UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory|Trade")
+	virtual void Server_PlayerRequestTradeWithItem(ACharacter* OtherPlayerCharacter, int32 ItemID, EBagSlot BagSlot, int32 TopLeft) = 0;
+
+	/**
 	 * @brief Accept an incoming trade request (server)
 	 * @param RequestingPlayerCharacter The player character who requested the trade
 	 */
@@ -1098,6 +1105,17 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Trade")
 	virtual void PlayerRequestTrade(ACharacter* OtherPlayerCharacter);
+
+	/**
+	 * @brief Request to start a trade with another player with an item
+	 * Calls Server_PlayerRequestTradeWithItem on the server
+	 * @param OtherPlayerCharacter The player character to trade with
+	 * @param ItemID The item ID
+	 * @param BagSlot The source bag
+	 * @param TopLeft The source position
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Trade")
+	virtual void PlayerRequestTradeWithItem(ACharacter* OtherPlayerCharacter, int32 ItemID, EBagSlot BagSlot, int32 TopLeft);
 
 	/**
 	 * @brief Accept an incoming trade request

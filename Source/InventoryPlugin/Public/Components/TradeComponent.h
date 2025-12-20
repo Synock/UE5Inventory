@@ -31,10 +31,13 @@ struct FTradeItemSlot
 	UPROPERTY(BlueprintReadOnly, Category = "Trade")
 	int32 SourceTopLeft = -1;
 
+	UPROPERTY(BlueprintReadOnly, Category = "Trade")
+	float Durability = 100.0f;
+
 	FTradeItemSlot() = default;
 
-	FTradeItemSlot(int32 InItemID, EBagSlot InBagSlot, int32 InTopLeft)
-		: ItemID(InItemID), SourceBagSlot(InBagSlot), SourceTopLeft(InTopLeft)
+	FTradeItemSlot(int32 InItemID, EBagSlot InBagSlot, int32 InTopLeft, float InDurability)
+		: ItemID(InItemID), SourceBagSlot(InBagSlot), SourceTopLeft(InTopLeft), Durability(InDurability)
 	{
 	}
 
@@ -53,10 +56,6 @@ struct FTradeOffer
 	UPROPERTY(BlueprintReadOnly, Category = "Trade")
 	TArray<FTradeItemSlot> Items;
 
-	// Coin being offered
-	UPROPERTY(BlueprintReadOnly, Category = "Trade")
-	FCoinValue Coin;
-
 	// Whether this player has accepted the trade
 	UPROPERTY(BlueprintReadOnly, Category = "Trade")
 	bool bAccepted = false;
@@ -64,13 +63,12 @@ struct FTradeOffer
 	void Reset()
 	{
 		Items.Empty();
-		Coin = FCoinValue();
 		bAccepted = false;
 	}
 
 	bool IsEmpty() const
 	{
-		return Items.Num() == 0 && Coin.IsEmpty();
+		return Items.Num() == 0;
 	}
 };
 
@@ -93,6 +91,7 @@ public:
 
 protected:
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	//------------------------------------------------------------------------------------------------------------------
 	// Replicated State
@@ -118,16 +117,9 @@ protected:
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Trade")
 	UCoinComponent* OurCoinOffer = nullptr;
 
-	// Coin component for their offer (allows UDynamicPurseWidget binding)
-	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Trade")
+	// Coin component for their offer
+	UPROPERTY(ReplicatedUsing=OnRep_TheirCoinOffer, BlueprintReadOnly, Category = "Trade")
 	UCoinComponent* TheirCoinOffer = nullptr;
-
-	//------------------------------------------------------------------------------------------------------------------
-	// Staged Item (for drop-to-trade feature)
-	//------------------------------------------------------------------------------------------------------------------
-
-	// Item staged to be added when trade starts (not replicated, server-side only)
-	FTradeItemSlot StagedItem;
 
 	//------------------------------------------------------------------------------------------------------------------
 	// Replication Callbacks
@@ -144,6 +136,9 @@ protected:
 
 	UFUNCTION()
 	void OnRep_IsTrading();
+
+	UFUNCTION()
+	void OnRep_TheirCoinOffer();
 
 public:
 	//------------------------------------------------------------------------------------------------------------------
@@ -211,15 +206,6 @@ public:
 	bool StartTrade(ACharacter* OtherTrader);
 
 	/**
-	 * @brief Stage an item to be automatically added when trade starts
-	 * This is useful for the drop-to-trade feature where an item is dropped on a player
-	 * @param ItemID The item ID to stage
-	 * @param BagSlot The bag containing the item
-	 * @param TopLeft The position in the bag
-	 */
-	void StageItemForTrade(int32 ItemID, EBagSlot BagSlot, int32 TopLeft);
-
-	/**
 	 * @brief Cancel the current trade session (server-only)
 	 */
 	void CancelTrade();
@@ -245,7 +231,7 @@ public:
 	 * @param CoinAmount The coin value to offer
 	 * @return True if coin was set successfully
 	 */
-	bool SetCoinOffer(const FCoinValue& CoinAmount);
+	//bool SetCoinOffer(const FCoinValue& CoinAmount);
 
 	/**
 	 * @brief Toggle our acceptance of the current trade (server-only)
@@ -301,7 +287,8 @@ private:
 
 	/**
 	 * @brief Helper to reset all trade state
+	 * @param bReturnItems If true, returns items to owner's inventory (used on cancel). If false, items are not returned (used on successful trade).
 	 */
-	void ResetTradeState();
+	void ResetTradeState(bool bReturnItems = true);
 };
 

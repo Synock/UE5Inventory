@@ -13,11 +13,9 @@ void UTradeSlotWidget::InitializeSlot(int32 InSlotIndex, bool bInIsOurSlot)
 	// Clear the slot initially
 	ClearSlot();
 
-	// Make their slots non-interactive
-	if (!bIsOurSlot)
-	{
-		SetIsEnabled(false);
-	}
+	// Note: We don't disable the widget for their slots anymore
+	// This allows right-click inspection to work
+	// Drop prevention is handled in NativeOnDrop
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -93,5 +91,21 @@ bool UTradeSlotWidget::NativeOnDrop(const FGeometry& InGeometry, const FDragDrop
 	PlayerInterface->PlayerAddItemToTrade(ItemID, BagSlot, TopLeft);
 
 	return true;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+FReply UTradeSlotWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
+{
+	// Allow right-click inspection on both our items and their items
+	// Right-click should work even if the slot is disabled for drops
+	if (InMouseEvent.GetEffectingButton() == EKeys::RightMouseButton)
+	{
+		// Call parent class to handle right-click display
+		return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
+	}
+
+	// For other mouse buttons, use default behavior (which respects IsEnabled)
+	return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
 }
 

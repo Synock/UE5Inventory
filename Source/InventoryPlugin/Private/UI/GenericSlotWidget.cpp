@@ -10,8 +10,8 @@
 
 void UGenericSlotWidget::UpdateItemImageVisibility()
 {
-	if (ItemImagePointer)
-		ItemImagePointer->SetVisibility(Item ? ESlateVisibility::Visible : ESlateVisibility::Hidden);
+	if (ItemImage)
+		ItemImage->SetVisibility(Item ? ESlateVisibility::Visible : ESlateVisibility::Hidden);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -27,6 +27,8 @@ bool UGenericSlotWidget::HandleItemDrop(UItemWidget* InputItem)
 {
 	return true;
 }
+
+//----------------------------------------------------------------------------------------------------------------------
 
 IInventoryPlayerInterface* UGenericSlotWidget::GetInventoryPlayerInterface() const
 {

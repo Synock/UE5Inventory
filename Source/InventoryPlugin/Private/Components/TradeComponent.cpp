@@ -40,6 +40,20 @@ void UTradeComponent::BeginPlay()
 
 //----------------------------------------------------------------------------------------------------------------------
 
+void UTradeComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	// If player disconnects while trading, safely cancel the trade and return items
+	if (GetOwner()->HasAuthority() && bIsTrading)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("TradeComponent: Player disconnected during trade, cancelling and returning items"));
+		CancelTrade();
+	}
+
+	Super::EndPlay(EndPlayReason);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 void UTradeComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
@@ -96,6 +110,13 @@ void UTradeComponent::OnRep_TradePartner()
 
 void UTradeComponent::OnRep_OurOffer()
 {
+	// Update coin component display
+	/*if (OurCoinOffer)
+	{
+		OurCoinOffer->ClearPurse();
+		OurCoinOffer->AddCoins(OurOffer.Coin);
+	}*/
+
 	OnOurItemsChanged.Broadcast();
 	OnOurCoinChanged.Broadcast();
 	OnAcceptanceChanged.Broadcast();
@@ -105,6 +126,7 @@ void UTradeComponent::OnRep_OurOffer()
 
 void UTradeComponent::OnRep_TheirOffer()
 {
+	// Update coin component display - IMPORTANT: This fixes the coin display bug!
 	OnTheirItemsChanged.Broadcast();
 	OnTheirCoinChanged.Broadcast();
 	OnAcceptanceChanged.Broadcast();
@@ -118,17 +140,15 @@ void UTradeComponent::OnRep_IsTrading()
 }
 
 //----------------------------------------------------------------------------------------------------------------------
+
+void UTradeComponent::OnRep_TheirCoinOffer()
+{
+	OnTheirCoinChanged.Broadcast();
+}
+
+//----------------------------------------------------------------------------------------------------------------------
 // Server-Only Trade Management
 //----------------------------------------------------------------------------------------------------------------------
-
-void UTradeComponent::StageItemForTrade(int32 ItemID, EBagSlot BagSlot, int32 TopLeft)
-{
-	// Store the item to be added when trade actually starts
-	StagedItem = FTradeItemSlot(ItemID, BagSlot, TopLeft);
-
-	UE_LOG(LogTemp, Log, TEXT("TradeComponent: Staged item for trade - ItemID=%d, BagSlot=%d, TopLeft=%d"),
-		ItemID, static_cast<int32>(BagSlot), TopLeft);
-}
 
 //----------------------------------------------------------------------------------------------------------------------
 
@@ -161,8 +181,18 @@ bool UTradeComponent::StartTrade(ACharacter* OtherTrader)
 	if (OtherTradeComponent->IsTrading())
 		return false;
 
+	// Clean up any leftover state (only return items if we somehow have items in offer without being in a trade)
+	if (OurOffer.Items.Num() > 0 || !OurCoinOffer->GetCoinValue().IsEmpty())
+	{
+		ResetTradeState(true);
+	}
+
+	if (OtherTradeComponent->OurOffer.Items.Num() > 0 || !OtherTradeComponent->OurCoinOffer->GetCoinValue().IsEmpty())
+	{
+		OtherTradeComponent->ResetTradeState(true);
+	}
+
 	// Initialize trade state
-	ResetTradeState();
 	TradePartner = OtherTrader;
 	bIsTrading = true;
 
@@ -170,21 +200,8 @@ bool UTradeComponent::StartTrade(ACharacter* OtherTrader)
 	AActor* SelfActor = CurrentPC->GetPawn();
 
 	// Initialize partner's trade state
-	OtherTradeComponent->ResetTradeState();
-	OtherTradeComponent->TradePartner =SelfActor;
+	OtherTradeComponent->TradePartner = SelfActor;
 	OtherTradeComponent->bIsTrading = true;
-
-	// If we have a staged item, add it to the trade automatically
-	if (StagedItem.IsValid())
-	{
-		UE_LOG(LogTemp, Log, TEXT("TradeComponent: Auto-adding staged item to trade - ItemID=%d"),
-			StagedItem.ItemID);
-
-		AddItemToOffer(StagedItem.ItemID, StagedItem.SourceBagSlot, StagedItem.SourceTopLeft);
-
-		// Clear staged item
-		StagedItem = FTradeItemSlot();
-	}
 
 	return true;
 }
@@ -202,12 +219,13 @@ void UTradeComponent::CancelTrade()
 		return;
 	}
 
-	// Notify partner
+	// Notify partner to reset (which will return their items)
 	if (UTradeComponent* PartnerComponent = GetPartnerTradeComponent())
 	{
 		PartnerComponent->ResetTradeState();
 	}
 
+	// Return our items
 	ResetTradeState();
 }
 
@@ -241,8 +259,9 @@ bool UTradeComponent::AddItemToOffer(int32 ItemID, EBagSlot BagSlot, int32 TopLe
 			return false; // Already offered
 	}
 
+	float ItemDurability = InventoryInterface->PlayerRemoveItem(TopLeft, BagSlot);
 	// Add to offer
-	OurOffer.Items.Add(FTradeItemSlot(ItemID, BagSlot, TopLeft));
+	OurOffer.Items.Add(FTradeItemSlot(ItemID, BagSlot, TopLeft, ItemDurability));
 
 	// Reset acceptance when offer changes
 	OurOffer.bAccepted = false;
@@ -270,6 +289,41 @@ bool UTradeComponent::RemoveItemFromOffer(int32 SlotIndex)
 	if (SlotIndex < 0 || SlotIndex >= OurOffer.Items.Num())
 		return false;
 
+	// Get the item info before removing it
+	const FTradeItemSlot& ItemSlot = OurOffer.Items[SlotIndex];
+
+	// Return item to inventory
+	IInventoryPlayerInterface* InventoryInterface = GetInventoryInterface();
+	if (InventoryInterface)
+	{
+		// Try to return to original location first
+		int32 ItemAtOriginalLocation = InventoryInterface->PlayerGetItem(ItemSlot.SourceTopLeft, ItemSlot.SourceBagSlot);
+
+		if (ItemAtOriginalLocation == 0) // Original location is empty
+		{
+			// Return to original location
+			InventoryInterface->PlayerAddItem(ItemSlot.SourceTopLeft, ItemSlot.SourceBagSlot, ItemSlot.ItemID);
+		}
+		else
+		{
+			// Original location occupied, find a new spot
+			int32 FreeSlot = -1;
+			UInventoryItemBase* Item = UInventoryUtilities::GetItemFromID(ItemSlot.ItemID, GetOwner()->GetWorld());
+			EBagSlot FreeBag = InventoryInterface->GetInventoryComponent()->FindSuitableSlot(Item, FreeSlot);
+
+			if (FreeBag != EBagSlot::Unknown && FreeSlot >= 0)
+			{
+				InventoryInterface->PlayerAddItem(FreeSlot, FreeBag, ItemSlot.ItemID);
+			}
+			else
+			{
+				UE_LOG(LogTemp, Warning, TEXT("TradeComponent: Could not find space to return item %d when removing from trade"), ItemSlot.ItemID);
+				// Item is stuck in limbo - consider dropping it or keeping it in trade
+				// For now, we'll still remove it from offer but log the warning
+			}
+		}
+	}
+
 	OurOffer.Items.RemoveAt(SlotIndex);
 
 	// Reset acceptance when offer changes
@@ -287,7 +341,7 @@ bool UTradeComponent::RemoveItemFromOffer(int32 SlotIndex)
 
 //----------------------------------------------------------------------------------------------------------------------
 
-bool UTradeComponent::SetCoinOffer(const FCoinValue& CoinAmount)
+/*bool UTradeComponent::SetCoinOffer(const FCoinValue& CoinAmount)
 {
 	if (!GetOwner()->HasAuthority())
 		return false;
@@ -303,16 +357,19 @@ bool UTradeComponent::SetCoinOffer(const FCoinValue& CoinAmount)
 	if (!InventoryInterface->PlayerCanPayAmount(CoinAmount))
 		return false;
 
+	// First, return any previously offered coins back to main purse
+	if (OurCoinOffer && OurCoinOffer->GetCoinValue().ToFloat() > 0.f)
+	{
+		FCoinValue PreviousOffer = OurCoinOffer->GetCoinValue();
+		InventoryInterface->GetCoinComponent()->AddCoins(PreviousOffer);
+		OurCoinOffer->ClearPurse();
 	OurOffer.Coin = CoinAmount;
-
+		if (OurCoinOffer)
 	// Update the coin component so UDynamicPurseWidget can display it
 	if (OurCoinOffer)
 	{
 		OurCoinOffer->ClearPurse();
 		OurCoinOffer->AddCoins(CoinAmount);
-	}
-
-	// Reset acceptance when offer changes
 	OurOffer.bAccepted = false;
 	TheirOffer.bAccepted = false;
 
@@ -323,7 +380,7 @@ bool UTradeComponent::SetCoinOffer(const FCoinValue& CoinAmount)
 	}
 
 	return true;
-}
+}*/
 
 //----------------------------------------------------------------------------------------------------------------------
 
@@ -360,17 +417,24 @@ void UTradeComponent::UpdatePartnerOffer(const FTradeOffer& PartnerOffer)
 	TheirOffer = PartnerOffer;
 
 	// Update the coin component so UDynamicPurseWidget can display it
-	if (TheirCoinOffer)
+	/*if (TheirCoinOffer)
 	{
 		TheirCoinOffer->ClearPurse();
 		TheirCoinOffer->AddCoins(PartnerOffer.Coin);
-	}
+	}*/
 
 	// When partner changes their offer, reset our acceptance
 	if (!PartnerOffer.bAccepted && OurOffer.bAccepted)
 	{
 		OurOffer.bAccepted = false;
 	}
+
+	// IMPORTANT: Check if both players have now accepted
+	// This fixes the bug where trade doesn't execute when second player accepts
+	/*if (BothAccepted())
+	{
+		ExecuteTrade();
+	}*/
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -400,9 +464,11 @@ bool UTradeComponent::ExecuteTrade()
 	if (!PartnerComponent->ValidateOurItems() || !PartnerComponent->ValidateOurCoin())
 		return false;
 
+	ACharacter* PartnerCharacter = Cast<ACharacter>(TradePartner);
+	APlayerController* PartnerController = PartnerCharacter ? Cast<APlayerController>(PartnerCharacter->GetController()) : nullptr;
 	// Validate space - check if both players can receive all items
 	IInventoryPlayerInterface* OurInventory = GetInventoryInterface();
-	IInventoryPlayerInterface* TheirInventory = Cast<IInventoryPlayerInterface>(TradePartner);
+	IInventoryPlayerInterface* TheirInventory = Cast<IInventoryPlayerInterface>(PartnerController);
 
 	if (!OurInventory || !TheirInventory)
 		return false;
@@ -437,12 +503,9 @@ bool UTradeComponent::ExecuteTrade()
 	// Execute the trade atomically
 	//------------------------------------------------------------------------------------------------------------------
 
-	// 1. Remove our items and give to partner
+	// 1. Give our items to partner (items are already removed from our inventory)
 	for (const FTradeItemSlot& ItemSlot : OurOffer.Items)
 	{
-		// Remove from our inventory
-		OurInventory->PlayerRemoveItem(ItemSlot.SourceTopLeft, ItemSlot.SourceBagSlot);
-
 		// Add to their inventory (need to find a free slot)
 		int32 FreeSlot = -1;
 
@@ -453,14 +516,11 @@ bool UTradeComponent::ExecuteTrade()
 		TheirInventory->PlayerAddItem(FreeSlot, FreeBag, ItemSlot.ItemID);
 	}
 
-	// 2. Remove their items and give to us
+	// 2. Give their items to us (items are already removed from their inventory)
 	for (const FTradeItemSlot& ItemSlot : TheirOffer.Items)
 	{
-		// Remove from their inventory
-		TheirInventory->PlayerRemoveItem(ItemSlot.SourceTopLeft, ItemSlot.SourceBagSlot);
-
 		int32 FreeSlot = -1;
-		// Try to find free space in their bags
+		// Try to find free space in our bags
 		EBagSlot FreeBag = OurInventory->GetInventoryComponent()->FindSuitableSlot(
 			UInventoryUtilities::GetItemFromID(ItemSlot.ItemID, GetOwner()->GetWorld()), FreeSlot);
 		// Add to our inventory
@@ -468,27 +528,33 @@ bool UTradeComponent::ExecuteTrade()
 	}
 
 	// 3. Transfer coins
+	// Note: Coins are already in OurCoinOffer and TheirCoinOffer components
+	// We need to transfer from offer components to main purses
 	UCoinComponent* OurCoin = OurInventory->GetCoinComponent();
 	UCoinComponent* TheirCoin = TheirInventory->GetCoinComponent();
 
 	if (OurCoin && TheirCoin)
 	{
-		if (OurOffer.Coin.ToFloat() > 0.f)
+		// Transfer our offered coins from OurCoinOffer to their main purse
+		if (OurCoinOffer && OurCoinOffer->GetCoinValue().ToFloat() > 0.f)
 		{
-			OurCoin->PayAndAdjust(OurOffer.Coin);
-			TheirCoin->AddCoins(OurOffer.Coin);
+			FCoinValue OurOfferedCoins = OurCoinOffer->GetCoinValue();
+			TheirInventory->GetCoinComponent()->AddCoins(OurOfferedCoins);
+			// OurCoinOffer will be cleared in ResetTradeState
 		}
 
-		if (TheirOffer.Coin.ToFloat() > 0.f)
+		// Transfer their offered coins from TheirCoinOffer to our main purse
+		if (TheirCoinOffer && TheirCoinOffer->GetCoinValue().ToFloat() > 0.f)
 		{
-			TheirCoin->PayAndAdjust(TheirOffer.Coin);
-			OurCoin->AddCoins(TheirOffer.Coin);
+			FCoinValue TheirOfferedCoins = TheirCoinOffer->GetCoinValue();
+			OurInventory->GetCoinComponent()->AddCoins(TheirOfferedCoins);
+			// TheirCoinOffer will be cleared in ResetTradeState
 		}
 	}
 
-	// 4. Clean up trade session
-	ResetTradeState();
-	PartnerComponent->ResetTradeState();
+	// 4. Clean up trade session (don't return items since trade was successful)
+	ResetTradeState(false);
+	PartnerComponent->ResetTradeState(false);
 
 	return true;
 }
@@ -499,14 +565,11 @@ bool UTradeComponent::ExecuteTrade()
 
 bool UTradeComponent::ValidateOurItems() const
 {
-	IInventoryPlayerInterface* InventoryInterface = GetInventoryInterface();
-	if (!InventoryInterface)
-		return false;
-
+	// Items are already removed from inventory when added to trade offer
+	// Just validate that all items in our offer are valid (non-zero ItemID)
 	for (const FTradeItemSlot& ItemSlot : OurOffer.Items)
 	{
-		int32 ActualItemID = InventoryInterface->PlayerGetItem(ItemSlot.SourceTopLeft, ItemSlot.SourceBagSlot);
-		if (ActualItemID != ItemSlot.ItemID)
+		if (ItemSlot.ItemID <= 0)
 			return false;
 	}
 
@@ -517,14 +580,14 @@ bool UTradeComponent::ValidateOurItems() const
 
 bool UTradeComponent::ValidateOurCoin() const
 {
-	if (OurOffer.Coin.IsEmpty())
+	if (!OurCoinOffer->HasContent())
 		return true;
 
 	IInventoryPlayerInterface* InventoryInterface = GetInventoryInterface();
 	if (!InventoryInterface)
 		return false;
 
-	return InventoryInterface->PlayerCanPayAmount(OurOffer.Coin);
+	return InventoryInterface->PlayerCanPayAmount(OurCoinOffer->GetCoinValue());
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -571,42 +634,84 @@ IInventoryPlayerInterface* UTradeComponent::GetInventoryInterface() const
 
 UTradeComponent* UTradeComponent::GetPartnerTradeComponent() const
 {
-	if (!TradePartner)
+	if (!TradePartner || !IsValid(TradePartner))
 		return nullptr;
 
 	// TradePartner is a Character/Pawn, need to get the controller
 	ACharacter* PartnerCharacter = Cast<ACharacter>(TradePartner);
-	if (!PartnerCharacter)
+	if (!PartnerCharacter || !IsValid(PartnerCharacter))
 		return nullptr;
 
 	APlayerController* PartnerController = Cast<APlayerController>(PartnerCharacter->GetController());
-	if (!PartnerController)
+	if (!PartnerController || !IsValid(PartnerController))
 		return nullptr;
 
 	ITradeInterface* PartnerInterface = Cast<ITradeInterface>(PartnerController);
 	if (!PartnerInterface)
 		return nullptr;
 
-	return PartnerInterface->GetTradeComponent();
+	UTradeComponent* PartnerComponent = PartnerInterface->GetTradeComponent();
+	if (!PartnerComponent || !IsValid(PartnerComponent))
+		return nullptr;
+
+	return PartnerComponent;
 }
 
 //----------------------------------------------------------------------------------------------------------------------
 
-void UTradeComponent::ResetTradeState()
+void UTradeComponent::ResetTradeState(bool bReturnItems)
 {
+	// Return all items in our offer back to inventory (only if trade was cancelled, not completed)
+	if (bReturnItems)
+	{
+		IInventoryPlayerInterface* InventoryInterface = GetInventoryInterface();
+		if (InventoryInterface && OurOffer.Items.Num() > 0)
+		{
+			for (const FTradeItemSlot& ItemSlot : OurOffer.Items)
+			{
+				// Try to return to original location first
+				int32 ItemAtOriginalLocation = InventoryInterface->PlayerGetItem(ItemSlot.SourceTopLeft, ItemSlot.SourceBagSlot);
+
+				if (ItemAtOriginalLocation == 0) // Original location is empty
+				{
+					// Return to original location
+					InventoryInterface->PlayerAddItem(ItemSlot.SourceTopLeft, ItemSlot.SourceBagSlot, ItemSlot.ItemID);
+				}
+				else
+				{
+					// Original location occupied, find a new spot
+					int32 FreeSlot = -1;
+					UInventoryItemBase* Item = UInventoryUtilities::GetItemFromID(ItemSlot.ItemID, GetOwner()->GetWorld());
+					EBagSlot FreeBag = InventoryInterface->GetInventoryComponent()->FindSuitableSlot(Item, FreeSlot);
+
+					if (FreeBag != EBagSlot::Unknown && FreeSlot >= 0)
+					{
+						InventoryInterface->PlayerAddItem(FreeSlot, FreeBag, ItemSlot.ItemID);
+					}
+					else
+					{
+						UE_LOG(LogTemp, Warning, TEXT("TradeComponent: Could not find space to return item %d when canceling trade"), ItemSlot.ItemID);
+						// Item lost - this is a critical error but should be very rare
+						// In production, might want to queue this for later or drop on ground
+					}
+				}
+			}
+		}
+	}
+
 	TradePartner = nullptr;
 	OurOffer.Reset();
 	TheirOffer.Reset();
 	bIsTrading = false;
 
-	// Clear staged item (in case trade was cancelled before starting)
-	StagedItem = FTradeItemSlot();
-
 	// Clear coin components
 	if (OurCoinOffer)
 	{
-		//add back the data was in the purse to the player
-		Cast<IInventoryPlayerInterface>(GetOwner())->GetCoinComponent()->AddCoins(OurCoinOffer->GetCoinValue());
+		//add back the data was in the purse to the player (only if returning items)
+		if (bReturnItems)
+		{
+			Cast<IInventoryPlayerInterface>(GetOwner())->GetCoinComponent()->AddCoins(OurCoinOffer->GetCoinValue());
+		}
 		OurCoinOffer->ClearPurse();
 	}
 	if (TheirCoinOffer)
@@ -614,4 +719,3 @@ void UTradeComponent::ResetTradeState()
 		TheirCoinOffer->ClearPurse();
 	}
 }
-

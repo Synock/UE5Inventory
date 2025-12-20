@@ -703,6 +703,13 @@ void IInventoryPlayerInterface::PlayerRequestTrade(ACharacter* OtherPlayerCharac
 
 //----------------------------------------------------------------------------------------------------------------------
 
+void IInventoryPlayerInterface::PlayerRequestTradeWithItem(ACharacter* OtherPlayerCharacter, int32 ItemID, EBagSlot BagSlot, int32 TopLeft)
+{
+	Server_PlayerRequestTradeWithItem(OtherPlayerCharacter, ItemID, BagSlot, TopLeft);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 void IInventoryPlayerInterface::PlayerAcceptTradeRequest(ACharacter* RequestingPlayerCharacter)
 {
 	Server_PlayerAcceptTradeRequest(RequestingPlayerCharacter);
