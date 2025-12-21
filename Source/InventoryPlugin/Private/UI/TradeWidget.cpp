@@ -1,5 +1,3 @@
-// Copyright 2025 Maximilien (Synock) Guislain
-
 #include "UI/TradeWidget.h"
 #include "UI/TradeSlotWidget.h"
 #include "UI/PurseWidget.h"
@@ -104,15 +102,10 @@ void UTradeWidget::InitializeTrade(UTradeComponent* InTradeComponent)
 		}
 	}
 
-	// Initialize coin display widgets with the coin components
+	// Initialize our coin display widget with the coin component (allows automatic updates and UI manipulation)
 	if (OurCoinOffer && TradeComponent->GetOurCoinComponent())
 	{
 		OurCoinOffer->InitWidget(TradeComponent->GetOurCoinComponent());
-	}
-
-	if (TheirCoinOffer && TradeComponent->GetTheirCoinComponent())
-	{
-		TheirCoinOffer->InitWidget(TradeComponent->GetTheirCoinComponent());
 	}
 
 	// Initial refresh
@@ -293,7 +286,11 @@ void UTradeWidget::RefreshTheirOffer()
 		}
 	}
 
-	// Coin display automatically updates via TheirCoinOffer component binding
+	// Update coin display
+	if (TheirCoinOffer)
+	{
+		TheirCoinOffer->SetCoinValue(TradeComponent->GetTheirCoinOffer());
+	}
 }
 
 //----------------------------------------------------------------------------------------------------------------------

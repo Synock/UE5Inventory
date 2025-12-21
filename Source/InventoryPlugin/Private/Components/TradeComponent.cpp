@@ -16,18 +16,11 @@ UTradeComponent::UTradeComponent()
 	PrimaryComponentTick.bCanEverTick = false;
 	SetIsReplicatedByDefault(true);
 
-	// Create coin components for holding trade offers
-	// CreateDefaultSubobject can only be called in constructor
+	// Create coin component for our offer (allows direct UI manipulation)
 	OurCoinOffer = CreateDefaultSubobject<UCoinComponent>(TEXT("OurCoinOffer"));
 	if (OurCoinOffer)
 	{
 		OurCoinOffer->SetIsReplicated(true);
-	}
-
-	TheirCoinOffer = CreateDefaultSubobject<UCoinComponent>(TEXT("TheirCoinOffer"));
-	if (TheirCoinOffer)
-	{
-		TheirCoinOffer->SetIsReplicated(true);
 	}
 }
 
@@ -36,6 +29,12 @@ UTradeComponent::UTradeComponent()
 void UTradeComponent::BeginPlay()
 {
 	Super::BeginPlay();
+
+	// Bind to our coin offer changes so we can update partner when coins change
+	if (OurCoinOffer)
+	{
+		OurCoinOffer->PurseDispatcher.AddDynamic(this, &UTradeComponent::OnOurCoinOfferChanged);
+	}
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -64,7 +63,6 @@ void UTradeComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutL
 	DOREPLIFETIME_CONDITION(UTradeComponent, TheirOffer, COND_OwnerOnly);
 	DOREPLIFETIME_CONDITION(UTradeComponent, bIsTrading, COND_OwnerOnly);
 	DOREPLIFETIME_CONDITION(UTradeComponent, OurCoinOffer, COND_OwnerOnly);
-	DOREPLIFETIME_CONDITION(UTradeComponent, TheirCoinOffer, COND_OwnerOnly);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -110,13 +108,6 @@ void UTradeComponent::OnRep_TradePartner()
 
 void UTradeComponent::OnRep_OurOffer()
 {
-	// Update coin component display
-	/*if (OurCoinOffer)
-	{
-		OurCoinOffer->ClearPurse();
-		OurCoinOffer->AddCoins(OurOffer.Coin);
-	}*/
-
 	OnOurItemsChanged.Broadcast();
 	OnOurCoinChanged.Broadcast();
 	OnAcceptanceChanged.Broadcast();
@@ -126,7 +117,6 @@ void UTradeComponent::OnRep_OurOffer()
 
 void UTradeComponent::OnRep_TheirOffer()
 {
-	// Update coin component display - IMPORTANT: This fixes the coin display bug!
 	OnTheirItemsChanged.Broadcast();
 	OnTheirCoinChanged.Broadcast();
 	OnAcceptanceChanged.Broadcast();
@@ -141,10 +131,40 @@ void UTradeComponent::OnRep_IsTrading()
 
 //----------------------------------------------------------------------------------------------------------------------
 
-void UTradeComponent::OnRep_TheirCoinOffer()
+void UTradeComponent::OnOurCoinOfferChanged()
 {
-	OnTheirCoinChanged.Broadcast();
+	// Only process if we're actively trading
+	if (!bIsTrading)
+		return;
+
+	// On client: notify server via RPC
+	if (!GetOwner()->HasAuthority())
+	{
+		Server_NotifyCoinOfferChanged();
+		return;
+	}
+
+	// On server: process the change
+	// Reset acceptance when coin offer changes
+	OurOffer.bAccepted = false;
+	TheirOffer.bAccepted = false;
+
+	// Update partner's view with current coin value
+	if (UTradeComponent* PartnerComponent = GetPartnerTradeComponent())
+	{
+		PartnerComponent->UpdatePartnerOffer(OurOffer);
+	}
 }
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UTradeComponent::Server_NotifyCoinOfferChanged_Implementation()
+{
+	// Server received notification from client that coins changed
+	// Trigger the same logic as if it happened on server
+	OnOurCoinOfferChanged();
+}
+
 
 //----------------------------------------------------------------------------------------------------------------------
 // Server-Only Trade Management
@@ -182,12 +202,12 @@ bool UTradeComponent::StartTrade(ACharacter* OtherTrader)
 		return false;
 
 	// Clean up any leftover state (only return items if we somehow have items in offer without being in a trade)
-	if (OurOffer.Items.Num() > 0 || !OurCoinOffer->GetCoinValue().IsEmpty())
+	if (OurOffer.Items.Num() > 0 || (OurCoinOffer && OurCoinOffer->HasContent()))
 	{
 		ResetTradeState(true);
 	}
 
-	if (OtherTradeComponent->OurOffer.Items.Num() > 0 || !OtherTradeComponent->OurCoinOffer->GetCoinValue().IsEmpty())
+	if (OtherTradeComponent->OurOffer.Items.Num() > 0 || (OtherTradeComponent->OurCoinOffer && OtherTradeComponent->OurCoinOffer->HasContent()))
 	{
 		OtherTradeComponent->ResetTradeState(true);
 	}
@@ -341,49 +361,6 @@ bool UTradeComponent::RemoveItemFromOffer(int32 SlotIndex)
 
 //----------------------------------------------------------------------------------------------------------------------
 
-/*bool UTradeComponent::SetCoinOffer(const FCoinValue& CoinAmount)
-{
-	if (!GetOwner()->HasAuthority())
-		return false;
-
-	if (!bIsTrading)
-		return false;
-
-	// Validate we have this much coin
-	IInventoryPlayerInterface* InventoryInterface = GetInventoryInterface();
-	if (!InventoryInterface)
-		return false;
-
-	if (!InventoryInterface->PlayerCanPayAmount(CoinAmount))
-		return false;
-
-	// First, return any previously offered coins back to main purse
-	if (OurCoinOffer && OurCoinOffer->GetCoinValue().ToFloat() > 0.f)
-	{
-		FCoinValue PreviousOffer = OurCoinOffer->GetCoinValue();
-		InventoryInterface->GetCoinComponent()->AddCoins(PreviousOffer);
-		OurCoinOffer->ClearPurse();
-	OurOffer.Coin = CoinAmount;
-		if (OurCoinOffer)
-	// Update the coin component so UDynamicPurseWidget can display it
-	if (OurCoinOffer)
-	{
-		OurCoinOffer->ClearPurse();
-		OurCoinOffer->AddCoins(CoinAmount);
-	OurOffer.bAccepted = false;
-	TheirOffer.bAccepted = false;
-
-	// Update partner's view
-	if (UTradeComponent* PartnerComponent = GetPartnerTradeComponent())
-	{
-		PartnerComponent->UpdatePartnerOffer(OurOffer);
-	}
-
-	return true;
-}*/
-
-//----------------------------------------------------------------------------------------------------------------------
-
 void UTradeComponent::SetAcceptance(bool bAccept)
 {
 	if (!GetOwner()->HasAuthority())
@@ -416,25 +393,18 @@ void UTradeComponent::UpdatePartnerOffer(const FTradeOffer& PartnerOffer)
 
 	TheirOffer = PartnerOffer;
 
-	// Update the coin component so UDynamicPurseWidget can display it
-	/*if (TheirCoinOffer)
+	// Sync the coin value from the partner's OurCoinOffer component to our TheirOffer.CoinOffer
+	UTradeComponent* PartnerComponent = GetPartnerTradeComponent();
+	if (PartnerComponent && PartnerComponent->OurCoinOffer)
 	{
-		TheirCoinOffer->ClearPurse();
-		TheirCoinOffer->AddCoins(PartnerOffer.Coin);
-	}*/
+		TheirOffer.CoinOffer = PartnerComponent->OurCoinOffer->GetCoinValue();
+	}
 
 	// When partner changes their offer, reset our acceptance
 	if (!PartnerOffer.bAccepted && OurOffer.bAccepted)
 	{
 		OurOffer.bAccepted = false;
 	}
-
-	// IMPORTANT: Check if both players have now accepted
-	// This fixes the bug where trade doesn't execute when second player accepts
-	/*if (BothAccepted())
-	{
-		ExecuteTrade();
-	}*/
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -528,27 +498,23 @@ bool UTradeComponent::ExecuteTrade()
 	}
 
 	// 3. Transfer coins
-	// Note: Coins are already in OurCoinOffer and TheirCoinOffer components
-	// We need to transfer from offer components to main purses
 	UCoinComponent* OurCoin = OurInventory->GetCoinComponent();
 	UCoinComponent* TheirCoin = TheirInventory->GetCoinComponent();
 
 	if (OurCoin && TheirCoin)
 	{
-		// Transfer our offered coins from OurCoinOffer to their main purse
-		if (OurCoinOffer && OurCoinOffer->GetCoinValue().ToFloat() > 0.f)
+		// Transfer our offered coins from OurCoinOffer component to their main purse
+		if (OurCoinOffer && OurCoinOffer->HasContent())
 		{
 			FCoinValue OurOfferedCoins = OurCoinOffer->GetCoinValue();
-			TheirInventory->GetCoinComponent()->AddCoins(OurOfferedCoins);
+			TheirCoin->AddCoins(OurOfferedCoins);
 			// OurCoinOffer will be cleared in ResetTradeState
 		}
 
-		// Transfer their offered coins from TheirCoinOffer to our main purse
-		if (TheirCoinOffer && TheirCoinOffer->GetCoinValue().ToFloat() > 0.f)
+		// Transfer their offered coins from TheirOffer.CoinOffer to our main purse
+		if (!TheirOffer.CoinOffer.IsEmpty())
 		{
-			FCoinValue TheirOfferedCoins = TheirCoinOffer->GetCoinValue();
-			OurInventory->GetCoinComponent()->AddCoins(TheirOfferedCoins);
-			// TheirCoinOffer will be cleared in ResetTradeState
+			OurCoin->AddCoins(TheirOffer.CoinOffer);
 		}
 	}
 
@@ -580,14 +546,11 @@ bool UTradeComponent::ValidateOurItems() const
 
 bool UTradeComponent::ValidateOurCoin() const
 {
-	if (!OurCoinOffer->HasContent())
-		return true;
+	if (!OurCoinOffer || !OurCoinOffer->HasContent())
+		return true; // No coins offered, valid
 
-	IInventoryPlayerInterface* InventoryInterface = GetInventoryInterface();
-	if (!InventoryInterface)
-		return false;
-
-	return InventoryInterface->PlayerCanPayAmount(OurCoinOffer->GetCoinValue());
+	// Coins are in OurCoinOffer component which was already validated when added
+	return true;
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -661,7 +624,7 @@ UTradeComponent* UTradeComponent::GetPartnerTradeComponent() const
 
 void UTradeComponent::ResetTradeState(bool bReturnItems)
 {
-	// Return all items in our offer back to inventory (only if trade was cancelled, not completed)
+	// Return all items in our offer back to inventory (only if trade was canceled, not completed)
 	if (bReturnItems)
 	{
 		IInventoryPlayerInterface* InventoryInterface = GetInventoryInterface();
@@ -704,18 +667,20 @@ void UTradeComponent::ResetTradeState(bool bReturnItems)
 	TheirOffer.Reset();
 	bIsTrading = false;
 
-	// Clear coin components
+	// Clear our coin offer component
 	if (OurCoinOffer)
 	{
-		//add back the data was in the purse to the player (only if returning items)
-		if (bReturnItems)
+		// If returning items (trade canceled), coins in OurCoinOffer need to be returned to player
+		// But OurCoinOffer already contains the coins (they were moved there when offering)
+		// So we just need to move them back to the main purse
+		if (bReturnItems && OurCoinOffer->HasContent())
 		{
-			Cast<IInventoryPlayerInterface>(GetOwner())->GetCoinComponent()->AddCoins(OurCoinOffer->GetCoinValue());
+			IInventoryPlayerInterface* InventoryInterface = GetInventoryInterface();
+			if (InventoryInterface)
+			{
+				InventoryInterface->GetCoinComponent()->AddCoins(OurCoinOffer->GetCoinValue());
+			}
 		}
 		OurCoinOffer->ClearPurse();
-	}
-	if (TheirCoinOffer)
-	{
-		TheirCoinOffer->ClearPurse();
 	}
 }

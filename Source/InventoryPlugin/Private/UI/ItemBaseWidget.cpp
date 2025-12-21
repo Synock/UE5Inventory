@@ -142,6 +142,7 @@ void UItemBaseWidget::InitBareData(const UInventoryItemBase* InputItem, AActor* 
 	Owner = InputOwner;
 	TileSize = InputTileSize;
 
+	SetToolTipText(Item ? FText::FromString(Item->Name) : FText::GetEmpty());
 	// Get max durability from item if it's equipable
 	if (const UInventoryItemEquipable* EquipableItem = Cast<UInventoryItemEquipable>(InputItem))
 	{

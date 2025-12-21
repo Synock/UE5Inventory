@@ -60,15 +60,19 @@ struct FTradeOffer
 	UPROPERTY(BlueprintReadOnly, Category = "Trade")
 	bool bAccepted = false;
 
+	UPROPERTY(BlueprintReadOnly, Category = "Trade")
+	FCoinValue CoinOffer;
+
 	void Reset()
 	{
 		Items.Empty();
 		bAccepted = false;
+		CoinOffer = {};
 	}
 
 	bool IsEmpty() const
 	{
-		return Items.Num() == 0;
+		return Items.Num() == 0 && CoinOffer.IsEmpty();
 	}
 };
 
@@ -113,13 +117,10 @@ protected:
 	UPROPERTY(ReplicatedUsing=OnRep_IsTrading, BlueprintReadOnly, Category = "Trade")
 	bool bIsTrading = false;
 
-	// Coin component for our offer (allows UDynamicPurseWidget binding)
+	// Coin component for our offer (allows UDynamicPurseWidget binding and direct manipulation)
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Trade")
 	UCoinComponent* OurCoinOffer = nullptr;
 
-	// Coin component for their offer
-	UPROPERTY(ReplicatedUsing=OnRep_TheirCoinOffer, BlueprintReadOnly, Category = "Trade")
-	UCoinComponent* TheirCoinOffer = nullptr;
 
 	//------------------------------------------------------------------------------------------------------------------
 	// Replication Callbacks
@@ -137,8 +138,14 @@ protected:
 	UFUNCTION()
 	void OnRep_IsTrading();
 
+	// Called when OurCoinOffer component changes (from user interaction)
 	UFUNCTION()
-	void OnRep_TheirCoinOffer();
+	void OnOurCoinOfferChanged();
+
+	// Server RPC to notify of coin changes
+	UFUNCTION(Server, Reliable)
+	void Server_NotifyCoinOfferChanged();
+
 
 public:
 	//------------------------------------------------------------------------------------------------------------------
@@ -192,7 +199,7 @@ public:
 	UCoinComponent* GetOurCoinComponent() const { return OurCoinOffer; }
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Trade")
-	UCoinComponent* GetTheirCoinComponent() const { return TheirCoinOffer; }
+	FCoinValue GetTheirCoinOffer() const { return TheirOffer.CoinOffer; }
 
 	//------------------------------------------------------------------------------------------------------------------
 	// Server-Only Functions (Called by PlayerController RPCs)
@@ -225,13 +232,6 @@ public:
 	 * @return True if item was removed
 	 */
 	bool RemoveItemFromOffer(int32 SlotIndex);
-
-	/**
-	 * @brief Set the coin amount we're offering (server-only, validates we have it)
-	 * @param CoinAmount The coin value to offer
-	 * @return True if coin was set successfully
-	 */
-	//bool SetCoinOffer(const FCoinValue& CoinAmount);
 
 	/**
 	 * @brief Toggle our acceptance of the current trade (server-only)
