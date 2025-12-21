@@ -14,6 +14,12 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnTradeItemsChangedDelegate);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnTradeCoinChangedDelegate);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnTradeAcceptanceChangedDelegate);
 
+// Delegates for trade action notifications (for chat messages)
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnTradeItemAddedDelegate, FString, PlayerName, class UInventoryItemBase*, Item, bool, bIsOurOffer);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnTradeItemRemovedDelegate, FString, PlayerName, class UInventoryItemBase*, Item, bool, bIsOurOffer);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnTradeCoinAddedDelegate, FString, PlayerName, FCoinValue, CoinAmount, bool, bIsOurOffer);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnTradeCoinRemovedDelegate, FString, PlayerName, FCoinValue, CoinAmount, bool, bIsOurOffer);
+
 /**
  * @brief Represents a single item in a trade offer
  */
@@ -121,6 +127,9 @@ protected:
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Trade")
 	UCoinComponent* OurCoinOffer = nullptr;
 
+	// Track previous coin value to detect add/remove operations
+	FCoinValue PreviousCoinValue;
+
 
 	//------------------------------------------------------------------------------------------------------------------
 	// Replication Callbacks
@@ -169,6 +178,26 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "Trade")
 	FOnTradeAcceptanceChangedDelegate OnAcceptanceChanged;
+
+	//------------------------------------------------------------------------------------------------------------------
+	// Trade Action Notification Delegates (for chat messages)
+	//------------------------------------------------------------------------------------------------------------------
+
+	/** Broadcast when an item is added to trade (visible to both players) */
+	UPROPERTY(BlueprintAssignable, Category = "Trade|Notifications")
+	FOnTradeItemAddedDelegate OnTradeItemAdded;
+
+	/** Broadcast when an item is removed from trade (visible to both players) */
+	UPROPERTY(BlueprintAssignable, Category = "Trade|Notifications")
+	FOnTradeItemRemovedDelegate OnTradeItemRemoved;
+
+	/** Broadcast when coins are added to trade (visible to both players) */
+	UPROPERTY(BlueprintAssignable, Category = "Trade|Notifications")
+	FOnTradeCoinAddedDelegate OnTradeCoinAdded;
+
+	/** Broadcast when coins are removed from trade (visible to both players) */
+	UPROPERTY(BlueprintAssignable, Category = "Trade|Notifications")
+	FOnTradeCoinRemovedDelegate OnTradeCoinRemoved;
 
 	//------------------------------------------------------------------------------------------------------------------
 	// Public Getters (Blueprint & Code)
@@ -290,5 +319,21 @@ private:
 	 * @param bReturnItems If true, returns items to owner's inventory (used on cancel). If false, items are not returned (used on successful trade).
 	 */
 	void ResetTradeState(bool bReturnItems = true);
+
+	/**
+	 * @brief Broadcast a trade action notification to both trading parties
+	 * @param PlayerName The name of the player performing the action
+	 * @param Item The item being added/removed (can be nullptr for coin-only notifications)
+	 * @param CoinValue The coin amount being added/removed
+	 * @param bIsAdd True if adding, false if removing
+	 * @param bIsItem True if item notification, false if coin notification
+	 * @param bIsOurAction True if this is our action, false if partner's action
+	 */
+	void BroadcastTradeNotification(const FString& PlayerName, UInventoryItemBase* Item, const FCoinValue& CoinValue, bool bIsAdd, bool bIsItem, bool bIsOurAction);
+
+	/**
+	 * @brief Get the player name for notifications
+	 */
+	FString GetOwnerPlayerName() const;
 };
 

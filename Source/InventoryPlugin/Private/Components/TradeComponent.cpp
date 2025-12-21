@@ -4,12 +4,14 @@
 
 #include "InventoryUtilities.h"
 #include "Interfaces/InventoryPlayerInterface.h"
+#include "Interfaces/InventoryInterface.h"
 #include "Interfaces/InventoryHUDInterface.h"
 #include "Interfaces/TradeInterface.h"
 #include "Components/CoinComponent.h"
 #include "GameFramework/Character.h"
 #include "Net/UnrealNetwork.h"
 #include "GameFramework/PlayerController.h"
+#include "GameFramework/PlayerState.h"
 
 UTradeComponent::UTradeComponent()
 {
@@ -145,6 +147,44 @@ void UTradeComponent::OnOurCoinOfferChanged()
 	}
 
 	// On server: process the change
+	// Get current coin value
+	FCoinValue CurrentCoinValue = OurCoinOffer ? OurCoinOffer->GetCoinValue() : FCoinValue();
+
+	// Calculate the difference to determine if coins were added or removed
+	float CurrentTotal = CurrentCoinValue.ToFloat();
+	float PreviousTotal = PreviousCoinValue.ToFloat();
+
+	if (CurrentTotal != PreviousTotal)
+	{
+		// Determine if coins were added or removed
+		bool bCoinsAdded = CurrentTotal > PreviousTotal;
+		FCoinValue DifferenceCoin;
+
+		if (bCoinsAdded)
+		{
+			// Coins were added - calculate the difference
+			DifferenceCoin.PlatinumPieces = CurrentCoinValue.PlatinumPieces - PreviousCoinValue.PlatinumPieces;
+			DifferenceCoin.GoldPieces = CurrentCoinValue.GoldPieces - PreviousCoinValue.GoldPieces;
+			DifferenceCoin.SilverPieces = CurrentCoinValue.SilverPieces - PreviousCoinValue.SilverPieces;
+			DifferenceCoin.CopperPieces = CurrentCoinValue.CopperPieces - PreviousCoinValue.CopperPieces;
+		}
+		else
+		{
+			// Coins were removed - calculate the difference
+			DifferenceCoin.PlatinumPieces = PreviousCoinValue.PlatinumPieces - CurrentCoinValue.PlatinumPieces;
+			DifferenceCoin.GoldPieces = PreviousCoinValue.GoldPieces - CurrentCoinValue.GoldPieces;
+			DifferenceCoin.SilverPieces = PreviousCoinValue.SilverPieces - CurrentCoinValue.SilverPieces;
+			DifferenceCoin.CopperPieces = PreviousCoinValue.CopperPieces - CurrentCoinValue.CopperPieces;
+		}
+
+		// Broadcast notification to both players
+		FString PlayerName = GetOwnerPlayerName();
+		BroadcastTradeNotification(PlayerName, nullptr, DifferenceCoin, bCoinsAdded, false, true);
+
+		// Update tracking
+		PreviousCoinValue = CurrentCoinValue;
+	}
+
 	// Reset acceptance when coin offer changes
 	OurOffer.bAccepted = false;
 	TheirOffer.bAccepted = false;
@@ -215,6 +255,7 @@ bool UTradeComponent::StartTrade(ACharacter* OtherTrader)
 	// Initialize trade state
 	TradePartner = OtherTrader;
 	bIsTrading = true;
+	PreviousCoinValue = FCoinValue(); // Reset coin tracking
 
 	APlayerController* CurrentPC = Cast<APlayerController>(GetOwner());
 	AActor* SelfActor = CurrentPC->GetPawn();
@@ -222,6 +263,7 @@ bool UTradeComponent::StartTrade(ACharacter* OtherTrader)
 	// Initialize partner's trade state
 	OtherTradeComponent->TradePartner = SelfActor;
 	OtherTradeComponent->bIsTrading = true;
+	OtherTradeComponent->PreviousCoinValue = FCoinValue(); // Reset partner's coin tracking
 
 	return true;
 }
@@ -287,6 +329,11 @@ bool UTradeComponent::AddItemToOffer(int32 ItemID, EBagSlot BagSlot, int32 TopLe
 	OurOffer.bAccepted = false;
 	TheirOffer.bAccepted = false;
 
+	// Broadcast notification to both players
+	UInventoryItemBase* Item = UInventoryUtilities::GetItemFromID(ItemID, GetOwner()->GetWorld());
+	FString PlayerName = GetOwnerPlayerName();
+	BroadcastTradeNotification(PlayerName, Item, FCoinValue(), true, true, true);
+
 	// Update partner's view
 	if (UTradeComponent* PartnerComponent = GetPartnerTradeComponent())
 	{
@@ -311,6 +358,7 @@ bool UTradeComponent::RemoveItemFromOffer(int32 SlotIndex)
 
 	// Get the item info before removing it
 	const FTradeItemSlot& ItemSlot = OurOffer.Items[SlotIndex];
+	int32 RemovedItemID = ItemSlot.ItemID;
 
 	// Return item to inventory
 	IInventoryPlayerInterface* InventoryInterface = GetInventoryInterface();
@@ -349,6 +397,11 @@ bool UTradeComponent::RemoveItemFromOffer(int32 SlotIndex)
 	// Reset acceptance when offer changes
 	OurOffer.bAccepted = false;
 	TheirOffer.bAccepted = false;
+
+	// Broadcast notification to both players
+	UInventoryItemBase* Item = UInventoryUtilities::GetItemFromID(RemovedItemID, GetOwner()->GetWorld());
+	FString PlayerName = GetOwnerPlayerName();
+	BroadcastTradeNotification(PlayerName, Item, FCoinValue(), false, true, true);
 
 	// Update partner's view
 	if (UTradeComponent* PartnerComponent = GetPartnerTradeComponent())
@@ -683,4 +736,92 @@ void UTradeComponent::ResetTradeState(bool bReturnItems)
 		}
 		OurCoinOffer->ClearPurse();
 	}
+
+	// Reset coin tracking
+	PreviousCoinValue = FCoinValue();
 }
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UTradeComponent::BroadcastTradeNotification(const FString& PlayerName, UInventoryItemBase* Item, const FCoinValue& CoinValue, bool bIsAdd, bool bIsItem, bool bIsOurAction)
+{
+	// Broadcast to our delegates
+	if (bIsItem)
+	{
+		if (bIsAdd)
+		{
+			OnTradeItemAdded.Broadcast(PlayerName, Item, bIsOurAction);
+		}
+		else
+		{
+			OnTradeItemRemoved.Broadcast(PlayerName, Item, bIsOurAction);
+		}
+	}
+	else
+	{
+		if (bIsAdd)
+		{
+			OnTradeCoinAdded.Broadcast(PlayerName, CoinValue, bIsOurAction);
+		}
+		else
+		{
+			OnTradeCoinRemoved.Broadcast(PlayerName, CoinValue, bIsOurAction);
+		}
+	}
+
+	// Also broadcast to partner's delegates
+	if (UTradeComponent* PartnerComponent = GetPartnerTradeComponent())
+	{
+		if (bIsItem)
+		{
+			if (bIsAdd)
+			{
+				PartnerComponent->OnTradeItemAdded.Broadcast(PlayerName, Item, false); // false = partner's action from their perspective
+			}
+			else
+			{
+				PartnerComponent->OnTradeItemRemoved.Broadcast(PlayerName, Item, false);
+			}
+		}
+		else
+		{
+			if (bIsAdd)
+			{
+				PartnerComponent->OnTradeCoinAdded.Broadcast(PlayerName, CoinValue, false);
+			}
+			else
+			{
+				PartnerComponent->OnTradeCoinRemoved.Broadcast(PlayerName, CoinValue, false);
+			}
+		}
+	}
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+FString UTradeComponent::GetOwnerPlayerName() const
+{
+	if (APlayerController* PC = Cast<APlayerController>(GetOwner()))
+	{
+
+		// Try IInventoryInterface first (has GetInventoryOwnerName method)
+		if (IInventoryInterface* InventoryInterface = Cast<IInventoryInterface>(PC))
+		{
+			return InventoryInterface->GetInventoryOwnerName();
+		}
+
+		if (IInventoryInterface* InventoryInterface = Cast<IInventoryInterface>(PC->GetPawn()))
+		{
+			return InventoryInterface->GetInventoryOwnerName();
+		}
+
+		// Fallback to player state name
+		if (APlayerState* PS = PC->GetPlayerState<APlayerState>())
+		{
+			return PS->GetPlayerName();
+		}
+	}
+
+	return TEXT("Unknown");
+}
+
