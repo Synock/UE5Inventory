@@ -120,8 +120,7 @@ void UTradeWidget::InitializeTrade(UTradeComponent* InTradeComponent)
 void UTradeWidget::CloseTrade()
 {
 	// This will be called by the cancel button or when trade completes
-
-	RemoveFromParent();
+	//RemoveFromParent();
 }
 
 //----------------------------------------------------------------------------------------------------------------------

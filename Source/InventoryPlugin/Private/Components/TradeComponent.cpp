@@ -8,6 +8,7 @@
 #include "Interfaces/InventoryHUDInterface.h"
 #include "Interfaces/TradeInterface.h"
 #include "Components/CoinComponent.h"
+#include "Components/SphereComponent.h"
 #include "GameFramework/Character.h"
 #include "Net/UnrealNetwork.h"
 #include "GameFramework/PlayerController.h"
@@ -24,6 +25,9 @@ UTradeComponent::UTradeComponent()
 	{
 		OurCoinOffer->SetIsReplicated(true);
 	}
+
+	// Create sphere component for distance detection (not created as subobject, created dynamically)
+	TradeRangeSphere = nullptr;
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -265,6 +269,51 @@ bool UTradeComponent::StartTrade(ACharacter* OtherTrader)
 	OtherTradeComponent->bIsTrading = true;
 	OtherTradeComponent->PreviousCoinValue = FCoinValue(); // Reset partner's coin tracking
 
+	// Create and setup interaction sphere for distance detection (server only)
+	if (ACharacter* OwnerCharacter = Cast<ACharacter>(SelfActor))
+	{
+		// Create sphere component dynamically
+		TradeRangeSphere = NewObject<USphereComponent>(OwnerCharacter, USphereComponent::StaticClass(), TEXT("TradeRangeSphere"));
+		if (TradeRangeSphere)
+		{
+			TradeRangeSphere->RegisterComponent();
+			TradeRangeSphere->AttachToComponent(OwnerCharacter->GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+			TradeRangeSphere->SetSphereRadius(MaxTradeDistance);
+
+			// Set collision settings - only detect pawns
+			TradeRangeSphere->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+			TradeRangeSphere->SetCollisionObjectType(ECollisionChannel::ECC_WorldDynamic);
+			TradeRangeSphere->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
+			TradeRangeSphere->SetCollisionResponseToChannel(ECollisionChannel::ECC_Pawn, ECollisionResponse::ECR_Overlap);
+
+			// Bind to end overlap event
+			TradeRangeSphere->OnComponentEndOverlap.AddDynamic(this, &UTradeComponent::OnTradePartnerExitSphere);
+
+			// Enable overlap events
+			TradeRangeSphere->SetGenerateOverlapEvents(true);
+		}
+	}
+
+	// Also create sphere for partner
+	if (ACharacter* PartnerCharacter = Cast<ACharacter>(OtherTrader))
+	{
+		OtherTradeComponent->TradeRangeSphere = NewObject<USphereComponent>(PartnerCharacter, USphereComponent::StaticClass(), TEXT("TradeRangeSphere"));
+		if (OtherTradeComponent->TradeRangeSphere)
+		{
+			OtherTradeComponent->TradeRangeSphere->RegisterComponent();
+			OtherTradeComponent->TradeRangeSphere->AttachToComponent(PartnerCharacter->GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+			OtherTradeComponent->TradeRangeSphere->SetSphereRadius(MaxTradeDistance);
+
+			OtherTradeComponent->TradeRangeSphere->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+			OtherTradeComponent->TradeRangeSphere->SetCollisionObjectType(ECollisionChannel::ECC_WorldDynamic);
+			OtherTradeComponent->TradeRangeSphere->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
+			OtherTradeComponent->TradeRangeSphere->SetCollisionResponseToChannel(ECollisionChannel::ECC_Pawn, ECollisionResponse::ECR_Overlap);
+
+			OtherTradeComponent->TradeRangeSphere->OnComponentEndOverlap.AddDynamic(OtherTradeComponent, &UTradeComponent::OnTradePartnerExitSphere);
+			OtherTradeComponent->TradeRangeSphere->SetGenerateOverlapEvents(true);
+		}
+	}
+
 	return true;
 }
 
@@ -304,6 +353,13 @@ bool UTradeComponent::AddItemToOffer(int32 ItemID, EBagSlot BagSlot, int32 TopLe
 	// Max 8 items (like staging area)
 	if (OurOffer.Items.Num() >= 8)
 		return false;
+
+	// Cannot trade items from equipment slots (bags attached to equipment are OK)
+	if (BagSlot == EBagSlot::Unknown)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("TradeComponent: Cannot add item from equipment slot to trade"));
+		return false;
+	}
 
 	// Validate we own this item
 	IInventoryPlayerInterface* InventoryInterface = GetInventoryInterface();
@@ -474,6 +530,36 @@ bool UTradeComponent::ExecuteTrade()
 	if (!BothAccepted())
 		return false;
 
+	// Validate distance first - if too far, cancel trade and notify
+	if (!ValidateTradeDistance())
+	{
+		// Get partner component to notify them as well
+		UTradeComponent* PartnerComponent = GetPartnerTradeComponent();
+
+		FString CancellationReason = TEXT("Trade cancelled: You are too far away from your trade partner.");
+
+		// Broadcast to local player (owner of this component)
+		if (APlayerController* PC = Cast<APlayerController>(GetOwner()))
+		{
+			OnTradeCancelled.Broadcast(PC, CancellationReason);
+		}
+
+		// Broadcast to partner
+		if (PartnerComponent)
+		{
+			ACharacter* PartnerCharacter = Cast<ACharacter>(TradePartner);
+			APlayerController* PartnerPC = PartnerCharacter ? Cast<APlayerController>(PartnerCharacter->GetController()) : nullptr;
+			if (PartnerPC)
+			{
+				PartnerComponent->OnTradeCancelled.Broadcast(PartnerPC, CancellationReason);
+			}
+		}
+
+		// Cancel the trade and return items
+		CancelTrade();
+		return false;
+	}
+
 	// Validate our side
 	if (!ValidateOurItems() || !ValidateOurCoin())
 		return false;
@@ -638,6 +724,83 @@ bool UTradeComponent::ValidatePartnerHasSpace() const
 }
 
 //----------------------------------------------------------------------------------------------------------------------
+
+bool UTradeComponent::ValidateTradeDistance() const
+{
+	if (!TradePartner || !GetOwner())
+		return false;
+
+	// Get the owner's location (the player controller's pawn/character)
+	AActor* OwnerActor = GetOwner();
+	APawn* OwnerPawn = Cast<APawn>(OwnerActor);
+	if (!OwnerPawn)
+	{
+		// Owner might be a controller, try to get its pawn
+		if (AController* OwnerController = Cast<AController>(OwnerActor))
+		{
+			OwnerPawn = OwnerController->GetPawn();
+		}
+	}
+
+	if (!OwnerPawn)
+		return false;
+
+	// Get trade partner's location (should be a Character/Pawn)
+	FVector OwnerLocation = OwnerPawn->GetActorLocation();
+	FVector PartnerLocation = TradePartner->GetActorLocation();
+
+	// Calculate distance between traders
+	float Distance = FVector::Dist(OwnerLocation, PartnerLocation);
+
+	// Check if within acceptable range
+	return Distance <= MaxTradeDistance;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UTradeComponent::OnTradePartnerExitSphere(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
+{
+	// Only run on server
+	if (!GetOwner()->HasAuthority())
+		return;
+
+	// Verify we're still trading
+	if (!bIsTrading || !TradePartner)
+		return;
+
+	// Check if the actor that exited is our trade partner
+	if (OtherActor != TradePartner)
+		return;
+
+	// Trade partner has moved outside the sphere radius
+	FString CancellationReason = TEXT("Trade cancelled: You moved too far away from your trade partner.");
+
+	// Get partner component for notification
+	UTradeComponent* PartnerComponent = GetPartnerTradeComponent();
+
+	// Broadcast to local player (owner of this component)
+	if (APlayerController* PC = Cast<APlayerController>(GetOwner()))
+	{
+		OnTradeCancelled.Broadcast(PC, CancellationReason);
+	}
+
+	// Broadcast to partner
+	if (PartnerComponent)
+	{
+		ACharacter* PartnerCharacter = Cast<ACharacter>(TradePartner);
+		APlayerController* PartnerPC = PartnerCharacter ? Cast<APlayerController>(PartnerCharacter->GetController()) : nullptr;
+		if (PartnerPC)
+		{
+			PartnerComponent->OnTradeCancelled.Broadcast(PartnerPC, CancellationReason);
+		}
+	}
+
+	// Cancel the trade and return items
+	CancelTrade();
+}
+
+//----------------------------------------------------------------------------------------------------------------------
 // Helpers
 //----------------------------------------------------------------------------------------------------------------------
 
@@ -677,6 +840,14 @@ UTradeComponent* UTradeComponent::GetPartnerTradeComponent() const
 
 void UTradeComponent::ResetTradeState(bool bReturnItems)
 {
+	// Destroy and cleanup the trade range sphere if it exists
+	if (TradeRangeSphere)
+	{
+		TradeRangeSphere->OnComponentEndOverlap.RemoveAll(this);
+		TradeRangeSphere->DestroyComponent();
+		TradeRangeSphere = nullptr;
+	}
+
 	// Return all items in our offer back to inventory (only if trade was canceled, not completed)
 	if (bReturnItems)
 	{

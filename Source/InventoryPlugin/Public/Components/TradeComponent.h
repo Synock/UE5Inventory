@@ -20,6 +20,9 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnTradeItemRemovedDelegate, FStr
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnTradeCoinAddedDelegate, FString, PlayerName, FCoinValue, CoinAmount, bool, bIsOurOffer);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnTradeCoinRemovedDelegate, FString, PlayerName, FCoinValue, CoinAmount, bool, bIsOurOffer);
 
+// Delegate for trade cancellation with reason (for error messages on game side)
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnTradeCancelledDelegate, APlayerController*, PlayerController, FString, CancellationReason);
+
 /**
  * @brief Represents a single item in a trade offer
  */
@@ -199,6 +202,10 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Trade|Notifications")
 	FOnTradeCoinRemovedDelegate OnTradeCoinRemoved;
 
+	/** Broadcast when trade is cancelled with a reason (for error messages on game side) */
+	UPROPERTY(BlueprintAssignable, Category = "Trade|Notifications")
+	FOnTradeCancelledDelegate OnTradeCancelled;
+
 	//------------------------------------------------------------------------------------------------------------------
 	// Public Getters (Blueprint & Code)
 	//------------------------------------------------------------------------------------------------------------------
@@ -302,7 +309,33 @@ public:
 	 */
 	bool ValidatePartnerHasSpace() const;
 
+	/**
+	 * @brief Validates that both traders are within acceptable distance
+	 * @return True if distance is valid, false if too far
+	 */
+	bool ValidateTradeDistance() const;
+
 private:
+	/**
+	 * Maximum distance in units between traders to allow trade execution
+	 * Server-only, not replicated
+	 */
+	UPROPERTY(EditDefaultsOnly, Category = "Trade|Settings")
+	float MaxTradeDistance = 500.0f;
+
+	/**
+	 * Sphere component for efficient collision-based distance detection
+	 * Attached to player when trade starts
+	 */
+	UPROPERTY()
+	class USphereComponent* TradeRangeSphere;
+
+	/**
+	 * Called when the trade partner exits the interaction sphere
+	 */
+	UFUNCTION()
+	void OnTradePartnerExitSphere(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+		UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
 	/**
 	 * @brief Helper to get the inventory interface from owner
 	 */

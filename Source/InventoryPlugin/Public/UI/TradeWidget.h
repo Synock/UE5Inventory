@@ -14,6 +14,9 @@ class UTradeSlotWidget;
 class UCoinDisplayWidget;
 class IInventoryPlayerInterface;
 
+// Delegate for trade validation errors (e.g., trying to trade equipped items)
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnTradeValidationError, FString, ErrorMessage);
+
 /**
  * @class UTradeWidget
  *
@@ -196,6 +199,18 @@ protected:
 	IInventoryPlayerInterface* GetInventoryInterface() const;
 
 public:
+	//------------------------------------------------------------------------------------------------------------------
+	// Delegates
+	//------------------------------------------------------------------------------------------------------------------
+
+	/** Broadcast when a trade validation error occurs (e.g., trying to trade equipped items) */
+	UPROPERTY(BlueprintAssignable, Category = "Trade|Events")
+	FOnTradeValidationError OnTradeValidationError;
+
+	//------------------------------------------------------------------------------------------------------------------
+	// Public Methods
+	//------------------------------------------------------------------------------------------------------------------
+
 	/**
 	 * @brief Initialize the trade widget with the local player's trade component
 	 * @param InTradeComponent The trade component to bind to

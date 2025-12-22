@@ -2,6 +2,8 @@
 
 #include "Items/InventoryItemBase.h"
 #include "UI/ItemWidget.h"
+#include "UI/TradeWidget.h"
+#include "Definitions.h"
 #include "Blueprint/DragDropOperation.h"
 #include "Interfaces/InventoryPlayerInterface.h"
 
@@ -77,6 +79,35 @@ bool UTradeSlotWidget::NativeOnDrop(const FGeometry& InGeometry, const FDragDrop
 	const EBagSlot BagSlot = DroppedItemWidget->GetBagID();
 	const int32 TopLeft = DroppedItemWidget->GetTopLeftID();
 
+	// CLIENT-SIDE VALIDATION: Check if item is from equipment slot
+	if (BagSlot == EBagSlot::Unknown)
+	{
+		// Item is equipped - cannot trade
+		// Broadcast error to parent TradeWidget so game side can display message
+		UTradeWidget* ParentTradeWidget = Cast<UTradeWidget>(GetOuter());
+		if (!ParentTradeWidget)
+		{
+			// Try to find it in the widget tree
+			UUserWidget* Parent = GetTypedOuter<UUserWidget>();
+			while (Parent && !ParentTradeWidget)
+			{
+				ParentTradeWidget = Cast<UTradeWidget>(Parent);
+				if (!ParentTradeWidget)
+				{
+					Parent = Parent->GetTypedOuter<UUserWidget>();
+				}
+			}
+		}
+
+		if (ParentTradeWidget)
+		{
+			ParentTradeWidget->OnTradeValidationError.Broadcast(
+				TEXT("You cannot trade equipped items. Unequip the item first."));
+		}
+
+		return false; // Reject the drop
+	}
+
 	// Get the player controller
 	APlayerController* PC = GetOwningPlayer();
 	if (!PC)
@@ -87,7 +118,7 @@ bool UTradeSlotWidget::NativeOnDrop(const FGeometry& InGeometry, const FDragDrop
 	if (!PlayerInterface)
 		return Super::NativeOnDrop(InGeometry, InDragDropEvent, InOperation);
 
-	// Add the item to trade
+	// Add the item to trade (server will validate again)
 	PlayerInterface->PlayerAddItemToTrade(ItemID, BagSlot, TopLeft);
 
 	return true;
