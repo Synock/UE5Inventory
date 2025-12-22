@@ -9,25 +9,26 @@
 #include "GameFramework/PlayerController.h"
 #include "Interfaces/InventoryInterface.h"
 
-// Forward declare to avoid circular dependency
-class AMainPlayerController;
 
 void UTradeWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 
-	// Bind button callbacks
+	// Unbind any existing callbacks before binding to prevent duplicates
+	// This can happen if the widget is reused without being destroyed
 	if (AcceptButton)
 	{
+		AcceptButton->OnClicked.RemoveAll(this);
 		AcceptButton->OnClicked.AddDynamic(this, &UTradeWidget::OnAcceptButtonClicked);
 	}
 
 	if (CancelButton)
 	{
+		CancelButton->OnClicked.RemoveAll(this);
 		CancelButton->OnClicked.AddDynamic(this, &UTradeWidget::OnCancelButtonClicked);
 	}
 
-	// Initialize slot indices
+	// Initialize slot indices (safe to call multiple times, just sets index values)
 	if (OurSlot0) OurSlot0->InitializeSlot(0, true);
 	if (OurSlot1) OurSlot1->InitializeSlot(1, true);
 	if (OurSlot2) OurSlot2->InitializeSlot(2, true);
@@ -72,9 +73,29 @@ void UTradeWidget::InitializeTrade(UTradeComponent* InTradeComponent)
 	if (!InTradeComponent)
 		return;
 
+	// Unbind from old trade component if we're re-initializing
+	if (TradeComponent && TradeComponent != InTradeComponent)
+	{
+		TradeComponent->OnTradeStateChanged.RemoveAll(this);
+		TradeComponent->OnOurItemsChanged.RemoveAll(this);
+		TradeComponent->OnTheirItemsChanged.RemoveAll(this);
+		TradeComponent->OnOurCoinChanged.RemoveAll(this);
+		TradeComponent->OnTheirCoinChanged.RemoveAll(this);
+		TradeComponent->OnAcceptanceChanged.RemoveAll(this);
+	}
+
 	TradeComponent = InTradeComponent;
 
-	// Bind to trade component delegates
+	// Unbind any existing delegates before binding to prevent duplicate bindings
+	// This is critical because the widget might be reused without being destroyed
+	TradeComponent->OnTradeStateChanged.RemoveAll(this);
+	TradeComponent->OnOurItemsChanged.RemoveAll(this);
+	TradeComponent->OnTheirItemsChanged.RemoveAll(this);
+	TradeComponent->OnOurCoinChanged.RemoveAll(this);
+	TradeComponent->OnTheirCoinChanged.RemoveAll(this);
+	TradeComponent->OnAcceptanceChanged.RemoveAll(this);
+
+	// Now bind to trade component delegates (clean slate)
 	TradeComponent->OnTradeStateChanged.AddDynamic(this, &UTradeWidget::OnTradeStateChanged);
 	TradeComponent->OnOurItemsChanged.AddDynamic(this, &UTradeWidget::OnOurItemsChanged);
 	TradeComponent->OnTheirItemsChanged.AddDynamic(this, &UTradeWidget::OnTheirItemsChanged);
@@ -82,7 +103,7 @@ void UTradeWidget::InitializeTrade(UTradeComponent* InTradeComponent)
 	TradeComponent->OnTheirCoinChanged.AddDynamic(this, &UTradeWidget::OnTheirCoinChanged);
 	TradeComponent->OnAcceptanceChanged.AddDynamic(this, &UTradeWidget::OnAcceptanceChanged);
 
-	// Set player names
+
 	IInventoryPlayerInterface* OurInventory = GetInventoryInterface();
 	if (OurInventory && OurNameText)
 	{
