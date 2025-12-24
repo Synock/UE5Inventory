@@ -142,6 +142,7 @@ protected:
 	UFUNCTION(BlueprintCallable, Category = "Inventory|UI|Display")
 	void UpdateItemImage();
 
+	virtual void RefreshInternal();
 public:
 	// ============================================================================
 	// Public Interface
@@ -174,7 +175,7 @@ public:
 	float GetMaxDurability() const { return MaxDurability; }
 
 	/** Blueprint event to refresh the widget's visual state */
-	UFUNCTION(BlueprintImplementableEvent, BlueprintCosmetic, Category = "Inventory|UI|Events")
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, BlueprintCosmetic, Category = "Inventory|UI|Events")
 	void Refresh();
 };
 

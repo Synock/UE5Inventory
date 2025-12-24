@@ -27,6 +27,18 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = "Trade")
 	bool bIsOurSlot = true;
 
+	/** Source bag slot for this item (used for drag-drop) */
+	UPROPERTY(BlueprintReadOnly, Category = "Trade")
+	EBagSlot SourceBagSlot = EBagSlot::Unknown;
+
+	/** Source top-left position for this item (used for drag-drop) */
+	UPROPERTY(BlueprintReadOnly, Category = "Trade")
+	int32 SourceTopLeft = -1;
+
+	/** Item durability (used for drag-drop) */
+	UPROPERTY(BlueprintReadOnly, Category = "Trade")
+	float ItemDurability = 100.0f;
+
 	/**
 	 * @brief Handle item drops on this slot
 	 */
@@ -37,6 +49,12 @@ protected:
 	 * @brief Handle mouse button down events, including right-click for item inspection
 	 */
 	virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+
+	/**
+	 * @brief Handle drag detection to create ItemWidget drag operation for removing items from trade
+	 */
+	virtual void NativeOnDragDetected(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent,
+	                                  UDragDropOperation*& OutOperation) override;
 
 public:
 	/**
@@ -51,9 +69,14 @@ public:
 	 * @brief Set the item displayed in this slot using item data
 	 * @param ItemData The item to display (nullptr for empty)
 	 * @param OwnerActor The owner of the item
+	 * @param InSourceBagSlot Source bag slot (for drag-drop)
+	 * @param InSourceTopLeft Source top-left position (for drag-drop)
+	 * @param InDurability Item durability (for drag-drop)
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Trade")
-	void SetTradeItem(const UInventoryItemBase* ItemData, AActor* OwnerActor = nullptr);
+	void SetTradeItem(const UInventoryItemBase* ItemData, AActor* OwnerActor = nullptr,
+	                  EBagSlot InSourceBagSlot = EBagSlot::Unknown, int32 InSourceTopLeft = -1,
+	                  float InDurability = 100.0f);
 
 	/**
 	 * @brief Clear the slot

@@ -5,6 +5,7 @@
 #include "UI/TradeWidget.h"
 #include "Definitions.h"
 #include "Blueprint/DragDropOperation.h"
+#include "Blueprint/WidgetBlueprintLibrary.h"
 #include "Interfaces/InventoryPlayerInterface.h"
 
 void UTradeSlotWidget::InitializeSlot(int32 InSlotIndex, bool bInIsOurSlot)
@@ -22,7 +23,8 @@ void UTradeSlotWidget::InitializeSlot(int32 InSlotIndex, bool bInIsOurSlot)
 
 //----------------------------------------------------------------------------------------------------------------------
 
-void UTradeSlotWidget::SetTradeItem(const UInventoryItemBase* ItemData, AActor* OwnerActor)
+void UTradeSlotWidget::SetTradeItem(const UInventoryItemBase* ItemData, AActor* OwnerActor,
+                                    EBagSlot InSourceBagSlot, int32 InSourceTopLeft, float InDurability)
 {
 	if (!ItemData)
 	{
@@ -30,19 +32,29 @@ void UTradeSlotWidget::SetTradeItem(const UInventoryItemBase* ItemData, AActor* 
 		return;
 	}
 
+	// Store source information for potential drag operations
+	SourceBagSlot = InSourceBagSlot;
+	SourceTopLeft = InSourceTopLeft;
+	ItemDurability = InDurability;
+
 	// Use inherited InitBareData from UItemBaseWidget to set up the item display
 	// This automatically handles:
 	// - Item icon display
 	// - Durability display
 	// - Item reference storage
 	// - UI updates
-	InitBareData(ItemData, OwnerActor, 40.f);
+	InitBareData(ItemData, OwnerActor, 40.f, InDurability);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
 
 void UTradeSlotWidget::ClearSlot()
 {
+	// Clear source information
+	SourceBagSlot = EBagSlot::Unknown;
+	SourceTopLeft = -1;
+	ItemDurability = 100.0f;
+
 	// Clear by passing nullptr
 	InitBareData(nullptr, nullptr, 40.f);
 }
@@ -136,7 +148,74 @@ FReply UTradeSlotWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, co
 		return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
 	}
 
+	// Handle left-click to initiate drag for items from our trade slots
+	if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
+	{
+		// Only allow drag from our own slots, and only if there's an item in the slot
+		if (bIsOurSlot && GetReferencedItem() != nullptr)
+		{
+			// Initiate drag detection - this will call NativeOnDragDetected when drag threshold is met
+			return FReply::Handled().DetectDrag(TakeWidget(), EKeys::LeftMouseButton);
+		}
+	}
+
 	// For other mouse buttons, use default behavior (which respects IsEnabled)
 	return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UTradeSlotWidget::NativeOnDragDetected(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent,
+                                            UDragDropOperation*& OutOperation)
+{
+	Super::NativeOnDragDetected(InGeometry, InMouseEvent, OutOperation);
+
+	// Only create drag operation for our own slots with items
+	if (!bIsOurSlot || !GetReferencedItem())
+		return;
+
+	// Validate source information
+	if (SourceBagSlot == EBagSlot::Unknown || SourceTopLeft < 0)
+		return;
+
+	// Get the player controller
+	APlayerController* PC = GetOwningPlayer();
+	if (!PC)
+		return;
+
+	IInventoryPlayerInterface* PlayerInterface = Cast<IInventoryPlayerInterface>(PC);
+	if (!PlayerInterface)
+		return;
+
+	// Create an ItemWidget for the drag operation
+	UItemWidget* DraggedItemWidget = CreateWidget<UItemWidget>(PC, UItemWidget::StaticClass());
+	if (!DraggedItemWidget)
+		return;
+
+	// Initialize the ItemWidget with data from the trade slot
+	DraggedItemWidget->InitData(
+		GetReferencedItem(),           // Item data (already stored in this widget)
+		GetOwningPlayer(),          // Owner actor
+		40.f,                          // Tile size
+		SourceTopLeft,                 // Original inventory position
+		SourceBagSlot,                 // Original bag
+		EEquipmentSlot::Unknown,       // Not from equipment (already validated when added to trade)
+		ItemDurability                 // Item durability
+	);
+
+	// Create the drag-drop operation
+	UDragDropOperation* DragDropOp = UWidgetBlueprintLibrary::CreateDragDropOperation(UDragDropOperation::StaticClass());
+	if (DragDropOp)
+	{
+		DragDropOp->Payload = DraggedItemWidget;
+		DragDropOp->DefaultDragVisual = DraggedItemWidget;
+		DragDropOp->Pivot = EDragPivot::MouseDown;
+
+		OutOperation = DragDropOp;
+
+		// Remove the item from trade now that drag has started
+		// This will update both players and clear the slot
+		PlayerInterface->PlayerRemoveItemFromTrade(SlotIndex);
+	}
 }
 

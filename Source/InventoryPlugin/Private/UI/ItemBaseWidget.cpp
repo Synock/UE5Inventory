@@ -70,9 +70,9 @@ void UItemBaseWidget::DisplayDescription(const FPointerEvent& InMouseEvent)
 	if (IInventoryPlayerInterface* PC = Cast<IInventoryPlayerInterface>(GetOwningPlayer()))
 	{
 		PC->GetInventoryHUDInterface()->Execute_DisplayItemDescriptionWithDurability(PC->GetInventoryHUDObject(), Item,
-		                                                               InMouseEvent.GetScreenSpacePosition().X,
-		                                                               InMouseEvent.GetScreenSpacePosition().Y,
-		                                                               Durability, MaxDurability);
+			InMouseEvent.GetScreenSpacePosition().X,
+			InMouseEvent.GetScreenSpacePosition().Y,
+			Durability, MaxDurability);
 	}
 }
 
@@ -106,23 +106,26 @@ void UItemBaseWidget::ResetSell()
 
 void UItemBaseWidget::UpdateItemImage()
 {
-	if (!Item || !Item->Icon)
-		return;
-
 	// Use new BindWidget property, fall back to deprecated pointer for backwards compatibility
+	if (!Item || !Item->Icon)
+	{
+		//remove image
+		ItemImage->SetVisibility(ESlateVisibility::Hidden);
+		return;
+	}
 
 	UImage* ImageWidget = ItemImage;
 
 	if (!ImageWidget)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("ItemBaseWidget::UpdateItemImage - No image widget found (ItemImage or ItemImagePointer)"));
+		UE_LOG(LogTemp, Warning,
+		       TEXT("ItemBaseWidget::UpdateItemImage - No image widget found (ItemImage or ItemImagePointer)"));
 		return;
 	}
-
 	ImageWidget->SetDesiredSizeOverride(FVector2D(TileSize, TileSize));
 	ImageWidget->SetBrushFromTexture(Item->Icon);
-	ImageWidget->SetVisibility(ESlateVisibility::Visible);
 }
+
 
 //----------------------------------------------------------------------------------------------------------------------
 
@@ -136,7 +139,8 @@ void UItemBaseWidget::RightClickTimerFunction()
 
 //----------------------------------------------------------------------------------------------------------------------
 
-void UItemBaseWidget::InitBareData(const UInventoryItemBase* InputItem, AActor* InputOwner, float InputTileSize, float InputDurability)
+void UItemBaseWidget::InitBareData(const UInventoryItemBase* InputItem, AActor* InputOwner, float InputTileSize,
+                                   float InputDurability)
 {
 	Item = InputItem;
 	Owner = InputOwner;
@@ -162,4 +166,16 @@ void UItemBaseWidget::InitBareData(const UInventoryItemBase* InputItem, AActor* 
 
 void UItemBaseWidget::StopDrag()
 {
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UItemBaseWidget::Refresh_Implementation()
+{
+	RefreshInternal();
+}
+
+void UItemBaseWidget::RefreshInternal()
+{
+	UpdateItemImage();
 }

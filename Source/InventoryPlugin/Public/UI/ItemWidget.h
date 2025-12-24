@@ -42,7 +42,16 @@ protected:
 	void HandleActivation();
 
 	IInventoryPlayerInterface* GetInventoryPlayerInterface() const;
-	
+
+	virtual void RefreshInternal() override;
+
+	// C++ override to forward to the Blueprint event
+	virtual void NativeOnMouseEnter(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+	// C++ override to handle mouse leave
+	virtual void NativeOnMouseLeave(const FPointerEvent& MouseEvent) override;
+	// C++ override to handle drag-cancelled (calls StopDrag)
+	virtual void NativeOnDragCancelled(const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
+
 public:
 	UFUNCTION(BlueprintCallable)
 	void InitData(const UInventoryItemBase* InputItem, AActor* InputOwner, float InputTileSize,

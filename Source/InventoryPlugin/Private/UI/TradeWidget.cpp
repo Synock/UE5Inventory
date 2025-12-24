@@ -73,6 +73,9 @@ void UTradeWidget::InitializeTrade(UTradeComponent* InTradeComponent)
 	if (!InTradeComponent)
 		return;
 
+	// Clear any existing trade state first to prevent stale icons
+	CloseTrade();
+
 	// Unbind from old trade component if we're re-initializing
 	if (TradeComponent && TradeComponent != InTradeComponent)
 	{
@@ -140,6 +143,58 @@ void UTradeWidget::InitializeTrade(UTradeComponent* InTradeComponent)
 
 void UTradeWidget::CloseTrade()
 {
+	// Clear all item slots to prevent stale icons from showing on next trade
+	for (int32 i = 0; i < 8; ++i)
+	{
+		UTradeSlotWidget* OurSlot = GetOurSlot(i);
+		if (OurSlot)
+		{
+			OurSlot->ClearSlot();
+		}
+
+		UTradeSlotWidget* TheirSlot = GetTheirSlot(i);
+		if (TheirSlot)
+		{
+			TheirSlot->ClearSlot();
+		}
+	}
+
+	// Clear coin displays
+	if (OurCoinOffer && OurCoinOffer->GetPursePointer())
+	{
+		// Reset to zero by editing the coin component
+		OurCoinOffer->GetPursePointer()->EditCoinContent(0, 0, 0, 0);
+	}
+
+	if (TheirCoinOffer)
+	{
+		TheirCoinOffer->SetCoinValue(FCoinValue());
+	}
+
+	// Reset acceptance indicators
+	if (OurAcceptedText)
+	{
+		OurAcceptedText->SetVisibility(ESlateVisibility::Hidden);
+	}
+	if (OurAcceptedIcon)
+	{
+		OurAcceptedIcon->SetVisibility(ESlateVisibility::Hidden);
+	}
+	if (TheirAcceptedText)
+	{
+		TheirAcceptedText->SetVisibility(ESlateVisibility::Hidden);
+	}
+	if (TheirAcceptedIcon)
+	{
+		TheirAcceptedIcon->SetVisibility(ESlateVisibility::Hidden);
+	}
+
+	// Reset status text
+	if (StatusText)
+	{
+		StatusText->SetText(FText::GetEmpty());
+	}
+
 	// This will be called by the cancel button or when trade completes
 	//RemoveFromParent();
 }
@@ -263,7 +318,15 @@ void UTradeWidget::RefreshOurOffer()
 			// Get the actual item data from the ID
 			const UInventoryItemBase* ItemData = UInventoryUtilities::GetItemFromID(
 				OurOffer.Items[i].ItemID, GetWorld());
-			TradeSlot->SetTradeItem(ItemData, GetOwningPlayer());
+
+			// Pass source information for drag-drop support
+			TradeSlot->SetTradeItem(
+				ItemData,
+				GetOwningPlayer(),
+				OurOffer.Items[i].SourceBagSlot,
+				OurOffer.Items[i].SourceTopLeft,
+				OurOffer.Items[i].Durability
+			);
 		}
 		else
 		{

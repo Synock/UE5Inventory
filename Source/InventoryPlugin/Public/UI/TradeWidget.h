@@ -155,7 +155,7 @@ protected:
 	UFUNCTION()
 	void OnAcceptButtonClicked();
 
-	UFUNCTION()
+	UFUNCTION(BlueprintCallable)
 	void OnCancelButtonClicked();
 
 	//------------------------------------------------------------------------------------------------------------------

@@ -1,8 +1,7 @@
-// Copyright 2022 Maximilien (Synock) Guislain
-
-
 #include "UI/ItemWidget.h"
 
+#include "Blueprint/WidgetLayoutLibrary.h"
+#include "Components/CanvasPanelSlot.h"
 #include "Interfaces/InventoryPlayerInterface.h"
 #include "Items/InventoryItemBase.h"
 #include "UI/InventoryGridWidget.h"
@@ -77,6 +76,48 @@ IInventoryPlayerInterface* UItemWidget::GetInventoryPlayerInterface() const
 
 //----------------------------------------------------------------------------------------------------------------------
 
+void UItemWidget::RefreshInternal()
+{
+	float WidthP, HeightP;
+	GetSizeInPixels(WidthP, HeightP);
+
+	BackgroundSizeBox->SetWidthOverride(WidthP);
+	BackgroundSizeBox->SetHeightOverride(HeightP);
+
+	if (UCanvasPanelSlot* CanvasSlot = UWidgetLayoutLibrary::SlotAsCanvasSlot(ItemImage))
+	{
+		CanvasSlot->SetSize(FVector2D(WidthP, HeightP));
+	}
+
+	UpdateItemImage();
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UItemWidget::NativeOnMouseEnter(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	Super::NativeOnMouseEnter(MyGeometry, MouseEvent);
+	if (BackgroundBorder)
+	{
+		const FColor HexColor = FColor::FromHex(TEXT("BCBCBC33"));
+		BackgroundBorder->SetBrushColor(FLinearColor::FromSRGBColor(HexColor));
+	}
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UItemWidget::NativeOnMouseLeave(const FPointerEvent& MouseEvent)
+{
+	Super::NativeOnMouseLeave(MouseEvent);
+	if (BackgroundBorder)
+	{
+		const FColor HexColor = FColor::FromHex(TEXT("00000080"));
+		BackgroundBorder->SetBrushColor(FLinearColor::FromSRGBColor(HexColor));
+	}
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 void UItemWidget::InitData(const UInventoryItemBase* InputItem, AActor* InputOwner, float InputTileSize,
                            int32 InputTopLeftID,
                            EBagSlot InputBagID, EEquipmentSlot InputOriginalSlotID, float InputDurability)
@@ -140,4 +181,13 @@ bool UItemWidget::IsBelongingToSelf() const
 {
 	const bool OwnBagBool = BagID != EBagSlot::LootPool;
 	return IsFromEquipment() || OwnBagBool;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UItemWidget::NativeOnDragCancelled(const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
+{
+	Super::NativeOnDragCancelled(InDragDropEvent, InOperation);
+	// When drag is cancelled, restore the item state
+	StopDrag();
 }
