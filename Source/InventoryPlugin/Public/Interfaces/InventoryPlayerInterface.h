@@ -950,6 +950,54 @@ protected:
 	//UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory|Repair")
 	virtual void Server_PlayerRepairAllEquipment(const FCoinValue& TotalPrice) = 0;
 
+	//------------------------------------------------------------------------------------------------------------------
+	// Field Repair -- Server
+	//------------------------------------------------------------------------------------------------------------------
+
+	/**
+	 * Begin a field repair operation using a repair kit from inventory
+	 * @param RepairKitItemID - The ID of the repair kit item
+	 * @param RepairKitBagSlot - The bag slot containing the repair kit
+	 * @param RepairKitTopLeft - The top-left index of the repair kit in the bag
+	 * @param TargetEquipmentSlot - The equipment slot to repair
+	 */
+	//UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory|FieldRepair")
+	virtual void Server_BeginFieldRepair(int32 RepairKitItemID, EBagSlot RepairKitBagSlot,
+	                                     int32 RepairKitTopLeft, EEquipmentSlot TargetEquipmentSlot) = 0;
+
+	/**
+	 * Complete a field repair operation (called when client timer finishes)
+	 * @param RepairKitItemID - The ID of the repair kit item (for validation)
+	 * @param TargetEquipmentSlot - The equipment slot being repaired (for validation)
+	 */
+	//UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory|FieldRepair")
+	virtual void Server_CompleteFieldRepair(int32 RepairKitItemID, EEquipmentSlot TargetEquipmentSlot) = 0;
+
+	/**
+	 * Cancel an in-progress field repair
+	 */
+	//UFUNCTION(Server, Reliable, Category = "Inventory|FieldRepair")
+	virtual void Server_CancelFieldRepair() = 0;
+
+	/**
+	 * Convenience wrapper for Server_BeginFieldRepair (callable from anywhere)
+	 * Implemented by concrete classes (default provided in .cpp)
+	 */
+	virtual void BeginFieldRepair(int32 RepairKitItemID, EBagSlot RepairKitBagSlot,
+	                              int32 RepairKitTopLeft, EEquipmentSlot TargetEquipmentSlot);
+
+	/**
+	 * Convenience wrapper for Server_CompleteFieldRepair (callable from anywhere)
+	 * Implemented by concrete classes (default provided in .cpp)
+	 */
+	virtual void CompleteFieldRepair(int32 RepairKitItemID, EEquipmentSlot TargetEquipmentSlot);
+
+	/**
+	 * Convenience wrapper for Server_CancelFieldRepair (callable from anywhere)
+	 * Implemented by concrete classes (default provided in .cpp)
+	 */
+	virtual void CancelFieldRepair();
+
 	//UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory")
 	virtual void Server_PlayerAutoEquipItem(int32 InTopLeft, EBagSlot InSlot, int32 InItemId) = 0;
 
