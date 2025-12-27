@@ -124,6 +124,7 @@ void UItemBaseWidget::UpdateItemImage()
 	}
 	ImageWidget->SetDesiredSizeOverride(FVector2D(TileSize, TileSize));
 	ImageWidget->SetBrushFromTexture(Item->Icon);
+	ItemImage->SetVisibility(ESlateVisibility::Visible);
 }
 
 
