@@ -502,6 +502,22 @@ UItemWidget* UInventoryGridWidget::GetLocalItem(const FMinimalItemStorage& ItemD
 
 //----------------------------------------------------------------------------------------------------------------------
 
+UItemWidget* UInventoryGridWidget::GetItemWidgetAtPosition(int32 TopLeft) const
+{
+	// Linear search through ItemList to find widget at TopLeft position
+	for (const TObjectPtr<UItemWidget>& Item : ItemList)
+	{
+		if (Item && Item->GetTopLeftID() == TopLeft)
+		{
+			return Item;
+		}
+	}
+
+	return nullptr;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 void UInventoryGridWidget::RegisterExistingItem(UItemWidget* ItemData)
 {
 	RegisterNewItem(ItemData->GetTopLeftID(), ItemData);

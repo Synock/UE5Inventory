@@ -8,6 +8,8 @@
 #include "Items/InventoryItemBase.h"
 #include "BagWidget.generated.h"
 
+class UInventoryGridWidget;
+
 /**
  * 
  */
@@ -35,6 +37,9 @@ protected:
 	UPROPERTY(BlueprintReadWrite, Category = "Inventory|Bag")
 	UUserWidget* ParentWidget = nullptr;
 
+	UPROPERTY(BlueprintReadWrite, meta = (BindWidget), Category = "Inventory|Bag")
+	UInventoryGridWidget* InventoryGrid = nullptr;
+
 
 public:
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic)
@@ -58,4 +63,12 @@ public:
 
 	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, BlueprintCosmetic)
 	void DeInitBagData();
+
+	/**
+	 * @brief Lock or unlock a specific item slot in this bag to prevent interaction.
+	 * @param TopLeft The top-left index of the item in the bag grid.
+	 * @param bLocked True to lock, false to unlock.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, BlueprintCosmetic, Category = "Inventory|FieldRepair")
+	void LockItemSlot(int32 TopLeft, bool bLocked);
 };

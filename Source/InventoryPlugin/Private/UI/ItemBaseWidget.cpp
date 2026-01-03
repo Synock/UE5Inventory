@@ -19,6 +19,14 @@ void UItemBaseWidget::NativePreConstruct()
 
 FReply UItemBaseWidget::NativeOnMouseButtonUp(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
 {
+	if (bIsLocked)
+	{
+		// Locked - suppress interactions; notify owner/UI via game-implemented event
+		FText Msg = FText::FromString(TEXT("This item is locked while in use."));
+		NotifyInteractionBlocked(Msg);
+		return FReply::Handled();
+	}
+
 	if (!IsRightClicking)
 		return Super::NativeOnMouseButtonUp(InGeometry, InMouseEvent);
 
@@ -35,6 +43,14 @@ FReply UItemBaseWidget::NativeOnMouseButtonUp(const FGeometry& InGeometry, const
 
 FReply UItemBaseWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
 {
+	if (bIsLocked)
+	{
+		// Block all interactions locally to improve UX; notify owner/UI
+		FText Msg = FText::FromString(TEXT("This item is locked while in use."));
+		NotifyInteractionBlocked(Msg);
+		return FReply::Handled();
+	}
+
 	ClickEvent = InMouseEvent;
 
 	const FString ButtonName = UKismetInputLibrary::PointerEvent_GetEffectingButton(InMouseEvent).ToString();
@@ -130,8 +146,25 @@ void UItemBaseWidget::UpdateItemImage()
 
 //----------------------------------------------------------------------------------------------------------------------
 
+void UItemBaseWidget::SetLocked(bool bLocked)
+{
+	if (bIsLocked == bLocked)
+		return;
+	bIsLocked = bLocked;
+	OnLockStateChanged(bIsLocked);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 void UItemBaseWidget::RightClickTimerFunction()
 {
+	if (bIsLocked)
+	{
+		FText Msg = FText::FromString(TEXT("This item is locked while in use."));
+		NotifyInteractionBlocked(Msg);
+		return;
+	}
+
 	IsRightClicking = false;
 	UE_LOG(LogTemp, Log, TEXT("Right-click timer completed on widget %s, displaying description..."), *GetName());
 	//RightClickLongEffect();
@@ -180,3 +213,17 @@ void UItemBaseWidget::RefreshInternal()
 {
 	UpdateItemImage();
 }
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UItemBaseWidget::OnLockStateChanged_Implementation(bool bLocked)
+{
+	if (ItemImage)
+	{
+		// Apply a darker tint when locked. Use ColorAndOpacity if available.
+		FLinearColor TargetColor = bLocked ? FLinearColor(0.25f, 0.25f, 0.25f, 1.0f) : FLinearColor::White;
+		ItemImage->SetColorAndOpacity(TargetColor);
+	}
+}
+
+

@@ -8,6 +8,12 @@
 
 void UItemWidget::HandleAutoEquip()
 {
+	if (IsLocked())
+	{
+		NotifyInteractionBlocked(FText::FromString(TEXT("Cannot auto-equip: item is locked.")));
+		return;
+	}
+
 	IInventoryPlayerInterface* PC = GetInventoryPlayerInterface();
 	if (!PC)
 		return;
@@ -32,6 +38,12 @@ void UItemWidget::HandleAutoEquip()
 
 void UItemWidget::HandleAutoLoot()
 {
+	if (IsLocked())
+	{
+		NotifyInteractionBlocked(FText::FromString(TEXT("Cannot auto-loot: item is locked.")));
+		return;
+	}
+
 	IInventoryPlayerInterface* PC = GetInventoryPlayerInterface();
 	if (!PC)
 		return;
@@ -46,6 +58,12 @@ void UItemWidget::HandleAutoLoot()
 
 void UItemWidget::HandleSellClick()
 {
+	if (IsLocked())
+	{
+		NotifyInteractionBlocked(FText::FromString(TEXT("Cannot sell: item is locked.")));
+		return;
+	}
+
 	IInventoryPlayerInterface* PC = GetInventoryPlayerInterface();
 	if (!PC)
 		return;
@@ -56,10 +74,14 @@ void UItemWidget::HandleSellClick()
 	PC->TryPresentSellItem(ParentGrid->GetBagID(), Item->ItemID, TopLeftID);
 }
 
-//----------------------------------------------------------------------------------------------------------------------
-
 void UItemWidget::HandleActivation()
 {
+	if (IsLocked())
+	{
+		NotifyInteractionBlocked(FText::FromString(TEXT("Cannot use item: it is locked.")));
+		return;
+	}
+
 	if (Item->ItemID <= 0)
 		return;
 

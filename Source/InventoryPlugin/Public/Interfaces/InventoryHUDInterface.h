@@ -365,4 +365,28 @@ public:
 
 	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, BlueprintCosmetic, Category = "Inventory")
 	void CloseTradeWindow();
+
+	/**
+	 * @brief Displays the field repair window for a repair kit in inventory.
+	 * @param RepairKitItemID The item ID of the repair kit.
+	 * @param BagSlot The bag slot which contains the repair kit.
+	 * @param TopLeft The top-left index of the repair kit in the bag grid.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, BlueprintCosmetic, Category = "Inventory|FieldRepair")
+	void DisplayFieldRepairScreen(int32 RepairKitItemID, EBagSlot BagSlot, int32 TopLeft);
+
+	/**
+	 * @brief Hides the field repair window.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, BlueprintCosmetic, Category = "Inventory|FieldRepair")
+	void HideFieldRepairScreen();
+
+	/**
+	 * @brief Lock or unlock a specific inventory UI slot so its widget cannot be dragged/moved.
+	 * @param BagSlot The bag slot where the item resides.
+	 * @param TopLeft The top-left index in the bag grid for the item.
+	 * @param bLocked True to lock (disable interactions), false to unlock.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Inventory|FieldRepair")
+	void LockInventorySlot(EBagSlot BagSlot, int32 TopLeft, bool bLocked);
 };

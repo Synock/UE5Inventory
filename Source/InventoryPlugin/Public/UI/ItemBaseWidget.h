@@ -43,6 +43,27 @@ protected:
 	UPROPERTY(BlueprintReadWrite, Category = "Inventory|Item|Durability")
 	float MaxDurability = 100.0f;
 
+	// ==========================================================================
+	// Client-side lock to prevent local interactions for reserved/in-use items
+	// ==========================================================================
+
+	/** If true the widget is locked on client-side (disables drag/equip/sell/activation) */
+	UPROPERTY(BlueprintReadWrite, Category = "Inventory|Item|Lock")
+	bool bIsLocked = false;
+
+	/** Blueprint event to update visuals when lock state changes (lock icon/tooltip) */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Inventory|Item|Lock")
+	void OnLockStateChanged(bool bLocked);
+	virtual void OnLockStateChanged_Implementation(bool bLocked);
+
+	/**
+	 * Notify owner/UI that an interaction was blocked (e.g., item locked).
+	 * Plugin code raises this event; game code implements it (show chat, toast, etc.).
+	 */
+	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable, Category = "Inventory|Item|Events")
+	void NotifyInteractionBlocked(const FText& Message);
+
+
 	// ============================================================================
 	// UI Components (BindWidget)
 	// ============================================================================
@@ -174,9 +195,16 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure, BlueprintCosmetic, Category = "Inventory|Item|Durability")
 	float GetMaxDurability() const { return MaxDurability; }
 
+	/** Set the client-side lock state */
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Item|Lock")
+	void SetLocked(bool bLocked);
+
+	/** Query the client-side lock state */
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Item|Lock")
+	bool IsLocked() const { return bIsLocked; }
+
 	/** Blueprint event to refresh the widget's visual state */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, BlueprintCosmetic, Category = "Inventory|UI|Events")
 	void Refresh();
 };
-
 

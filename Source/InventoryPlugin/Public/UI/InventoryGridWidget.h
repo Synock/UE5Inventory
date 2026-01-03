@@ -141,6 +141,9 @@ public:
 	UItemWidget* GetLocalItem(const FMinimalItemStorage& ItemData, bool& Found) const;
 
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Inventory|Item")
+	UItemWidget* GetItemWidgetAtPosition(int32 TopLeft) const;
+
+	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Inventory|Item")
 	void RegisterExistingItem(UItemWidget* ItemData);
 
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Inventory|Data")
