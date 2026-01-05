@@ -113,6 +113,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	const TArray<FMinimalItemStorage>& GetBagConst(EBagSlot WantedBagSlot) const;
 
+	/**
+	 * Update the lock state for an item in a specific bag at a specific position
+	 * @param BagSlot - The bag containing the item
+	 * @param TopLeft - The grid position of the item
+	 * @param bLocked - Whether the item should be locked
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Lock")
+	void SetItemLockState(EBagSlot BagSlot, int32 TopLeft, bool bLocked);
+
 	//Setup bag info
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	void BagSet(EBagSlot ConsideredBag, bool InputValidity = false, int32 InputWidth = 0, int32 InputHeight = 0,

@@ -207,6 +207,11 @@ void UInventoryGridWidget::CreateNewItem(UCanvasPanel* GridCanvasPanel, const FM
 	ItemWidget->SetParentGrid(this);
 	ItemWidget->InitData(Item, GetOwningPlayerPawn(), TileSize, ItemStorage.TopLeftID, BagID, EEquipmentSlot::Unknown, ItemStorage.Durability);
 
+	if (ItemStorage.bIsLocked)
+	{
+		ItemWidget->SetLocked(true);
+	}
+
 	AddItemWidgetToGrid(GridCanvasPanel, ItemWidget, ItemStorage.TopLeftID);
 	RegisterNewItem(ItemStorage.TopLeftID, ItemWidget);
 }

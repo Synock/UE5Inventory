@@ -355,11 +355,11 @@ void UFieldRepairWidget::CompleteRepair()
 			EEquipmentSlot FoundSlot = EEquipmentSlot::Unknown;
 			for (uint8 SlotIndex = 0; SlotIndex < 32; ++SlotIndex)
 			{
-				EEquipmentSlot Slot = static_cast<EEquipmentSlot>(SlotIndex);
-				const UInventoryItemEquipable* Equipped = EquipIf->GetEquippedItem(Slot);
+				EEquipmentSlot EquipmentSlot = static_cast<EEquipmentSlot>(SlotIndex);
+				const UInventoryItemEquipable* Equipped = EquipIf->GetEquippedItem(EquipmentSlot);
 				if (Equipped && Equipped->ItemID == CurrentTargetItem->ItemID)
 				{
-					FoundSlot = Slot;
+					FoundSlot = EquipmentSlot;
 					break;
 				}
 			}

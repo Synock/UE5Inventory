@@ -1,7 +1,4 @@
-﻿// Copyright 2022 Maximilien (Synock) Guislain
-
-
-#include "Components/InventoryComponent.h"
+﻿#include "Components/InventoryComponent.h"
 #include "BagStorage.h"
 #include <Net/UnrealNetwork.h>
 
@@ -70,6 +67,17 @@ void UInventoryComponent::BeginPlay()
 const TArray<FMinimalItemStorage>& UInventoryComponent::GetBagConst(EBagSlot WantedBagSlot) const
 {
 	return GetRelatedBag(WantedBagSlot)->GetBagConst();
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UInventoryComponent::SetItemLockState(EBagSlot BagSlot, int32 TopLeft, bool bLocked)
+{
+	UBagStorage* Bag = GetRelatedBag(BagSlot);
+	if (Bag)
+	{
+		Bag->SetItemLockState(TopLeft, bLocked);
+	}
 }
 
 //----------------------------------------------------------------------------------------------------------------------

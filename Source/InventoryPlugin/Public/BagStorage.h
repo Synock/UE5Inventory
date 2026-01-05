@@ -1,6 +1,4 @@
-﻿// Copyright 2022 Maximilien (Synock) Guislain
-
-#pragma once
+﻿#pragma once
 
 #include <CoreMinimal.h>
 #include "InventoryItem.h"
@@ -149,6 +147,14 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category="Inventory|Bag")
 	int32 GetFirstTopLeftID(int32 ItemID);
+
+	/**
+	 * Update the lock state for an item at a specific TopLeft position
+	 * @param TopLeft - The grid position of the item
+	 * @param bLocked - Whether the item should be locked
+	 */
+	UFUNCTION(BlueprintCallable, Category="Inventory|Bag|Lock")
+	void SetItemLockState(int32 TopLeft, bool bLocked);
 
 	[[nodiscard]] bool GetIsQuiver() const
 	{

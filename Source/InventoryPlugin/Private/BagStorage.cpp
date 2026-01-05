@@ -352,6 +352,21 @@ void UBagStorage::AddItemAt_Implementation(int32 ItemID, int32 TopLeftIndex, flo
 
 //----------------------------------------------------------------------------------------------------------------------
 
+void UBagStorage::SetItemLockState(int32 TopLeft, bool bLocked)
+{
+	// Find the item with matching TopLeftID
+	for (FMinimalItemStorage& ItemStorage : Items)
+	{
+		if (ItemStorage.TopLeftID == TopLeft)
+		{
+			ItemStorage.bIsLocked = bLocked;
+			return;
+		}
+	}
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 void UBagStorage::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);

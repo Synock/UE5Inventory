@@ -32,4 +32,7 @@ struct FMinimalItemStorage
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Item|Durability")
 	float Durability = 100.0f;
+
+	UPROPERTY(Transient, BlueprintReadWrite, Category = "Inventory|Item|Lock")
+	bool bIsLocked = false;
 };

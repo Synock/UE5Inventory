@@ -52,6 +52,10 @@ protected:
 	UPROPERTY(ReplicatedUsing = OnRep_EquipmentDurability, BlueprintReadOnly, Category = "Inventory|Equipment|Durability")
 	TArray<float> EquipmentDurability;
 
+	/** Client-side lock state for equipment slots (not replicated, UI-only) */
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "Inventory|Equipment|Lock")
+	TMap<EEquipmentSlot, bool> EquipmentLockStates;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Light")
 	UChildActorComponent* SecondaryLightSource;
 
@@ -253,6 +257,22 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Equipment")
 	void ReduceEquipmentDurability(EEquipmentSlot InSlot, float DurabilityReduction);
+
+	/**
+	 * Set lock state for an equipment slot (client-side UI state only, not persisted)
+	 * @param InSlot The equipment slot to lock/unlock
+	 * @param bLocked Whether the slot should be locked
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Equipment|Lock")
+	void SetEquipmentLockState(EEquipmentSlot InSlot, bool bLocked);
+
+	/**
+	 * Get lock state for an equipment slot
+	 * @param InSlot The equipment slot to check
+	 * @return True if the slot is locked, false otherwise
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Equipment|Lock")
+	bool GetEquipmentLockState(EEquipmentSlot InSlot) const;
 
 	/**
 	 *

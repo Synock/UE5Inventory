@@ -1,9 +1,8 @@
-// Copyright 2022 Maximilien (Synock) Guislain
-
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "InventoryItem.h"
 #include "StagingAreaComponent.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnStagingAreaChangedDelegate);
@@ -22,7 +21,7 @@ protected:
 	virtual void BeginPlay() override;
 
 	UPROPERTY(ReplicatedUsing=OnRep_StagingAreaItems, BlueprintReadWrite, Category = "Inventory|Staging")
-	TArray<int32> StagingAreaItems;
+	TArray<FMinimalItemStorage> StagingAreaItems;
 
 public:
 	UPROPERTY(BlueprintAssignable, Category="Inventory|Staging")
@@ -32,11 +31,11 @@ public:
 	void OnRep_StagingAreaItems();
 
 	UFUNCTION(BlueprintCallable)
-	const TArray<int32>& GetStagingAreaItems() const { return StagingAreaItems; }
+	const TArray<FMinimalItemStorage>& GetStagingAreaItems() const { return StagingAreaItems; }
 
 	UFUNCTION(BlueprintCallable)
 	void ClearStagingArea();
 
 	UFUNCTION(BlueprintCallable)
-	void AddItemToStagingArea(int32 ItemID);
+	void AddItemToStagingArea(const FMinimalItemStorage& ItemStorage);
 };

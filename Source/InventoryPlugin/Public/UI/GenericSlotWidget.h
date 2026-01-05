@@ -80,12 +80,6 @@ protected:
 	UFUNCTION(Category = "Inventory|Slot")
 	void ResetTransaction();
 
-	/**
-	 * @brief Hides the item from display
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Inventory|Slot")
-	virtual void HideItem();
-
 public:
 	//------------------------------------------------------------------------------------------------------------------
 	// Public Interface
@@ -105,5 +99,11 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Inventory|Slot")
 	bool IsItemEquipped() const { return Item != nullptr; }
+
+	/**
+	 * @brief Hides the item from display
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Slot")
+	virtual void HideItem();
 
 };

@@ -389,4 +389,14 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Inventory|FieldRepair")
 	void LockInventorySlot(EBagSlot BagSlot, int32 TopLeft, bool bLocked);
+
+	/**
+	 * Lock or unlock an equipment slot (client-side UI state for field repair, etc.).
+	 * @param EquipmentSlot The equipment slot to lock/unlock.
+	 * @param bLocked True to lock (disable interactions), false to unlock.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Inventory|FieldRepair")
+	void LockEquipmentSlot(EEquipmentSlot EquipmentSlot, bool bLocked);
+
+	virtual void LockEquipmentSlot_Implementation(EEquipmentSlot EquipmentSlot, bool bLocked);
 };

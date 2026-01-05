@@ -46,6 +46,7 @@ FReply UItemBaseWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, con
 	if (bIsLocked)
 	{
 		// Block all interactions locally to improve UX; notify owner/UI
+		// Return Handled() WITHOUT calling Super to prevent drag detection
 		FText Msg = FText::FromString(TEXT("This item is locked while in use."));
 		NotifyInteractionBlocked(Msg);
 		return FReply::Handled();
@@ -61,6 +62,7 @@ FReply UItemBaseWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, con
 	{
 		LeftClickEffect();
 
+		// Call Super to enable drag detection for unlocked items
 		return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
 	}
 
@@ -72,6 +74,22 @@ FReply UItemBaseWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, con
 	                                       false, RightClickMaxDuration);
 
 	return FReply::Handled();
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UItemBaseWidget::NativeOnDragDetected(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent,
+                                           UDragDropOperation*& OutOperation)
+{
+	// Additional safety check: prevent drag for locked items
+	if (bIsLocked)
+	{
+		OutOperation = nullptr;
+		return;
+	}
+
+	// Call parent implementation to allow Blueprint OnDragDetected to work
+	Super::NativeOnDragDetected(InGeometry, InMouseEvent, OutOperation);
 }
 
 //----------------------------------------------------------------------------------------------------------------------

@@ -43,11 +43,11 @@ void UStagingAreaWidget::Refresh()
 		return;
 	}
 
-	const TArray<int32>& StagingItems = StagingComponent->GetStagingAreaItems();
+	const TArray<FMinimalItemStorage>& StagingItems = StagingComponent->GetStagingAreaItems();
 
 	// Update slots with staged items
 	int32 SlotIndex = 0;
-	for (const int32 StagingItemID : StagingItems)
+	for (const FMinimalItemStorage& StagingItemStorage : StagingItems)
 	{
 		if (SlotIndex >= MaxStagingSlots)
 			break;
@@ -60,8 +60,9 @@ void UStagingAreaWidget::Refresh()
 			continue;
 		}
 
-		const UInventoryItemBase* Item = UInventoryUtilities::GetItemFromID(StagingItemID, GetWorld());
-		SlotWidget->InitBareData(Item, GetOwningPlayer(), 40.f);
+		const UInventoryItemBase* Item = UInventoryUtilities::GetItemFromID(StagingItemStorage.ItemID, GetWorld());
+		SlotWidget->InitBareData(Item, GetOwningPlayer(), 40.f, StagingItemStorage.Durability);
+
 
 		if (Item)
 		{

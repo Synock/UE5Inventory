@@ -33,9 +33,9 @@ void UStagingAreaComponent::ClearStagingArea()
 
 //----------------------------------------------------------------------------------------------------------------------
 
-void UStagingAreaComponent::AddItemToStagingArea(int32 ItemID)
+void UStagingAreaComponent::AddItemToStagingArea(const FMinimalItemStorage& ItemStorage)
 {
-	StagingAreaItems.Add(ItemID);
+	StagingAreaItems.Add(ItemStorage);
 }
 
 //----------------------------------------------------------------------------------------------------------------------

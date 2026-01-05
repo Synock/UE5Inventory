@@ -777,6 +777,31 @@ void UEquipmentComponent::ReduceEquipmentDurability(EEquipmentSlot InSlot, float
 
 //----------------------------------------------------------------------------------------------------------------------
 
+void UEquipmentComponent::SetEquipmentLockState(EEquipmentSlot InSlot, bool bLocked)
+{
+	if (InSlot == EEquipmentSlot::Unknown || InSlot >= EEquipmentSlot::Last)
+	{
+		return;
+	}
+
+	EquipmentLockStates.Add(InSlot, bLocked);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+bool UEquipmentComponent::GetEquipmentLockState(EEquipmentSlot InSlot) const
+{
+	if (InSlot == EEquipmentSlot::Unknown || InSlot >= EEquipmentSlot::Last)
+	{
+		return false;
+	}
+
+	const bool* LockState = EquipmentLockStates.Find(InSlot);
+	return LockState ? *LockState : false;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 bool UEquipmentComponent::IsSlotEmpty(EEquipmentSlot InSlot)
 {
 	if (!Equipment[static_cast<int>(InSlot)])

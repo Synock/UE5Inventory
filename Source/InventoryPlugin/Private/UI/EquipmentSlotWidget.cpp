@@ -1,6 +1,3 @@
-// Copyright 2022 Maximilien (Synock) Guislain
-
-
 #include "UI/EquipmentSlotWidget.h"
 #include "UI/ItemWidget.h"
 #include "InventoryUtilities.h"
@@ -146,6 +143,15 @@ void UEquipmentSlotWidget::InnerRefresh()
 			else
 			{
 				Durability = MaxDurability; // Fallback to max if not found
+			}
+
+			// Apply lock state from equipment component
+			bool bIsLockedState = EquipmentInterface->GetEquipmentComponent()->GetEquipmentLockState(SlotID);
+			if (bIsLocked != bIsLockedState)
+			{
+				bIsLocked = bIsLockedState;
+				// Trigger visual update for lock state change
+				OnLockStateChanged(bIsLocked);
 			}
 		}
 
