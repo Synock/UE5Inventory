@@ -703,7 +703,8 @@ void IInventoryPlayerInterface::PlayerRequestTrade(ACharacter* OtherPlayerCharac
 
 //----------------------------------------------------------------------------------------------------------------------
 
-void IInventoryPlayerInterface::PlayerRequestTradeWithItem(ACharacter* OtherPlayerCharacter, int32 ItemID, EBagSlot BagSlot, int32 TopLeft)
+void IInventoryPlayerInterface::PlayerRequestTradeWithItem(ACharacter* OtherPlayerCharacter, int32 ItemID,
+                                                           EBagSlot BagSlot, int32 TopLeft)
 {
 	Server_PlayerRequestTradeWithItem(OtherPlayerCharacter, ItemID, BagSlot, TopLeft);
 }
@@ -765,9 +766,12 @@ void IInventoryPlayerInterface::PlayerCancelTrade()
 //----------------------------------------------------------------------------------------------------------------------
 
 void IInventoryPlayerInterface::BeginFieldRepair(int32 RepairKitItemID, EBagSlot RepairKitBagSlot,
-                                                 int32 RepairKitTopLeft, EEquipmentSlot TargetEquipmentSlot)
+                                                 int32 RepairKitTopLeft, EEquipmentSlot TargetEquipmentSlot,
+                                                 EBagSlot TargetBagSlot,
+                                                 int32 TargetTopLeft, int32 TargetItemID)
 {
-	Server_BeginFieldRepair(RepairKitItemID, RepairKitBagSlot, RepairKitTopLeft, TargetEquipmentSlot);
+	Server_BeginFieldRepair(RepairKitItemID, RepairKitBagSlot, RepairKitTopLeft, TargetEquipmentSlot, TargetBagSlot,
+	TargetTopLeft, TargetItemID);
 }
 
 void IInventoryPlayerInterface::CompleteFieldRepair(int32 RepairKitItemID, EEquipmentSlot TargetEquipmentSlot)
@@ -779,5 +783,3 @@ void IInventoryPlayerInterface::CancelFieldRepair()
 {
 	Server_CancelFieldRepair();
 }
-
-

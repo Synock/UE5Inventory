@@ -963,7 +963,8 @@ protected:
 	 */
 	//UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory|FieldRepair")
 	virtual void Server_BeginFieldRepair(int32 RepairKitItemID, EBagSlot RepairKitBagSlot,
-	                                     int32 RepairKitTopLeft, EEquipmentSlot TargetEquipmentSlot) = 0;
+	int32 RepairKitTopLeft, EEquipmentSlot TargetEquipmentSlot, EBagSlot TargetBagSlot,
+	int32 TargetTopLeft, int32 TargetItemID) = 0;
 
 	/**
 	 * Complete a field repair operation (called when client timer finishes)
@@ -984,7 +985,8 @@ protected:
 	 * Implemented by concrete classes (default provided in .cpp)
 	 */
 	virtual void BeginFieldRepair(int32 RepairKitItemID, EBagSlot RepairKitBagSlot,
-	                              int32 RepairKitTopLeft, EEquipmentSlot TargetEquipmentSlot);
+	int32 RepairKitTopLeft, EEquipmentSlot TargetEquipmentSlot, EBagSlot TargetBagSlot,
+	int32 TargetTopLeft, int32 TargetItemID);
 
 	/**
 	 * Convenience wrapper for Server_CompleteFieldRepair (callable from anywhere)
