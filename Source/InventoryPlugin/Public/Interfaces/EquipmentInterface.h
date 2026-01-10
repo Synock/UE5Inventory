@@ -47,6 +47,16 @@ public:
 	virtual const UInventoryItemEquipable* GetEquippedItem(EEquipmentSlot Slot) const;
 
 	/**
+	 * Retrieves the current durability of the item equipped in the specified slot.
+	 *
+	 * @param Slot The equipment slot to query.
+	 * @param OutDurability The current durability value (output parameter).
+	 * @return True if an item is equipped in the slot and has durability, false otherwise.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Equipment")
+	virtual bool GetEquipmentDurability(EEquipmentSlot Slot, float& OutDurability) const;
+
+	/**
 	 * \brief Equip an item in the given equipment slot.
 	 * \param InSlot The equipment slot to equip the item in.
 	 * \param InItemId The ID of the item to equip.

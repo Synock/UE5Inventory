@@ -382,6 +382,13 @@ public:
 	void HideFieldRepairScreen();
 
 	/**
+	 * @brief Hides the field repair window.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, BlueprintCosmetic, Category = "Inventory|FieldRepair")
+	void NotifyFieldRepairFinished(EBagSlot RepairBagSlot, int32 RepairTopLeft, float ActualRepairAmount,
+											   float NewTargetDurability, float NewKitDurability);
+
+	/**
 	 * @brief Lock or unlock a specific inventory UI slot so its widget cannot be dragged/moved.
 	 * @param BagSlot The bag slot where the item resides.
 	 * @param TopLeft The top-left index in the bag grid for the item.

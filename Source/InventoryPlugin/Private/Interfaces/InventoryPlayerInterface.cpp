@@ -773,11 +773,7 @@ void IInventoryPlayerInterface::BeginFieldRepair(int32 RepairKitItemID, EBagSlot
 	Server_BeginFieldRepair(RepairKitItemID, RepairKitBagSlot, RepairKitTopLeft, TargetEquipmentSlot, TargetBagSlot,
 	TargetTopLeft, TargetItemID);
 }
-
-void IInventoryPlayerInterface::CompleteFieldRepair(int32 RepairKitItemID, EEquipmentSlot TargetEquipmentSlot)
-{
-	Server_CompleteFieldRepair(RepairKitItemID, TargetEquipmentSlot);
-}
+//----------------------------------------------------------------------------------------------------------------------
 
 void IInventoryPlayerInterface::CancelFieldRepair()
 {

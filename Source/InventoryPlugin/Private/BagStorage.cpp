@@ -367,6 +367,45 @@ void UBagStorage::SetItemLockState(int32 TopLeft, bool bLocked)
 
 //----------------------------------------------------------------------------------------------------------------------
 
+bool UBagStorage::UpdateItemDurability(int32 TopLeft, int32 ItemID, float NewDurability)
+{
+	// Validate authority
+	if (!GetOwner() || !GetOwner()->HasAuthority())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("UpdateItemDurability called without authority"));
+		return false;
+	}
+
+	// Validate and clamp durability value
+	if (!FMath::IsFinite(NewDurability))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Invalid durability value (NaN/Inf) for UpdateItemDurability"));
+		return false;
+	}
+	NewDurability = FMath::Clamp(NewDurability, 0.0f, 100.0f);
+
+	// Find and update the item
+	for (FMinimalItemStorage& ItemStorage : Items)
+	{
+		if (ItemStorage.TopLeftID == TopLeft && ItemStorage.ItemID == ItemID)
+		{
+			ItemStorage.Durability = NewDurability;
+
+			// Trigger replication update
+			BagStorageDispatcher_Server.Broadcast();
+
+			UE_LOG(LogTemp, Verbose, TEXT("Updated item %d durability at TopLeft %d to %.2f"),
+				ItemID, TopLeft, NewDurability);
+			return true;
+		}
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("Item %d not found at TopLeft %d for durability update"), ItemID, TopLeft);
+	return false;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 void UBagStorage::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);

@@ -29,6 +29,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|FieldRepair", meta = (ClampMin = "1", ClampMax = "100"))
 	int32 MaxCharges = 10;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|FieldRepair", meta = (ClampMin = "1", ClampMax = "100"))
+	int32 ChargeConsumption = 1;
+
 	/** Minimum percentage of repair per use (e.g., 0.05 = 5%) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|FieldRepair", meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float MinRepairPercentage = 0.05f;
@@ -115,7 +118,9 @@ public:
 
 	virtual bool IsInterruptible() const override { return RepairDuration > 0.0f; }
 
-	virtual float GetChargeConsumptionAmount() const override { return 1.0f; }
+	virtual int32 GetChargeConsumptionAmount() const override { return ChargeConsumption; }
+
+	virtual int32 GetMaxChargeAmount() const override { return MaxCharges; }
 
 	virtual USoundBase* GetRepairStartSound() const override { return RepairStartSound; }
 

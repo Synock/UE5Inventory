@@ -128,6 +128,20 @@ void UInventoryComponent::RemoveItem_Implementation(EBagSlot ConsideredBag, int3
 
 //----------------------------------------------------------------------------------------------------------------------
 
+bool UInventoryComponent::UpdateItemDurability(EBagSlot BagSlot, int32 TopLeft, int32 ItemID, float NewDurability)
+{
+	UBagStorage* Bag = GetRelatedBag(BagSlot);
+	if (!Bag)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("UpdateItemDurability: Invalid bag slot %d"), static_cast<int32>(BagSlot));
+		return false;
+	}
+
+	return Bag->UpdateItemDurability(TopLeft, ItemID, NewDurability);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 void UInventoryComponent::AddItemAt_Implementation(EBagSlot ConsideredBag, int32 ItemID, int32 TopLeftIndex, float Durability)
 {
 	GetRelatedBag(ConsideredBag)->AddItemAt(ItemID, TopLeftIndex, Durability);

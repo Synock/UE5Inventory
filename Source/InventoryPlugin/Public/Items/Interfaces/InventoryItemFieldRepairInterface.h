@@ -73,7 +73,13 @@ public:
 	 * Get the amount of durability consumed per repair use
 	 * @return Durability to subtract from kit per repair
 	 */
-	virtual float GetChargeConsumptionAmount() const = 0;
+	virtual int32 GetChargeConsumptionAmount() const = 0;
+
+	/**
+	 * Get the amount of durability consumed per repair use
+	 * @return Maximum durability of the kit
+	 */
+	virtual int32 GetMaxChargeAmount() const = 0;
 
 	// ============================================================================
 	// Visual & Audio Feedback

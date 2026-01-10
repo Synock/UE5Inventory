@@ -1,7 +1,4 @@
-﻿// Copyright 2022 Maximilien (Synock) Guislain
-
-
-#include "Interfaces/InventoryHUDInterface.h"
+﻿#include "Interfaces/InventoryHUDInterface.h"
 #include "Interfaces/EquipmentInterface.h"
 #include "Components/EquipmentComponent.h"
 #include "Blueprint/UserWidget.h"

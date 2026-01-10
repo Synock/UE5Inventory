@@ -1,8 +1,4 @@
-﻿// Copyright 2022 Maximilien (Synock) Guislain
-
-
-#include "Interfaces/EquipmentInterface.h"
-
+﻿#include "Interfaces/EquipmentInterface.h"
 #include "InventoryUtilities.h"
 #include "Components/EquipmentComponent.h"
 #include "Components/InventoryComponent.h"
@@ -41,6 +37,14 @@ const UInventoryItemEquipable* IEquipmentInterface::GetEquippedItem(EEquipmentSl
 {
 	check(GetEquipmentComponentConst());
 	return GetEquipmentComponentConst()->GetItemAtSlot(Slot);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+bool IEquipmentInterface::GetEquipmentDurability(EEquipmentSlot Slot, float& OutDurability) const
+{
+	check(GetEquipmentComponentConst());
+	return GetEquipmentComponentConst()->GetEquipmentDurability(Slot, OutDurability);
 }
 
 //----------------------------------------------------------------------------------------------------------------------

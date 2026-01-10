@@ -156,6 +156,18 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Inventory|Bag|Lock")
 	void SetItemLockState(int32 TopLeft, bool bLocked);
 
+	/**
+	 * Update the durability of an item at a specific TopLeft position
+	 * This is more efficient than removing and re-adding the item
+	 * Authority check is performed inside the function
+	 * @param TopLeft - The grid position of the item
+	 * @param ItemID - The item ID to verify we're updating the correct item
+	 * @param NewDurability - The new durability value to set
+	 * @return True if the item was found and updated, false otherwise
+	 */
+	UFUNCTION(BlueprintCallable, Category="Inventory|Bag|Durability")
+	bool UpdateItemDurability(int32 TopLeft, int32 ItemID, float NewDurability);
+
 	[[nodiscard]] bool GetIsQuiver() const
 	{
 		return IsQuiver;

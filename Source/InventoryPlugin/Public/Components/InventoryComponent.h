@@ -122,6 +122,19 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Lock")
 	void SetItemLockState(EBagSlot BagSlot, int32 TopLeft, bool bLocked);
 
+	/**
+	 * Update the durability of an item in a specific bag at a specific position
+	 * This is more efficient than removing and re-adding the item
+	 * Authority check is performed inside the function
+	 * @param BagSlot - The bag containing the item
+	 * @param TopLeft - The grid position of the item
+	 * @param ItemID - The item ID to verify we're updating the correct item
+	 * @param NewDurability - The new durability value to set
+	 * @return True if the item was found and updated, false otherwise
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Durability")
+	bool UpdateItemDurability(EBagSlot BagSlot, int32 TopLeft, int32 ItemID, float NewDurability);
+
 	//Setup bag info
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	void BagSet(EBagSlot ConsideredBag, bool InputValidity = false, int32 InputWidth = 0, int32 InputHeight = 0,
