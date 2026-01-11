@@ -779,3 +779,9 @@ void IInventoryPlayerInterface::CancelFieldRepair()
 {
 	Server_CancelFieldRepair();
 }
+//----------------------------------------------------------------------------------------------------------------------
+
+bool IInventoryPlayerInterface::SupplementaryForbiddenActionWhileRepairing()
+{
+	return IsLooting();
+}

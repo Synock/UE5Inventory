@@ -1,4 +1,5 @@
 #include "UI/FieldRepairWidget.h"
+#include "UI/FieldRepairWidgetInterface.h"
 #include "Items/Interfaces/InventoryItemFieldRepairInterface.h"
 #include "Items/InventoryItemEquipable.h"
 #include "UI/FieldRepairSlotWidget.h"
@@ -20,9 +21,11 @@ void UFieldRepairWidget::NativeConstruct()
 		RepairButton->OnClicked.AddDynamic(this, &UFieldRepairWidget::OnRepairButtonClicked);
 	}
 
-	// Initialize UI
-	UpdateUI();
+	// Initialize UI via interface
+	Execute_UpdateUI(this);
 }
+
+//----------------------------------------------------------------------------------------------------------------------
 
 void UFieldRepairWidget::NativeDestruct()
 {
@@ -35,6 +38,8 @@ void UFieldRepairWidget::NativeDestruct()
 	Super::NativeDestruct();
 }
 
+//----------------------------------------------------------------------------------------------------------------------
+
 void UFieldRepairWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
@@ -42,9 +47,11 @@ void UFieldRepairWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTi
 	// Update repair progress display if repairing
 	if (IsRepairing)
 	{
-		UpdateRepairProgressBar();
+		Execute_UpdateRepairProgressBar(this);
 	}
 }
+
+//----------------------------------------------------------------------------------------------------------------------
 
 void UFieldRepairWidget::InitializeWithRepairItem(TScriptInterface<IInventoryItemFieldRepairInterface> RepairItem, float RepairKitDurability)
 {
@@ -59,10 +66,12 @@ void UFieldRepairWidget::InitializeWithRepairItem(TScriptInterface<IInventoryIte
 
 	UpdateRepairKitBackground();
 	UpdateRepairKitChargesBar();
-	UpdateStatusText(FText::FromString("Select an item to repair"));
+	IFieldRepairWidgetInterface::Execute_UpdateStatusText(this, FText::FromString("Select an item to repair"));
 
 	ValidateState();
 }
+
+//----------------------------------------------------------------------------------------------------------------------
 
 void UFieldRepairWidget::SetTargetItem(const UInventoryItemEquipable* TargetItem, float TargetDurability)
 {
@@ -84,124 +93,71 @@ void UFieldRepairWidget::SetTargetItem(const UInventoryItemEquipable* TargetItem
 		MaxTargetDurability = 100.0f;
 	}
 
-	UpdateUI();
+	IFieldRepairWidgetInterface::Execute_UpdateUI(this);
 	ValidateState();
 
 	OnTargetItemChanged();
 }
+
+//----------------------------------------------------------------------------------------------------------------------
 
 void UFieldRepairWidget::ClearTargetItem()
 {
 	SetTargetItem(nullptr, 0.0f);
 }
 
-void UFieldRepairWidget::UpdateUI()
+//----------------------------------------------------------------------------------------------------------------------
+
+UTexture2D* UFieldRepairWidget::GetRepairKitIcon() const
 {
-	UpdateItemDurabilityBar();
-	UpdateRepairKitChargesBar();
-	UpdateRepairProgressBar();
-	UpdateRepairKitBackground();
-}
-
-void UFieldRepairWidget::UpdateItemDurabilityBar()
-{
-	if (!ItemDurabilityBar)
-		return;
-
-	if (CurrentTargetItem && MaxTargetDurability > 0.0f)
-	{
-		float Percent = CurrentTargetDurability / MaxTargetDurability;
-		ItemDurabilityBar->SetPercent(FMath::Clamp(Percent, 0.0f, 1.0f));
-		ItemDurabilityBar->SetVisibility(ESlateVisibility::Visible);
-	}
-	else
-	{
-		ItemDurabilityBar->SetPercent(0.0f);
-		ItemDurabilityBar->SetVisibility(ESlateVisibility::Hidden);
-	}
-}
-
-void UFieldRepairWidget::UpdateRepairKitChargesBar()
-{
-	if (!RepairKitChargesBar)
-		return;
-
-	if (CurrentRepairItem.GetObject() && MaxRepairKitDurability > 0.0f)
-	{
-		float Percent = CurrentRepairKitDurability / MaxRepairKitDurability;
-		RepairKitChargesBar->SetPercent(FMath::Clamp(Percent, 0.0f, 1.0f));
-		RepairKitChargesBar->SetVisibility(ESlateVisibility::Visible);
-	}
-	else
-	{
-		RepairKitChargesBar->SetPercent(0.0f);
-		RepairKitChargesBar->SetVisibility(ESlateVisibility::Hidden);
-	}
-}
-
-void UFieldRepairWidget::UpdateRepairProgressBar()
-{
-	if (!RepairProgressBar)
-		return;
-
-	if (IsRepairing)
-	{
-		RepairProgressBar->SetPercent(FMath::Clamp(RepairProgress, 0.0f, 1.0f));
-		RepairProgressBar->SetVisibility(ESlateVisibility::Visible);
-	}
-	else
-	{
-		RepairProgressBar->SetPercent(0.0f);
-		RepairProgressBar->SetVisibility(ESlateVisibility::Hidden);
-	}
-}
-
-void UFieldRepairWidget::UpdateStatusText(const FText& Message)
-{
-	if (StatusText)
-	{
-		StatusText->SetText(Message);
-	}
-}
-
-void UFieldRepairWidget::UpdateRepairKitBackground()
-{
-	if (!RepairKitBackground)
-		return;
-
 	if (UObject* RepairObject = CurrentRepairItem.GetObject())
 	{
-		// Cast to InventoryItemBase to get the icon
 		if (const UInventoryItemBase* ItemBase = Cast<UInventoryItemBase>(RepairObject))
 		{
-			if (ItemBase->Icon)
-			{
-				RepairKitBackground->SetBrushFromTexture(ItemBase->Icon);
-				RepairKitBackground->SetVisibility(ESlateVisibility::Visible);
-				return;
-			}
+			return ItemBase->Icon;
 		}
 	}
-
-	RepairKitBackground->SetVisibility(ESlateVisibility::Hidden);
+	return nullptr;
 }
 
+//----------------------------------------------------------------------------------------------------------------------
 
-void UFieldRepairWidget::OnRepairButtonClicked()
+void UFieldRepairWidget::TickRepair_Implementation()
+{
+	if (!IsRepairing)
+		return;
+
+	// Call base interface implementation
+	IFieldRepairWidgetInterface::TickRepair_Implementation();
+
+	// Check if repair is complete
+	if (ElapsedRepairTime >= TotalRepairDuration)
+	{
+		CompleteRepair();
+	}
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UFieldRepairWidget::OnRepairTimerTick()
+{
+	// Call TickRepair via Execute_ to properly invoke interface
+	Execute_TickRepair(this);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UFieldRepairWidget::OnRepairButtonClicked_Implementation()
 {
 	if (IsRepairing)
-	{
-		// Cancel repair if already in progress
 		CancelRepair();
-	}
 	else
-	{
-		// Start repair
 		StartRepair();
-	}
 }
 
-bool UFieldRepairWidget::CanStartRepair(FText& OutReason) const
+//----------------------------------------------------------------------------------------------------------------------
+
+bool UFieldRepairWidget::CanStartRepair_Implementation(FText& OutReason) const
 {
 	// Check repair item
 	IInventoryItemFieldRepairInterface* RepairInterface = Cast<IInventoryItemFieldRepairInterface>(CurrentRepairItem.GetObject());
@@ -223,12 +179,22 @@ bool UFieldRepairWidget::CanStartRepair(FText& OutReason) const
 		MaxTargetDurability, CurrentRepairKitDurability, OutReason);
 }
 
+//----------------------------------------------------------------------------------------------------------------------
+
+bool UFieldRepairWidget::ShouldEnableRepairButton_Implementation() const
+{
+	FText Reason;
+	return Execute_CanStartRepair(const_cast<UFieldRepairWidget*>(this), Reason) && !IsRepairing;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 void UFieldRepairWidget::StartRepair()
 {
 	FText Reason;
-	if (!CanStartRepair(Reason))
+	if (!Execute_CanStartRepair(this, Reason))
 	{
-		UpdateStatusText(Reason);
+		Execute_UpdateStatusText(this, Reason);
 		return;
 	}
 
@@ -254,7 +220,7 @@ void UFieldRepairWidget::StartRepair()
 	// Start timer for repair ticks
 	if (UWorld* World = GetWorld())
 	{
-		World->GetTimerManager().SetTimer(RepairTimerHandle, this, &UFieldRepairWidget::TickRepair,
+		World->GetTimerManager().SetTimer(RepairTimerHandle, this, &UFieldRepairWidget::OnRepairTimerTick,
 			0.1f, true);
 	}
 
@@ -264,28 +230,14 @@ void UFieldRepairWidget::StartRepair()
 		UGameplayStatics::PlaySound2D(this, StartSound);
 	}
 
-	UpdateStatusText(FText::FromString(FString::Printf(
+	Execute_UpdateStatusText(this, FText::FromString(FString::Printf(
 		TEXT("Repairing... (%.1f seconds)"), TotalRepairDuration)));
-	UpdateUI();
+	Execute_UpdateUI(this);
 
 	OnRepairStarted();
 }
 
-void UFieldRepairWidget::TickRepair()
-{
-	if (!IsRepairing)
-		return;
-
-	// Update elapsed time
-	ElapsedRepairTime += 0.1f;
-	RepairProgress = TotalRepairDuration > 0.0f ? (ElapsedRepairTime / TotalRepairDuration) : 1.0f;
-
-	// Check if repair is complete
-	if (ElapsedRepairTime >= TotalRepairDuration)
-	{
-		CompleteRepair();
-	}
-}
+//----------------------------------------------------------------------------------------------------------------------
 
 void UFieldRepairWidget::CompleteRepair()
 {
@@ -323,9 +275,9 @@ void UFieldRepairWidget::CompleteRepair()
 	}
 
 	// Update UI
-	UpdateStatusText(FText::FromString(FString::Printf(
+	Execute_UpdateStatusText(this, FText::FromString(FString::Printf(
 		TEXT("Repair complete! Restored %.1f durability"), ActualRepair)));
-	UpdateUI();
+	Execute_UpdateUI(this);
 
 	// Re-enable button
 	if (RepairButton)
@@ -410,6 +362,8 @@ void UFieldRepairWidget::CompleteRepair()
 
 }
 
+//----------------------------------------------------------------------------------------------------------------------
+
 void UFieldRepairWidget::CancelRepair()
 {
 	if (!IsRepairing)
@@ -434,8 +388,8 @@ void UFieldRepairWidget::CancelRepair()
 		}
 	}
 
-	UpdateStatusText(FText::FromString("Repair cancelled"));
-	UpdateUI();
+	Execute_UpdateStatusText(this, FText::FromString("Repair cancelled"));
+	Execute_UpdateUI(this);
 
 	// Re-enable button
 	if (RepairButton)
@@ -446,30 +400,7 @@ void UFieldRepairWidget::CancelRepair()
 	OnRepairCancelled();
 }
 
-void UFieldRepairWidget::ValidateState()
-{
-	FText Reason;
-	bool bCanRepair = CanStartRepair(Reason);
-
-	// Enable/disable repair button
-	if (RepairButton)
-	{
-		RepairButton->SetIsEnabled(bCanRepair && !IsRepairing);
-	}
-
-	// Update status text if not currently repairing
-	if (!IsRepairing)
-	{
-		if (bCanRepair)
-		{
-			UpdateStatusText(FText::FromString("Ready to repair"));
-		}
-		else
-		{
-			UpdateStatusText(Reason);
-		}
-	}
-}
+//----------------------------------------------------------------------------------------------------------------------
 
 IInventoryPlayerInterface* UFieldRepairWidget::GetInventoryPlayerInterface() const
 {

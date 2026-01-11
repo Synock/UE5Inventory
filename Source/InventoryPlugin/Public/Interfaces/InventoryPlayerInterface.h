@@ -1209,4 +1209,10 @@ public:
 	 * Implemented by concrete classes (default provided in .cpp)
 	 */
 	virtual void CancelFieldRepair();
+
+	/**
+	 * @brief Determines if supplementary actions are forbidden while repairing.
+	 * Like looting, or trading, or battle or whatever else.
+	 */
+	virtual bool SupplementaryForbiddenActionWhileRepairing();
 };

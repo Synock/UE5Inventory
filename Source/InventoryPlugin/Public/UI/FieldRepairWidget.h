@@ -6,6 +6,7 @@
 #include "Components/TextBlock.h"
 #include "Components/Image.h"
 #include "Components/Button.h"
+#include "UI/FieldRepairWidgetInterface.h"
 #include "FieldRepairWidget.generated.h"
 
 class UInventoryItemBase;
@@ -35,7 +36,7 @@ class IInventoryPlayerInterface;
  * - RepairButton: UButton (start repair button)
  */
 UCLASS()
-class INVENTORYPLUGIN_API UFieldRepairWidget : public UUserWidget
+class INVENTORYPLUGIN_API UFieldRepairWidget : public UUserWidget, public IFieldRepairWidgetInterface
 {
 	GENERATED_BODY()
 
@@ -133,52 +134,53 @@ protected:
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
 	// ============================================================================
-	// UI Update Functions
+	// IFieldRepairWidgetInterface Implementation
 	// ============================================================================
 
-	/** Update all progress bars and status text */
-	UFUNCTION(BlueprintCallable, Category = "FieldRepair|UI")
-	void UpdateUI();
+	// Interface accessors
+	virtual UProgressBar* GetItemDurabilityBar() const override { return ItemDurabilityBar; }
+	virtual UProgressBar* GetRepairKitChargesBar() const override { return RepairKitChargesBar; }
+	virtual UProgressBar* GetRepairProgressBar() const override { return RepairProgressBar; }
+	virtual UTextBlock* GetStatusText() const override { return StatusText; }
+	virtual UImage* GetRepairKitBackground() const override { return RepairKitBackground; }
+	virtual const UInventoryItemEquipable* GetCurrentTargetItem() const override { return CurrentTargetItem; }
+	virtual float GetCurrentTargetDurability() const override { return CurrentTargetDurability; }
+	virtual float GetMaxTargetDurability() const override { return MaxTargetDurability; }
+	virtual float GetCurrentRepairKitDurability() const override { return CurrentRepairKitDurability; }
+	virtual float GetMaxRepairKitDurability() const override { return MaxRepairKitDurability; }
+	virtual bool GetIsRepairing() const override { return IsRepairing; }
+	virtual void SetIsRepairing(bool bInIsRepairing) override { IsRepairing = bInIsRepairing; }
+	virtual float GetRepairProgress() const override { return RepairProgress; }
+	virtual void SetRepairProgress(float InProgress) override { RepairProgress = InProgress; }
+	virtual float GetElapsedRepairTime() const override { return ElapsedRepairTime; }
+	virtual void SetElapsedRepairTime(float InTime) override { ElapsedRepairTime = InTime; }
+	virtual float GetTotalRepairDuration() const override { return TotalRepairDuration; }
+	virtual UTexture2D* GetRepairKitIcon() const override;
 
-	/** Update the item durability bar */
-	UFUNCTION(BlueprintCallable, Category = "FieldRepair|UI")
-	void UpdateItemDurabilityBar();
-
-	/** Update the repair kit charges bar */
-	UFUNCTION(BlueprintCallable, Category = "FieldRepair|UI")
-	void UpdateRepairKitChargesBar();
-
-	/** Update the repair progress bar */
-	UFUNCTION(BlueprintCallable, Category = "FieldRepair|UI")
-	void UpdateRepairProgressBar();
-
-	/** Update status text with a message */
-	UFUNCTION(BlueprintCallable, Category = "FieldRepair|UI")
-	void UpdateStatusText(const FText& Message);
-
-	/** Update the repair kit background image */
-	UFUNCTION(BlueprintCallable, Category = "FieldRepair|UI")
-	void UpdateRepairKitBackground();
-
-	// ============================================================================
-	// Button Callbacks
-	// ============================================================================
-
-	/** Called when the repair button is clicked */
-	UFUNCTION()
-	void OnRepairButtonClicked();
+	// Interface function overrides (use interface implementations)
+	virtual void UpdateUI_Implementation() override { IFieldRepairWidgetInterface::UpdateUI_Implementation(); }
+	virtual void UpdateItemDurabilityBar_Implementation() override { IFieldRepairWidgetInterface::UpdateItemDurabilityBar_Implementation(); }
+	virtual void UpdateRepairKitChargesBar_Implementation() override { IFieldRepairWidgetInterface::UpdateRepairKitChargesBar_Implementation(); }
+	virtual void UpdateRepairProgressBar_Implementation() override { IFieldRepairWidgetInterface::UpdateRepairProgressBar_Implementation(); }
+	virtual void UpdateStatusText_Implementation(const FText& Message) override { IFieldRepairWidgetInterface::UpdateStatusText_Implementation(Message); }
+	virtual void UpdateRepairKitBackground_Implementation() override { IFieldRepairWidgetInterface::UpdateRepairKitBackground_Implementation(); }
+	// Interface function overrides (_Implementation versions)
+	virtual void TickRepair_Implementation() override;
+	virtual void OnRepairButtonClicked_Implementation() override;
+	virtual bool CanStartRepair_Implementation(FText& OutReason) const override;
+	virtual bool ShouldEnableRepairButton_Implementation() const override;
 
 	// ============================================================================
 	// Repair Process
 	// ============================================================================
 
+	/** Timer callback that calls TickRepair via Execute_ */
+	UFUNCTION()
+	void OnRepairTimerTick();
+
 	/** Start the repair process */
 	UFUNCTION(BlueprintCallable, Category = "FieldRepair")
 	void StartRepair();
-
-	/** Update the repair process (called by timer) */
-	UFUNCTION()
-	void TickRepair();
 
 	/** Complete the repair successfully */
 	UFUNCTION(BlueprintCallable, Category = "FieldRepair")
@@ -188,17 +190,9 @@ protected:
 	UFUNCTION(BlueprintCallable, Category = "FieldRepair")
 	void CancelRepair();
 
-	/** Check if repair can be started */
-	UFUNCTION(BlueprintCallable, Category = "FieldRepair")
-	bool CanStartRepair(FText& OutReason) const;
-
 	// ============================================================================
 	// Validation
 	// ============================================================================
-
-	/** Validate the current state and update UI accordingly */
-	UFUNCTION(BlueprintCallable, Category = "FieldRepair")
-	void ValidateState();
 
 	/** Get the inventory player interface from owning player */
 	IInventoryPlayerInterface* GetInventoryPlayerInterface() const;
@@ -230,11 +224,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "FieldRepair")
 	void ClearTargetItem();
 
-	/**
-	 * Check if the widget is currently repairing
-	 */
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "FieldRepair")
-	bool GetIsRepairing() const { return IsRepairing; }
 
 	// ============================================================================
 	// Blueprint Events
