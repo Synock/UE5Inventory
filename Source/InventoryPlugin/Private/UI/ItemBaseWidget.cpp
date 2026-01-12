@@ -191,6 +191,13 @@ void UItemBaseWidget::RightClickTimerFunction()
 
 //----------------------------------------------------------------------------------------------------------------------
 
+bool UItemBaseWidget::RightClickShortEffect_Implementation()
+{
+	return false;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 void UItemBaseWidget::InitBareData(const UInventoryItemBase* InputItem, AActor* InputOwner, float InputTileSize,
                                    float InputDurability)
 {

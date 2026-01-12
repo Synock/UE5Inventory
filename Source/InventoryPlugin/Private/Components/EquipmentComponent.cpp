@@ -670,7 +670,7 @@ void UEquipmentComponent::EquipItem(const UInventoryItemEquipable* Item, EEquipm
 		{
 			EquipmentDurability.SetNum(Equipment.Num());
 		}
-		EquipmentDurability[SlotIndex] = Item->Durability;
+		EquipmentDurability[SlotIndex] = Item->TotalDurability;
 
 		Equip(Item, InSlot);
 		EquipmentDispatcher_Server.Broadcast();

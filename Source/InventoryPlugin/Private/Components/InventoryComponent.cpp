@@ -137,7 +137,15 @@ bool UInventoryComponent::UpdateItemDurability(EBagSlot BagSlot, int32 TopLeft, 
 		return false;
 	}
 
-	return Bag->UpdateItemDurability(TopLeft, ItemID, NewDurability);
+	bool bSuccess = Bag->UpdateItemDurability(TopLeft, ItemID, NewDurability);
+
+	// Broadcast delegate if update was successful
+	if (bSuccess)
+	{
+		InventoryItemDurabilityUpdate.Broadcast(BagSlot, ItemID, TopLeft, NewDurability);
+	}
+
+	return bSuccess;
 }
 
 //----------------------------------------------------------------------------------------------------------------------

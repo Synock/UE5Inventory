@@ -4,6 +4,8 @@
 #include "Components/CanvasPanelSlot.h"
 #include "Interfaces/InventoryPlayerInterface.h"
 #include "Items/InventoryItemBase.h"
+#include "Items/InventoryItemActionnable.h"
+#include "Items/InventoryItemEquipable.h"
 #include "UI/InventoryGridWidget.h"
 
 void UItemWidget::HandleAutoEquip()
@@ -87,6 +89,51 @@ void UItemWidget::HandleActivation()
 
 	if (IInventoryPlayerInterface* PC = Cast<IInventoryPlayerInterface>(GetOwningPlayer()))
 		PC->HandleActivation(Item->ItemID, TopLeftID, BagID);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+bool UItemWidget::RightClickShortEffect_Implementation()
+{
+	if (IsLocked())
+	{
+		NotifyInteractionBlocked(FText::FromString(TEXT("Cannot use item: it is locked.")));
+		return false;
+	}
+
+	if (!Item || Item->ItemID <= 0)
+		return false;
+
+	if (const UInventoryItemActionnable* ActionnableItem = Cast<UInventoryItemActionnable>(Item))
+	{
+		if (IsBelongingToSelf() && ActionnableItem->Actionnable)
+		{
+			if (!ActionnableItem->BookText.IsEmpty())
+			{
+				DisplayBookText(ClickEvent);
+			}
+			else
+			{
+				HandleActivation();
+			}
+			return true;
+		}
+	}
+
+	// If not actionable, try to equip it if it's equipable
+	if (Cast<UInventoryItemEquipable>(Item))
+	{
+		HandleAutoEquip();
+		return true;
+	}
+
+	if (!IsBelongingToSelf())
+	{
+		HandleAutoLoot();
+		return true;
+	}
+
+	return false;
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -210,6 +257,6 @@ bool UItemWidget::IsBelongingToSelf() const
 void UItemWidget::NativeOnDragCancelled(const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
 {
 	Super::NativeOnDragCancelled(InDragDropEvent, InOperation);
-	// When drag is cancelled, restore the item state
+	// When drag is canceled, restore the item state
 	StopDrag();
 }

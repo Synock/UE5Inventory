@@ -41,6 +41,8 @@ protected:
 	UFUNCTION(BlueprintCallable)
 	void HandleActivation();
 
+	virtual bool RightClickShortEffect_Implementation() override;
+
 	IInventoryPlayerInterface* GetInventoryPlayerInterface() const;
 
 	virtual void RefreshInternal() override;

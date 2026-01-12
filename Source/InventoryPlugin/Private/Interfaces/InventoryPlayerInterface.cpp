@@ -759,29 +759,3 @@ void IInventoryPlayerInterface::PlayerCancelTrade()
 }
 
 //----------------------------------------------------------------------------------------------------------------------
-
-
-//----------------------------------------------------------------------------------------------------------------------
-// Field Repair wrappers (default implementations)
-//----------------------------------------------------------------------------------------------------------------------
-
-void IInventoryPlayerInterface::BeginFieldRepair(int32 RepairKitItemID, EBagSlot RepairKitBagSlot,
-                                                 int32 RepairKitTopLeft, EEquipmentSlot TargetEquipmentSlot,
-                                                 EBagSlot TargetBagSlot,
-                                                 int32 TargetTopLeft, int32 TargetItemID)
-{
-	Server_BeginFieldRepair(RepairKitItemID, RepairKitBagSlot, RepairKitTopLeft, TargetEquipmentSlot, TargetBagSlot,
-	TargetTopLeft, TargetItemID);
-}
-//----------------------------------------------------------------------------------------------------------------------
-
-void IInventoryPlayerInterface::CancelFieldRepair()
-{
-	Server_CancelFieldRepair();
-}
-//----------------------------------------------------------------------------------------------------------------------
-
-bool IInventoryPlayerInterface::SupplementaryForbiddenActionWhileRepairing()
-{
-	return IsLooting();
-}

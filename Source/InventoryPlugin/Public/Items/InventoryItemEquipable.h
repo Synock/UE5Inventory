@@ -43,8 +43,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Weapon")
 	bool Unsheathable = false;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Equipable|Durability")
-	float Durability = 100.0f;
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Equipable|Durability")
+	//float Durability = 100.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Equipable|Durability")
 	float TotalDurability = 100.0f;

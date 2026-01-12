@@ -26,10 +26,7 @@ public:
 	// ============================================================================
 	// Field Repair Properties
 	// ============================================================================
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|FieldRepair", meta = (ClampMin = "1", ClampMax = "100"))
-	int32 MaxCharges = 10;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|FieldRepair", meta = (ClampMin = "1", ClampMax = "100"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|FieldRepair")
 	int32 ChargeConsumption = 1;
 
 	/** Minimum percentage of repair per use (e.g., 0.05 = 5%) */
@@ -120,7 +117,7 @@ public:
 
 	virtual int32 GetChargeConsumptionAmount() const override { return ChargeConsumption; }
 
-	virtual int32 GetMaxChargeAmount() const override { return MaxCharges; }
+	virtual int32 GetMaxChargeAmount() const override { return TotalDurability; }
 
 	virtual USoundBase* GetRepairStartSound() const override { return RepairStartSound; }
 

@@ -2,7 +2,9 @@
 
 #include "InventoryUtilities.h"
 #include "Components/EquipmentComponent.h"
+#include "Interfaces/FieldRepairInterface.h"
 #include "Interfaces/InventoryPlayerInterface.h"
+#include "Items/InventoryItemFieldRepair.h"
 #include "Items/Interfaces/InventoryItemFieldRepairInterface.h"
 #include "Net/UnrealNetwork.h"
 
@@ -55,10 +57,10 @@ void UFieldRepairComponent::OnRep_ActiveFieldRepair()
 
 
 bool UFieldRepairComponent::ValidateRepairKit(int32 RepairKitItemID, EBagSlot RepairKitBagSlot, int32 RepairKitTopLeft,
-                                               UInventoryComponent* InventoryComp,
-                                               const UInventoryItemBase*& OutRepairKitItem,
-                                               const IInventoryItemFieldRepairInterface*& OutRepairInterface,
-                                               float& OutRepairKitDurability) const
+                                              UInventoryComponent* InventoryComp,
+                                              const UInventoryItemBase*& OutRepairKitItem,
+                                              const IInventoryItemFieldRepairInterface*& OutRepairInterface,
+                                              float& OutRepairKitDurability) const
 {
 	if (!InventoryComp)
 		return false;
@@ -101,11 +103,11 @@ bool UFieldRepairComponent::ValidateRepairKit(int32 RepairKitItemID, EBagSlot Re
 }
 
 bool UFieldRepairComponent::ValidateTargetItem(EEquipmentSlot TargetEquipmentSlot, EBagSlot TargetBagSlot,
-                                                int32 TargetTopLeft, int32 TargetItemID,
-                                                UInventoryComponent* InventoryComp,
-                                                UEquipmentComponent* EquipmentComp,
-                                                const UInventoryItemEquipable*& OutTargetItem,
-                                                float& OutCurrentDurability) const
+                                               int32 TargetTopLeft, int32 TargetItemID,
+                                               UInventoryComponent* InventoryComp,
+                                               UEquipmentComponent* EquipmentComp,
+                                               const UInventoryItemEquipable*& OutTargetItem,
+                                               float& OutCurrentDurability) const
 {
 	if (!InventoryComp || !EquipmentComp)
 		return false;
@@ -214,16 +216,16 @@ bool UFieldRepairComponent::CheckIncomingRepairValidity(int32 RepairKitItemID, E
 }
 
 bool UFieldRepairComponent::BeginFieldRepair(int32 RepairKitItemID, EBagSlot RepairKitBagSlot, int32 RepairKitTopLeft,
-	EEquipmentSlot TargetEquipmentSlot, EBagSlot TargetBagSlot, int32 TargetTopLeft, int32 TargetItemID)
+                                             EEquipmentSlot TargetEquipmentSlot, EBagSlot TargetBagSlot,
+                                             int32 TargetTopLeft, int32 TargetItemID)
 {
-
 	if (GetOwnerRole() != ROLE_Authority)
 	{
 		return false;
 	}
 
 	if (!CheckIncomingRepairValidity(RepairKitItemID, RepairKitBagSlot, RepairKitTopLeft,
-		TargetEquipmentSlot, TargetBagSlot, TargetTopLeft, TargetItemID))
+	                                 TargetEquipmentSlot, TargetBagSlot, TargetTopLeft, TargetItemID))
 	{
 		// Validation failed - just return false, no need to broadcast (repair never started)
 		return false;
@@ -248,7 +250,7 @@ bool UFieldRepairComponent::BeginFieldRepair(int32 RepairKitItemID, EBagSlot Rep
 
 	// Broadcast repair started event (will also trigger OnRep for clients)
 	OnFieldRepairStarted.Broadcast(RepairKitItemID, RepairKitBagSlot, RepairKitTopLeft,
-	                                TargetEquipmentSlot, TargetBagSlot);
+	                               TargetEquipmentSlot, TargetBagSlot);
 
 	// Start server-side timer to auto-complete repair after duration
 	if (UWorld* World = GetWorld())
@@ -276,7 +278,6 @@ bool UFieldRepairComponent::BeginFieldRepair(int32 RepairKitItemID, EBagSlot Rep
 	}
 
 	return false;
-
 }
 
 void UFieldRepairComponent::CancelFieldRepair()
@@ -317,7 +318,8 @@ void UFieldRepairComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	Super::EndPlay(EndPlayReason);
 }
 
-void UFieldRepairComponent::HandleRepairCompletedForHUD(float ActualRepairAmount, float NewTargetDurability, float NewKitDurability)
+void UFieldRepairComponent::HandleRepairCompletedForHUD(float ActualRepairAmount, float NewTargetDurability,
+                                                        float NewKitDurability)
 {
 	// This is called on both server (listen server) and clients when repair completes
 	// Notify the HUD interface about the completion
@@ -366,9 +368,9 @@ void UFieldRepairComponent::ServerCheckFieldRepairInterrupts()
 
 	bool bShouldInterrupt = false;
 
-	IInventoryPlayerInterface* IIPI = Cast<IInventoryPlayerInterface>(GetOwner());
+	IFieldRepairInterface* FieldRepairInterface = Cast<IFieldRepairInterface>(GetOwner());
 
-	if (IIPI->SupplementaryForbiddenActionWhileRepairing())
+	if (FieldRepairInterface->IsForbiddenActionActiveWhileRepairing())
 	{
 		bShouldInterrupt = true;
 	}
@@ -390,7 +392,6 @@ void UFieldRepairComponent::ServerCheckFieldRepairInterrupts()
 		// Broadcast cancellation event on server (for listen server)
 		OnFieldRepairCancelled.Broadcast(FText::FromString(TEXT("Repair interrupted by combat or forbidden action")));
 	}
-
 }
 
 void UFieldRepairComponent::ServerInternalCompleteFieldRepair()
@@ -401,14 +402,13 @@ void UFieldRepairComponent::ServerInternalCompleteFieldRepair()
 	if (!ActiveFieldRepair.bIsActive)
 		return; // Already completed or cancelled
 
-	IInventoryPlayerInterface* IIPI = Cast<IInventoryPlayerInterface>(GetOwner());
-
-	if (IIPI->SupplementaryForbiddenActionWhileRepairing())
+	IFieldRepairInterface* FieldRepairInterface = Cast<IFieldRepairInterface>(GetOwner());
+	if (FieldRepairInterface->IsForbiddenActionActiveWhileRepairing())
 	{
 		ActiveFieldRepair.bIsActive = false;
 		return;
 	}
-
+	IInventoryPlayerInterface* IIPI = Cast<IInventoryPlayerInterface>(GetOwner());
 	UInventoryComponent* InventoryComp = IIPI->GetInventoryComponent();
 	UEquipmentComponent* EquipmentComp = IIPI->GetEquipmentForInventory()->GetEquipmentComponent();
 
@@ -451,15 +451,30 @@ void UFieldRepairComponent::ServerInternalCompleteFieldRepair()
 		return;
 	}
 
+	bool RepairSuccess = FieldRepairInterface->RollRepairSuccess();
+	if (!RepairSuccess)
+	{
+		ActiveFieldRepair.bIsActive = false;
+		ActiveFieldRepair.bCompletedSuccessfully = false;
+
+		OnFieldRepairFailed.Broadcast(FText::FromString(TEXT("Repair attempt failed")));
+		return;
+	}
+
 	// Determine repair type
 	bool bIsEquipmentRepair = (ActiveFieldRepair.TargetEquipmentSlot != EEquipmentSlot::Unknown);
-	bool bIsInventoryRepair = (ActiveFieldRepair.TargetBagSlot != EBagSlot::Unknown && ActiveFieldRepair.TargetTopLeft >= 0);
+	bool bIsInventoryRepair = (ActiveFieldRepair.TargetBagSlot != EBagSlot::Unknown && ActiveFieldRepair.TargetTopLeft
+		>= 0);
 
 	// SERVER-AUTHORITATIVE CALCULATIONS (same for both equipment and inventory)
-	float PlannedRepairAmount = RepairInterface->CalculateRepairAmount(CurrentDurability, TargetItem->TotalDurability);
+	float PlannedRepairAmount = RepairInterface->CalculateRepairAmount(CurrentDurability, TargetItem->TotalDurability) *
+		FieldRepairInterface->GetFieldRepairSkillModifier();
+
 	float MaxThreshold = RepairInterface->GetMaxDurabilityThreshold();
+
 	float NewTargetDurability = FMath::Min(CurrentDurability + PlannedRepairAmount,
 	                                       TargetItem->TotalDurability * MaxThreshold);
+
 	float ActualRepairAmount = NewTargetDurability - CurrentDurability;
 
 	// Apply repair based on item location
@@ -475,14 +490,9 @@ void UFieldRepairComponent::ServerInternalCompleteFieldRepair()
 		// Apply repair to inventory item by directly updating durability
 		InventoryComp->UpdateItemDurability(ActiveFieldRepair.TargetBagSlot, ActiveFieldRepair.TargetTopLeft,
 		                                    ActiveFieldRepair.TargetItemID, NewTargetDurability);
-
-		// Persistence handled by inventory component's replication
 	}
 
-	const float DegradationRatio = RepairInterface->GetChargeConsumptionAmount() / static_cast<float>(RepairInterface->GetMaxChargeAmount());
-	// Consume repair kit charge (same for both equipment and inventory)
-
-	const float DurabilityToRemove = RepairKitDurability * DegradationRatio;
+	const float DurabilityToRemove = RepairInterface->GetChargeConsumptionAmount();
 	const float ChargeAmount = FMath::Min(DurabilityToRemove, RepairKitDurability);
 	float NewKitDurability = FMath::Max(0.0f, RepairKitDurability - ChargeAmount);
 
@@ -496,8 +506,6 @@ void UFieldRepairComponent::ServerInternalCompleteFieldRepair()
 		// Update repair kit durability by directly updating it
 		InventoryComp->UpdateItemDurability(ActiveFieldRepair.RepairKitBagSlot, ActiveFieldRepair.RepairKitTopLeft,
 		                                    ActiveFieldRepair.RepairKitItemID, NewKitDurability);
-
-		// Persistence handled by inventory component's replication
 	}
 
 	// Broadcast success event with server-authoritative values (on server for listen server)

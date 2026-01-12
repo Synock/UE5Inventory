@@ -125,8 +125,9 @@ protected:
 	bool RightClickLongEffect();
 
 	/** Blueprint event for short right-click */
-	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable, BlueprintCosmetic, Category = "Inventory|UI|Events")
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, BlueprintCosmetic, Category = "Inventory|UI|Events")
 	bool RightClickShortEffect();
+	virtual bool RightClickShortEffect_Implementation();
 
 	/** Blueprint event for left-click */
 	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable, BlueprintCosmetic, Category = "Inventory|UI|Events")

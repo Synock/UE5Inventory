@@ -17,6 +17,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FFullInventoryDispatcher_Server);
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FInventoryItemAdd, EBagSlot, ConsideredBag, int32, ItemID, int32, TopLeftIndex);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FInventoryItemRemove, EBagSlot, ConsideredBag, int32, TopLeftIndex);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FInventoryItemDurabilityUpdate, EBagSlot, ConsideredBag, int32, ItemID, int32, TopLeftIndex, float, NewDurability);
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FInventoryBagUsageChanged, EBagSlot, ConsideredBag, float, BagUsage);
 
@@ -97,6 +98,9 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "Inventory")
 	FInventoryItemRemove InventoryItemRemove;
+
+	UPROPERTY(BlueprintAssignable, Category = "Inventory")
+	FInventoryItemDurabilityUpdate InventoryItemDurabilityUpdate;
 
 	UPROPERTY(BlueprintAssignable, Category = "Inventory")
 	FInventoryBagUsageChanged InventoryBagUsageChanged;
