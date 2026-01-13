@@ -140,6 +140,17 @@ void UItemBaseWidget::ResetSell()
 
 void UItemBaseWidget::UpdateItemImage()
 {
+
+	UImage* ImageWidget = ItemImage;
+	if (!ImageWidget)
+	{
+		UE_LOG(LogTemp, Warning,
+			   TEXT("ItemBaseWidget::UpdateItemImage - No image widget found (ItemImage or ItemImagePointer)"));
+		return;
+	}
+
+	ImageWidget->SetDesiredSizeOverride(FVector2D(TileSize, TileSize));
+
 	// Use new BindWidget property, fall back to deprecated pointer for backwards compatibility
 	if (!Item || !Item->Icon)
 	{
@@ -147,16 +158,6 @@ void UItemBaseWidget::UpdateItemImage()
 		ItemImage->SetVisibility(ESlateVisibility::Hidden);
 		return;
 	}
-
-	UImage* ImageWidget = ItemImage;
-
-	if (!ImageWidget)
-	{
-		UE_LOG(LogTemp, Warning,
-		       TEXT("ItemBaseWidget::UpdateItemImage - No image widget found (ItemImage or ItemImagePointer)"));
-		return;
-	}
-	ImageWidget->SetDesiredSizeOverride(FVector2D(TileSize, TileSize));
 	ImageWidget->SetBrushFromTexture(Item->Icon);
 	ItemImage->SetVisibility(ESlateVisibility::Visible);
 }
