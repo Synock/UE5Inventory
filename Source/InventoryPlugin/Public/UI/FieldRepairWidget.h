@@ -132,6 +132,7 @@ protected:
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
+	virtual void SetVisibility(ESlateVisibility InVisibility) override;
 
 	// ============================================================================
 	// IFieldRepairWidgetInterface Implementation
@@ -166,6 +167,7 @@ protected:
 	virtual void UpdateRepairKitBackground_Implementation() override { IFieldRepairWidgetInterface::UpdateRepairKitBackground_Implementation(); }
 	// Interface function overrides (_Implementation versions)
 	virtual void TickRepair_Implementation() override;
+	virtual void ValidateState_Implementation() override;
 	virtual void OnRepairButtonClicked_Implementation() override;
 	virtual bool CanStartRepair_Implementation(FText& OutReason) const override;
 	virtual bool ShouldEnableRepairButton_Implementation() const override;
@@ -244,5 +246,9 @@ public:
 	/** Called when the target item is set or changed */
 	UFUNCTION(BlueprintImplementableEvent, Category = "FieldRepair|Events")
 	void OnTargetItemChanged();
+
+	/** Called when repair fails (server-side validation or skill check) */
+	UFUNCTION(BlueprintImplementableEvent, Category = "FieldRepair|Events")
+	void OnRepairFailed(const FText& Reason);
 };
 

@@ -4,6 +4,9 @@
 #include "UObject/Interface.h"
 #include "FieldRepairInterface.generated.h"
 
+class IInventoryItemFieldRepairInterface;
+class UInventoryItemFieldRepairInterface;
+
 UINTERFACE(MinimalAPI, meta = (CannotImplementInterfaceInBlueprint))
 class UFieldRepairInterface : public UInterface
 {
@@ -95,11 +98,7 @@ public:
 	// Field Repair -- RNG System Hooks
 	//------------------------------------------------------------------------------------------------------------------
 
-	virtual bool RollRepairSuccess() const { return true; }
-
-	//------------------------------------------------------------------------------------------------------------------
-	// Field Repair -- Skill System Hooks
-	//------------------------------------------------------------------------------------------------------------------
+	virtual bool RollRepairSuccess(const IInventoryItemFieldRepairInterface* RepairKitUsed) const { return true; }
 
 	/**
 	 * Get skill-based modifier for repair amount.
@@ -107,6 +106,6 @@ public:
 	 *
 	 * @return Multiplier for repair amount (1.0 = no bonus, 1.5 = +50% repair, etc.)
 	 */
-	virtual float GetFieldRepairSkillModifier() const { return 1.0f; }
+	virtual float GetFieldRepairSkillModifier(const IInventoryItemFieldRepairInterface* RepairKitUsed) const { return 1.0f; }
 };
 

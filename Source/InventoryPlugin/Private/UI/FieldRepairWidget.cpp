@@ -53,6 +53,37 @@ void UFieldRepairWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTi
 
 //----------------------------------------------------------------------------------------------------------------------
 
+void UFieldRepairWidget::SetVisibility(ESlateVisibility InVisibility)
+{
+	ESlateVisibility OldVisibility = GetVisibility();
+
+	// Call parent implementation first
+	Super::SetVisibility(InVisibility);
+
+	// If widget is being hidden, clean up state
+	if (InVisibility == ESlateVisibility::Hidden || InVisibility == ESlateVisibility::Collapsed)
+	{
+		// Only cleanup if we were visible before (to avoid redundant operations)
+		if (OldVisibility == ESlateVisibility::Visible || OldVisibility == ESlateVisibility::HitTestInvisible ||
+			OldVisibility == ESlateVisibility::SelfHitTestInvisible)
+		{
+			// Cancel any ongoing repair
+			if (IsRepairing)
+			{
+				CancelRepair();
+			}
+
+			// Clear the target item to ensure clean state for next window open
+			if (CurrentTargetItem != nullptr)
+			{
+				ClearTargetItem();
+			}
+		}
+	}
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 void UFieldRepairWidget::InitializeWithRepairItem(TScriptInterface<IInventoryItemFieldRepairInterface> RepairItem, float RepairKitDurability)
 {
 	CurrentRepairItem = RepairItem;
@@ -68,7 +99,7 @@ void UFieldRepairWidget::InitializeWithRepairItem(TScriptInterface<IInventoryIte
 	UpdateRepairKitChargesBar();
 	IFieldRepairWidgetInterface::Execute_UpdateStatusText(this, FText::FromString("Select an item to repair"));
 
-	ValidateState();
+	Execute_ValidateState(this);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -94,7 +125,7 @@ void UFieldRepairWidget::SetTargetItem(const UInventoryItemEquipable* TargetItem
 	}
 
 	IFieldRepairWidgetInterface::Execute_UpdateUI(this);
-	ValidateState();
+	Execute_ValidateState(this);
 
 	OnTargetItemChanged();
 }
@@ -285,6 +316,9 @@ void UFieldRepairWidget::CompleteRepair()
 		RepairButton->SetIsEnabled(true);
 	}
 
+	// Validate state for next repair (this will re-enable button if conditions met)
+	Execute_ValidateState(this);
+
 	OnRepairCompleted(ActualRepair);
 
 	// Notify server/game mode to persist repair (best-effort). Try to use the Inventory Player Interface if available.
@@ -397,7 +431,38 @@ void UFieldRepairWidget::CancelRepair()
 		RepairButton->SetIsEnabled(true);
 	}
 
+	// Validate state
+	Execute_ValidateState(this);
+
 	OnRepairCancelled();
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UFieldRepairWidget::ValidateState_Implementation()
+{
+	FText Reason;
+	bool bCanRepair = Execute_CanStartRepair(this, Reason);
+	bool bIsRepairing = IsRepairing;
+
+	// Enable/disable repair button
+	if (RepairButton)
+	{
+		RepairButton->SetIsEnabled(bCanRepair && !bIsRepairing);
+	}
+
+	// Update status text if not currently repairing
+	if (!bIsRepairing)
+	{
+		if (bCanRepair)
+		{
+			Execute_UpdateStatusText(this, FText::FromString(TEXT("Ready to repair")));
+		}
+		else
+		{
+			Execute_UpdateStatusText(this, Reason);
+		}
+	}
 }
 
 //----------------------------------------------------------------------------------------------------------------------

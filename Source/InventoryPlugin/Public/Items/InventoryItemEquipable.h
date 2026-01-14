@@ -43,9 +43,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Weapon")
 	bool Unsheathable = false;
 
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Equipable|Durability")
-	//float Durability = 100.0f;
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Equipable|Durability")
 	float TotalDurability = 100.0f;
 
@@ -60,5 +57,7 @@ public:
 	virtual USkeletalMesh* GetEquipmentMesh() const override { return EquipmentMesh; }
 	virtual const TArray<FMaterialOverride>& GetEquipmentMeshMaterialOverride() const override { return EquipmentMeshMaterialOverride; }
 	virtual bool IsUnsheathable() const override { return Unsheathable; }
+	virtual float GetTotalDurability() const override { return TotalDurability; }
+	virtual float GetDurabilityModifier() const override { return DurabilityModifier; }
 
 };

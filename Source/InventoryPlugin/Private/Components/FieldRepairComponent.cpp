@@ -48,9 +48,31 @@ void UFieldRepairComponent::OnRep_ActiveFieldRepair()
 		}
 		else
 		{
-			// Failed or cancelled - we don't have detailed reason, but UI can show generic message
-			// (Client can infer: was it validation failure, interruption, or manual cancel)
-			OnFieldRepairCancelled.Broadcast(FText::FromString(TEXT("Repair was interrupted or failed")));
+			// Failed or cancelled - use the replicated failure reason to provide specific feedback
+			FText FailureMessage;
+			switch (ActiveFieldRepair.FailureReason)
+			{
+			case EFieldRepairFailureReason::SkillCheckFailed:
+				FailureMessage = FText::FromString(TEXT("Repair skill check failed"));
+				OnFieldRepairFailed.Broadcast(FailureMessage);
+				break;
+			case EFieldRepairFailureReason::Interrupted:
+				FailureMessage = FText::FromString(TEXT("Repair was interrupted by combat or forbidden action"));
+				OnFieldRepairCancelled.Broadcast(FailureMessage);
+				break;
+			case EFieldRepairFailureReason::ManuallyCancelled:
+				FailureMessage = FText::FromString(TEXT("Repair manually cancelled"));
+				OnFieldRepairCancelled.Broadcast(FailureMessage);
+				break;
+			case EFieldRepairFailureReason::ValidationFailed:
+				FailureMessage = FText::FromString(TEXT("Repair validation failed"));
+				OnFieldRepairFailed.Broadcast(FailureMessage);
+				break;
+			default:
+				FailureMessage = FText::FromString(TEXT("Repair was interrupted or failed"));
+				OnFieldRepairCancelled.Broadcast(FailureMessage);
+				break;
+			}
 		}
 	}
 }
@@ -294,8 +316,9 @@ void UFieldRepairComponent::CancelFieldRepair()
 		World->GetTimerManager().ClearTimer(ActiveFieldRepair.ServerTimerHandle);
 	}
 
-	// Clear state (this will trigger OnRep for clients)
+	// Clear state with manual cancellation reason (this will trigger OnRep for clients)
 	ActiveFieldRepair.bIsActive = false;
+	ActiveFieldRepair.FailureReason = EFieldRepairFailureReason::ManuallyCancelled;
 
 	// Broadcast cancellation event on server (for listen server)
 	OnFieldRepairCancelled.Broadcast(FText::FromString(TEXT("Repair manually cancelled")));
@@ -307,13 +330,13 @@ void UFieldRepairComponent::BeginPlay()
 
 	// Bind client-side handler to repair completion event
 	// This will notify the HUD when repair finishes
-	OnFieldRepairCompleted.AddDynamic(this, &UFieldRepairComponent::HandleRepairCompletedForHUD);
+	//OnFieldRepairCompleted.AddDynamic(this, &UFieldRepairComponent::HandleRepairCompletedForHUD);
 }
 
 void UFieldRepairComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	// Cleanup: unbind from the delegate
-	OnFieldRepairCompleted.RemoveDynamic(this, &UFieldRepairComponent::HandleRepairCompletedForHUD);
+	//OnFieldRepairCompleted.RemoveDynamic(this, &UFieldRepairComponent::HandleRepairCompletedForHUD);
 
 	Super::EndPlay(EndPlayReason);
 }
@@ -385,9 +408,10 @@ void UFieldRepairComponent::ServerCheckFieldRepairInterrupts()
 			World->GetTimerManager().ClearTimer(ActiveFieldRepair.ServerTimerHandle);
 		}
 
-		// Clear state (this will trigger OnRep for clients, they'll infer cancellation)
+		// Clear state with interrupt reason (this will trigger OnRep for clients)
 		ActiveFieldRepair.bIsActive = false;
 		ActiveFieldRepair.bCompletedSuccessfully = false;
+		ActiveFieldRepair.FailureReason = EFieldRepairFailureReason::Interrupted;
 
 		// Broadcast cancellation event on server (for listen server)
 		OnFieldRepairCancelled.Broadcast(FText::FromString(TEXT("Repair interrupted by combat or forbidden action")));
@@ -429,6 +453,7 @@ void UFieldRepairComponent::ServerInternalCompleteFieldRepair()
 	{
 		ActiveFieldRepair.bIsActive = false;
 		ActiveFieldRepair.bCompletedSuccessfully = false;
+		ActiveFieldRepair.FailureReason = EFieldRepairFailureReason::ValidationFailed;
 
 		// Broadcast on server (for listen server), client will infer from OnRep
 		OnFieldRepairFailed.Broadcast(FText::FromString(TEXT("Repair kit no longer available or has no charges")));
@@ -445,17 +470,19 @@ void UFieldRepairComponent::ServerInternalCompleteFieldRepair()
 	{
 		ActiveFieldRepair.bIsActive = false;
 		ActiveFieldRepair.bCompletedSuccessfully = false;
+		ActiveFieldRepair.FailureReason = EFieldRepairFailureReason::ValidationFailed;
 
 		// Broadcast on server (for listen server), client will infer from OnRep
 		OnFieldRepairFailed.Broadcast(FText::FromString(TEXT("Target item no longer available or equipped")));
 		return;
 	}
 
-	bool RepairSuccess = FieldRepairInterface->RollRepairSuccess();
+	bool RepairSuccess = FieldRepairInterface->RollRepairSuccess(RepairInterface);
 	if (!RepairSuccess)
 	{
 		ActiveFieldRepair.bIsActive = false;
 		ActiveFieldRepair.bCompletedSuccessfully = false;
+		ActiveFieldRepair.FailureReason = EFieldRepairFailureReason::SkillCheckFailed;
 
 		OnFieldRepairFailed.Broadcast(FText::FromString(TEXT("Repair attempt failed")));
 		return;
@@ -468,7 +495,7 @@ void UFieldRepairComponent::ServerInternalCompleteFieldRepair()
 
 	// SERVER-AUTHORITATIVE CALCULATIONS (same for both equipment and inventory)
 	float PlannedRepairAmount = RepairInterface->CalculateRepairAmount(CurrentDurability, TargetItem->TotalDurability) *
-		FieldRepairInterface->GetFieldRepairSkillModifier();
+		FieldRepairInterface->GetFieldRepairSkillModifier(RepairInterface);
 
 	float MaxThreshold = RepairInterface->GetMaxDurabilityThreshold();
 
@@ -520,9 +547,6 @@ void UFieldRepairComponent::ServerInternalCompleteFieldRepair()
 	// Send chat notification (only on server, will be replicated via chat system)
 	const FString RepairMessage = FString::Printf(TEXT("You repaired %s, restoring %.1f durability."),
 	                                              *TargetItem->Name, ActualRepairAmount);
-
-	// TODO: Send via proper chat system
-	UE_LOG(LogTemp, Log, TEXT("%s"), *RepairMessage);
 
 	// Clear server timer if it hasn't fired yet
 	if (UWorld* World = GetWorld())

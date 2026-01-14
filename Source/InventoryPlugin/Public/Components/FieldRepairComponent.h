@@ -22,6 +22,17 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnFieldRepairCancelled, FText, Reas
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnFieldRepairFailed, FText, Reason);
 
+// Enum to track why a repair ended unsuccessfully
+UENUM(BlueprintType)
+enum class EFieldRepairFailureReason : uint8
+{
+	None UMETA(DisplayName = "None"),
+	SkillCheckFailed UMETA(DisplayName = "Skill Check Failed"),
+	Interrupted UMETA(DisplayName = "Interrupted"),
+	ManuallyCancelled UMETA(DisplayName = "Manually Cancelled"),
+	ValidationFailed UMETA(DisplayName = "Validation Failed")
+};
+
 // Field repair active state tracking
 USTRUCT(BlueprintType)
 struct FActiveFieldRepair
@@ -71,6 +82,9 @@ struct FActiveFieldRepair
 
 	UPROPERTY(BlueprintReadOnly)
 	bool bCompletedSuccessfully = false;
+
+	UPROPERTY(BlueprintReadOnly)
+	EFieldRepairFailureReason FailureReason = EFieldRepairFailureReason::None;
 
 	// Server-side timer for auto-completion and interrupt monitoring (not replicated)
 	FTimerHandle ServerTimerHandle;
