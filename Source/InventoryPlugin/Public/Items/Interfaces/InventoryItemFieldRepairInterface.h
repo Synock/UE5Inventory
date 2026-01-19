@@ -2,20 +2,24 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
+#include "InventoryItemActivatableInterface.h"
 #include "InventoryItemFieldRepairInterface.generated.h"
 
 class UInventoryItemBase;
 
 // This class does not need to be modified.
 UINTERFACE(MinimalAPI)
-class UInventoryItemFieldRepairInterface : public UInterface
+class UInventoryItemFieldRepairInterface : public UInventoryItemActivatableInterface
 {
 	GENERATED_BODY()
 };
 
 /**
- * Interface for field repair items.
- * Allows custom implementations with various repair logic and restrictions.
+ * Interface for field repair items (repair kits).
+ * Inherits from IInventoryItemActivatableInterface to provide activation behavior.
+ *
+ * Field repair items are activatable - clicking them opens the field repair UI.
+ * They have limited charges (durability) and specific repair capabilities.
  *
  * Pure virtual interface - all methods must be overridden in C++.
  * Implementers must provide:
@@ -24,7 +28,7 @@ class UInventoryItemFieldRepairInterface : public UInterface
  * - Duration configuration
  * - Visual/audio feedback hooks
  */
-class INVENTORYPLUGIN_API IInventoryItemFieldRepairInterface
+class INVENTORYPLUGIN_API IInventoryItemFieldRepairInterface : public IInventoryItemActivatableInterface
 {
 	GENERATED_BODY()
 
@@ -134,5 +138,35 @@ public:
 	 * @return Maximum threshold (e.g., 0.75 = 75%)
 	 */
 	virtual float GetMaxDurabilityThreshold() const = 0;
-};
 
+	//------------------------------------------------------------------------------------------------------------------
+	// IInventoryItemActivatableInterface Overrides
+	// Field repair items provide sensible activation defaults
+	//------------------------------------------------------------------------------------------------------------------
+
+	/**
+	 * Field repair items can always be activated to open the repair UI
+	 * (specific repair validation happens in CanRepairItem)
+	 */
+	virtual bool CanActivate_Implementation() const override
+	{
+		return true;
+	}
+
+	/**
+	 * Field repair items are NOT consumed when activated (just opens UI)
+	 * They are consumed during actual repair operations based on charges
+	 */
+	virtual bool IsConsumedOnUse_Implementation() const override
+	{
+		return false;
+	}
+
+	/**
+	 * Field repair items must be in inventory to use (not equipped)
+	 */
+	virtual bool MustBeEquippedToActivate_Implementation() const override
+	{
+		return false;
+	}
+};

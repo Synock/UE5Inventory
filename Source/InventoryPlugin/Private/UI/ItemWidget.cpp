@@ -4,7 +4,8 @@
 #include "Components/CanvasPanelSlot.h"
 #include "Interfaces/InventoryPlayerInterface.h"
 #include "Items/InventoryItemBase.h"
-#include "Items/InventoryItemActionnable.h"
+#include "Items/Interfaces/InventoryItemActivatableInterface.h"
+#include "Items/Interfaces/InventoryItemBookInterface.h"
 #include "Items/InventoryItemEquipable.h"
 #include "UI/InventoryGridWidget.h"
 
@@ -104,18 +105,21 @@ bool UItemWidget::RightClickShortEffect_Implementation()
 	if (!Item || Item->ItemID <= 0)
 		return false;
 
-	if (const UInventoryItemActionnable* ActionnableItem = Cast<UInventoryItemActionnable>(Item))
+	// Check if item is a book first
+	if (const IInventoryItemBookInterface* BookItem = Cast<IInventoryItemBookInterface>(Item))
 	{
-		if (IsBelongingToSelf() && ActionnableItem->Actionnable)
+		if (IsBelongingToSelf())
 		{
-			if (!ActionnableItem->BookText.IsEmpty())
-			{
-				DisplayBookText(ClickEvent);
-			}
-			else
-			{
-				HandleActivation();
-			}
+			DisplayBookText(ClickEvent);
+			return true;
+		}
+	}
+	// Check if item is activatable (food, drink, etc.)
+	else if (const IInventoryItemActivatableInterface* ActivatableItem = Cast<IInventoryItemActivatableInterface>(Item))
+	{
+		if (IsBelongingToSelf() && ActivatableItem->Execute_CanActivate(Item))
+		{
+			HandleActivation();
 			return true;
 		}
 	}

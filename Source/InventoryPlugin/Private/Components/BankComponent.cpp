@@ -104,7 +104,7 @@ void UBankComponent::AddItem_Implementation(int32 ItemID, int32 TopLeftIndex, fl
 	NewItem.Durability = Durability;
 
 	Items.Add(NewItem);
-	BankItemAddDispatcher.Broadcast(ItemID, TopLeftIndex);
+	BankItemAddDispatcher.Broadcast(ItemID, TopLeftIndex, Durability);
 }
 
 //----------------------------------------------------------------------------------------------------------------------

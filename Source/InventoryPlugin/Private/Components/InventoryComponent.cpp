@@ -153,7 +153,7 @@ bool UInventoryComponent::UpdateItemDurability(EBagSlot BagSlot, int32 TopLeft, 
 void UInventoryComponent::AddItemAt_Implementation(EBagSlot ConsideredBag, int32 ItemID, int32 TopLeftIndex, float Durability)
 {
 	GetRelatedBag(ConsideredBag)->AddItemAt(ItemID, TopLeftIndex, Durability);
-	InventoryItemAdd.Broadcast(ConsideredBag, ItemID, TopLeftIndex);
+	InventoryItemAdd.Broadcast(ConsideredBag, ItemID, TopLeftIndex, Durability);
 }
 
 //----------------------------------------------------------------------------------------------------------------------

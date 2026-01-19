@@ -1,6 +1,4 @@
-﻿// Copyright 2022 Maximilien (Synock) Guislain
-
-#pragma once
+﻿#pragma once
 
 #include <CoreMinimal.h>
 #include <Components/ActorComponent.h>
@@ -15,7 +13,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnFullInventoryComponentChanged);
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FFullInventoryDispatcher_Server);
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FInventoryItemAdd, EBagSlot, ConsideredBag, int32, ItemID, int32, TopLeftIndex);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FInventoryItemAdd, EBagSlot, ConsideredBag, int32, ItemID, int32, TopLeftIndex, float, Durability);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FInventoryItemRemove, EBagSlot, ConsideredBag, int32, TopLeftIndex);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FInventoryItemDurabilityUpdate, EBagSlot, ConsideredBag, int32, ItemID, int32, TopLeftIndex, float, NewDurability);
 

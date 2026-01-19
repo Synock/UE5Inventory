@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "InventoryItemActionnable.h"
+#include "InventoryItemEquipable.h"
 #include "Items/Interfaces/InventoryItemFieldRepairInterface.h"
 #include "InventoryItemFieldRepair.generated.h"
 
@@ -18,7 +18,7 @@
  * Example: "Rusty Repair Kit" (10 charges, repairs 5-20%, works on 33-75% items, 3s repair time)
  */
 UCLASS()
-class INVENTORYPLUGIN_API UInventoryItemFieldRepair : public UInventoryItemActionnable, public IInventoryItemFieldRepairInterface
+class INVENTORYPLUGIN_API UInventoryItemFieldRepair : public UInventoryItemEquipable, public IInventoryItemFieldRepairInterface
 {
 	GENERATED_BODY()
 

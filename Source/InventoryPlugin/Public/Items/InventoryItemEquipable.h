@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "InventoryItemBase.h"
 #include "Items/Interfaces/InventoryItemEquipableInterface.h"
+#include "Items/Interfaces/InventoryItemWeaponInterface.h"
 
 #include "InventoryItemEquipable.generated.h"
 
@@ -12,7 +13,7 @@
  *
  */
 UCLASS()
-class INVENTORYPLUGIN_API UInventoryItemEquipable : public UInventoryItemBase, public IInventoryItemEquipableInterface
+class INVENTORYPLUGIN_API UInventoryItemEquipable : public UInventoryItemBase, public IInventoryItemEquipableInterface, public IInventoryItemWeaponInterface
 {
 public:
 	GENERATED_BODY()

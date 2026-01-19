@@ -7,9 +7,10 @@
 #include "GameFramework/Actor.h"
 #include "Interfaces/InventoryHUDInterface.h"
 #include "Interfaces/LootableInterface.h"
-#include "Items/InventoryItemActionnable.h"
 #include "Items/InventoryItemEquipable.h"
 #include "Items/InventoryItemKey.h"
+#include "Items/Interfaces/InventoryItemDrinkInterface.h"
+#include "Items/Interfaces/InventoryItemFoodInterface.h"
 
 UCoinComponent* IInventoryPlayerInterface::GetBankCoin() const
 {
@@ -620,9 +621,10 @@ bool IInventoryPlayerInterface::TryToEat()
 		{
 			const UInventoryItemBase* Item = UInventoryUtilities::GetItemFromID(
 				ItemStorage.ItemID, GetInventoryOwningActor()->GetWorld());
-			if (const UInventoryItemActionnable* ActionnableItem = Cast<UInventoryItemActionnable>(Item))
+			if (const IInventoryItemFoodInterface* FoodItem = Cast<IInventoryItemFoodInterface>(Item))
 			{
-				if (ActionnableItem->HungerValue > 0.f)
+				const float HungerValue = FoodItem->Execute_GetHungerRestoration(Item);
+				if (HungerValue > 0.f)
 				{
 					HandleActivation(ItemStorage.ItemID, ItemStorage.TopLeftID, BagSlot);
 					return true;
@@ -652,9 +654,10 @@ bool IInventoryPlayerInterface::TryToDrink()
 		{
 			const UInventoryItemBase* Item = UInventoryUtilities::GetItemFromID(
 				ItemStorage.ItemID, GetInventoryOwningActor()->GetWorld());
-			if (const UInventoryItemActionnable* ActionnableItem = Cast<UInventoryItemActionnable>(Item))
+			if (const IInventoryItemDrinkInterface* DrinkItem = Cast<IInventoryItemDrinkInterface>(Item))
 			{
-				if (ActionnableItem->ThirstValue > 0.f)
+				const float ThirstValue = DrinkItem->Execute_GetThirstRestoration(Item);
+				if (ThirstValue > 0.f)
 				{
 					HandleActivation(ItemStorage.ItemID, ItemStorage.TopLeftID, BagSlot);
 					return true;

@@ -6,7 +6,7 @@
 #include "Components/LootPoolComponent.h"
 #include "Interfaces/InventoryPlayerInterface.h"
 #include "Interfaces/LootableInterface.h"
-#include "Items/InventoryItemBag.h"
+#include "Items/Interfaces/InventoryItemBagInterface.h"
 #include "Items/Interfaces/InventoryItemAmmoBagInterface.h"
 #include "Items/Interfaces/InventoryItemAmmoInterface.h"
 
@@ -327,7 +327,7 @@ void UInventoryGridWidget::InitData(AActor* Owner, EBagSlot InputBagSlot, int32 
 	{
 		const EEquipmentSlot RelatedSlot = UInventoryComponent::GetInventorySlotFromBagSlot(BagID);
 
-		const UInventoryItemBag* BagItem = Cast<UInventoryItemBag>(
+		const IInventoryItemBagInterface* BagItem = Cast<IInventoryItemBagInterface>(
 			PC->GetEquipmentForInventory()->GetEquippedItem(RelatedSlot));
 
 		if (!ensureMsgf(BagItem, TEXT("InitData: Failed to get bag item for slot %d"), static_cast<int32>(RelatedSlot)))
@@ -336,8 +336,8 @@ void UInventoryGridWidget::InitData(AActor* Owner, EBagSlot InputBagSlot, int32 
 		}
 		else
 		{
-			ResizeBagArea(BagItem->BagWidth, BagItem->BagHeight);
-			MaximumBagSize = BagItem->BagSize;
+			ResizeBagArea(BagItem->GetBagWidth(), BagItem->GetBagHeight());
+			MaximumBagSize = BagItem->GetBagSize();
 			if (const IInventoryItemAmmoBagInterface* AmmoBag = Cast<IInventoryItemAmmoBagInterface>(BagItem))
 			{
 				AmmoTypeLimiter = AmmoBag->GetAmmoType();

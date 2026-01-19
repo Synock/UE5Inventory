@@ -1,11 +1,8 @@
-﻿// Copyright 2022 Maximilien (Synock) Guislain
-
-
-#include "UI/ItemDescriptionWidget.h"
+﻿#include "UI/ItemDescriptionWidget.h"
 #include "InventoryUtilities.h"
 #include "Definitions.h"
-#include "Items/InventoryItemActionnable.h"
-#include "Items/InventoryItemBag.h"
+#include "Items/Interfaces/InventoryItemActivatableInterface.h"
+#include "Items/Interfaces/InventoryItemBagInterface.h"
 #include "Items/InventoryItemWeapon.h"
 
 bool UItemDescriptionWidget::IsLore() const
@@ -122,14 +119,14 @@ FString UItemDescriptionWidget::GetWeaponString() const
 
 FString UItemDescriptionWidget::GetContainerString() const
 {
-	const UInventoryItemBag* Bag = Cast<UInventoryItemBag>(ObservedItem);
+	const IInventoryItemBagInterface* Bag = Cast<IInventoryItemBagInterface>(ObservedItem);
 
 	if(!Bag)
 		return {};
 
-	return "Capacity: " + FString::FormatAsNumber(Bag->BagWidth) + "x" +
-		FString::FormatAsNumber(Bag->BagHeight) + " Size capacity:" + UInventoryUtilities::GetItemSizeString(
-			Bag->BagSize);
+	return "Capacity: " + FString::FormatAsNumber(Bag->GetBagWidth()) + "x" +
+		FString::FormatAsNumber(Bag->GetBagHeight()) + " Size capacity:" + UInventoryUtilities::GetItemSizeString(
+			Bag->GetBagSize());
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -187,10 +184,11 @@ FString UItemDescriptionWidget::GetGlobalString() const
 	if (const UInventoryItemWeapon* Weapon = Cast<UInventoryItemWeapon>(ObservedItem))
 		Out += GetWeaponString() + "\n";
 
-	if (const UInventoryItemBag* Bag = Cast<UInventoryItemBag>(ObservedItem))
+	if (const IInventoryItemBagInterface* Bag = Cast<IInventoryItemBagInterface>(ObservedItem))
 		Out += GetContainerString() + "\n";
 
-	if (const UInventoryItemActionnable* Actionnable = Cast<UInventoryItemActionnable>(ObservedItem))
+	// Check if item is activatable (food, drink, etc.)
+	if (const IInventoryItemActivatableInterface* Activatable = Cast<IInventoryItemActivatableInterface>(ObservedItem))
 		Out += GetUsableString() + "\n";
 
 	return Out;

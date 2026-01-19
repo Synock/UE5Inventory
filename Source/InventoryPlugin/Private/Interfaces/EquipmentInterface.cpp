@@ -5,7 +5,7 @@
 #include "GameFramework/Character.h"
 #include "Interfaces/InventoryPlayerInterface.h"
 #include "Items/InventoryItemAmmoBag.h"
-#include "Items/InventoryItemBag.h"
+#include "Items/Interfaces/InventoryItemBagInterface.h"
 #include "Items/InventoryItemBase.h"
 #include "Items/InventoryItemEquipable.h"
 #include "Items/Interfaces/InventoryItemAmmoInterface.h"
@@ -142,7 +142,7 @@ void IEquipmentInterface::HandleEquipmentEffect(EEquipmentSlot InSlot, const UIn
 
 	HandleTwoSlotItemEquip(LocalItem, InSlot);
 
-	if (const UInventoryItemBag* LocalBag = Cast<UInventoryItemBag>(LocalItem); LocalBag)
+	if (const IInventoryItemBagInterface* LocalBag = Cast<IInventoryItemBagInterface>(LocalItem); LocalBag)
 	{
 		const ACharacter* Chara = Cast<ACharacter>(GetEquipmentComponent()->GetOwner());
 		if (!Chara)
@@ -151,9 +151,9 @@ void IEquipmentInterface::HandleEquipmentEffect(EEquipmentSlot InSlot, const UIn
 		const EBagSlot AffectedSlot = UInventoryComponent::GetBagSlotFromInventory(InSlot);
 		if (IInventoryPlayerInterface* Inventory = Cast<IInventoryPlayerInterface>(Chara->GetController()))
 		{
-			Inventory->GetInventoryComponent()->BagSet(AffectedSlot, true, LocalBag->BagWidth, LocalBag->BagHeight,
-			                                           LocalBag->BagSize,
-			                                           FMath::Clamp(0.f, 1.f, 1.f - LocalBag->WeightReduction));
+			Inventory->GetInventoryComponent()->BagSet(AffectedSlot, true, LocalBag->GetBagWidth(), LocalBag->GetBagHeight(),
+			                                           LocalBag->GetBagSize(),
+			                                           FMath::Clamp(0.f, 1.f, 1.f - LocalBag->GetWeightReduction()));
 
 			if (const IInventoryItemAmmoBagInterface* LocalQuiver = Cast<IInventoryItemAmmoBagInterface>(LocalBag);
 				LocalQuiver)
@@ -178,7 +178,7 @@ void IEquipmentInterface::HandleUnEquipmentEffect(EEquipmentSlot InSlot, const U
 	HandleTwoSlotItemUnequip(LocalItem, InSlot);
 	//do equipment specific stuff here
 
-	if (const UInventoryItemBag* LocalBag = Cast<UInventoryItemBag>(LocalItem); LocalBag)
+	if (const IInventoryItemBagInterface* LocalBag = Cast<IInventoryItemBagInterface>(LocalItem); LocalBag)
 	{
 		const ACharacter* Chara = Cast<ACharacter>(GetEquipmentComponent()->GetOwner());
 		if (!Chara)

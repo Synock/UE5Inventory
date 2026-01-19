@@ -4,7 +4,7 @@
 #include "Components/EquipmentComponent.h"
 #include "Interfaces/InventoryPlayerInterface.h"
 #include "GenericPlatform/GenericPlatformMath.h"
-#include "Items/InventoryItemBag.h"
+#include "Items/Interfaces/InventoryItemBagInterface.h"
 #include "Items/InventoryItemBase.h"
 #include "UI/InventoryEquipmentWidget.h"
 
@@ -112,7 +112,7 @@ void UEquipmentSlotWidget::OpenBag() const
 
 bool UEquipmentSlotWidget::IsBag() const
 {
-	return Item && Cast<UInventoryItemBag>(Item);
+	return Item && Cast<IInventoryItemBagInterface>(Item);
 }
 
 //----------------------------------------------------------------------------------------------------------------------

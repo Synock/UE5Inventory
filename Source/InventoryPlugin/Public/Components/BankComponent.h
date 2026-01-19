@@ -10,7 +10,7 @@
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnBankPoolChangedDelegate);
 
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FBankItemAdd, int32, ItemID, int32, TopLeftIndex);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FBankItemAdd, int32, ItemID, int32, TopLeftIndex, float, Durability);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FBankItemRemove, int32, TopLeftIndex);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnBankReorganize);
 
