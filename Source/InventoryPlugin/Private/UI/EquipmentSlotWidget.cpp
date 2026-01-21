@@ -132,7 +132,7 @@ void UEquipmentSlotWidget::InnerRefresh()
 		if (Equipment)
 		{
 			// Get max durability from item definition
-			MaxDurability = FMath::Max(1.0f, Equipment->TotalDurability);
+			MaxDurability = FMath::Max(1.0f, Equipment->GetTotalDurability());
 
 			// Get current durability from equipment component
 			float EquipmentDurability = MaxDurability; // Default to max

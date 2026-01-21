@@ -22,7 +22,5 @@ public:
 	virtual bool IsShield() const = 0;
 	virtual class USkeletalMesh* GetEquipmentMesh() const = 0;
 	virtual const TArray<struct FMaterialOverride>& GetEquipmentMeshMaterialOverride() const = 0;
-	virtual float GetTotalDurability() const = 0;
-	virtual float GetDurabilityModifier() const = 0;
 };
 

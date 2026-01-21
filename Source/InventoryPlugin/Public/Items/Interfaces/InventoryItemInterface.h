@@ -1,11 +1,10 @@
-// Copyright 2025 Maximilien (Synock) Guislain
-
 #pragma once
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
 #include "InventoryItemInterface.generated.h"
 
+enum class EItemType : uint8;
 enum class EItemSize : uint8;
 struct FMaterialOverride;
 class UTexture2D;
@@ -45,9 +44,9 @@ public:
 	virtual uint8 GetHeight() const = 0;
 	virtual EItemSize GetItemSize() const = 0;
 
-	/// Item type bitmask for game-specific categorization (default: 0)
+	/// Item type for game-specific categorization (default: 0)
 	/// This is intended to be overridden by game-specific item classes
-	virtual int64 GetItemTypeBitMask() const { return 0;}
+	virtual EItemType GetItemType() const;
 
 
 	// Item flags

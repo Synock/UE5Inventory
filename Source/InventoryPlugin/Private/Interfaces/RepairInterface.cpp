@@ -37,7 +37,7 @@ FCoinValue IRepairInterface::CalculateRepairAllCost(TArray<UInventoryItemEquipab
 		if (const UInventoryItemEquipable* Item = Equipment[i])
 		{
 			const float CurrentDurability = EquipmentDurability[i];
-			const float MaxDurability = Item->TotalDurability;
+			const float MaxDurability = Item->GetTotalDurability();
 
 			// Only calculate cost for damaged items
 			if (CurrentDurability < MaxDurability)

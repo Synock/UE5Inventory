@@ -6,14 +6,16 @@
 #include "InventoryItemBase.h"
 #include "Items/Interfaces/InventoryItemEquipableInterface.h"
 #include "Items/Interfaces/InventoryItemWeaponInterface.h"
+#include "Items/Interfaces/InventoryItemDurableInterface.h"
 
 #include "InventoryItemEquipable.generated.h"
 
 /**
- *
+ * Base class for equipable items with durability support.
+ * Implements both IInventoryItemEquipableInterface and IInventoryItemDurableInterface.
  */
 UCLASS()
-class INVENTORYPLUGIN_API UInventoryItemEquipable : public UInventoryItemBase, public IInventoryItemEquipableInterface, public IInventoryItemWeaponInterface
+class INVENTORYPLUGIN_API UInventoryItemEquipable : public UInventoryItemBase, public IInventoryItemEquipableInterface, public IInventoryItemWeaponInterface, public IInventoryItemDurableInterface
 {
 public:
 	GENERATED_BODY()
@@ -50,6 +52,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Equipable|Durability")
 	float DurabilityModifier = 1.0f;
 
+	// IInventoryItemEquipableInterface Implementation
 	virtual bool IsEquipable() const override { return Equipable; }
 	virtual int32 GetEquipableSlotBitMask() const override { return EquipableSlotBitMask; }
 	virtual bool IsMultiSlotItem() const override { return MultiSlotItem; }
@@ -58,6 +61,8 @@ public:
 	virtual USkeletalMesh* GetEquipmentMesh() const override { return EquipmentMesh; }
 	virtual const TArray<FMaterialOverride>& GetEquipmentMeshMaterialOverride() const override { return EquipmentMeshMaterialOverride; }
 	virtual bool IsUnsheathable() const override { return Unsheathable; }
+
+	// IInventoryItemDurableInterface Implementation
 	virtual float GetTotalDurability() const override { return TotalDurability; }
 	virtual float GetDurabilityModifier() const override { return DurabilityModifier; }
 

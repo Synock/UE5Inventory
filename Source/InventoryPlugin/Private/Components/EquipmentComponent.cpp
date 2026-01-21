@@ -670,7 +670,8 @@ void UEquipmentComponent::EquipItem(const UInventoryItemEquipable* Item, EEquipm
 		{
 			EquipmentDurability.SetNum(Equipment.Num());
 		}
-		EquipmentDurability[SlotIndex] = Item->TotalDurability;
+
+		EquipmentDurability[SlotIndex] = Item->GetTotalDurability();
 
 		Equip(Item, InSlot);
 		EquipmentDispatcher_Server.Broadcast();
@@ -738,7 +739,7 @@ void UEquipmentComponent::ReduceEquipmentDurability(EEquipmentSlot InSlot, float
 	if (DurabilityReduction > 0.0f)
 	{
 		const UInventoryItemEquipable* Item = Equipment[SlotIndex];
-		if (!Item || Item->TotalDurability <= 0.0f)
+		if (!Item || Item->GetTotalDurability() <= 0.0f)
 		{
 			return;
 		}
@@ -748,8 +749,8 @@ void UEquipmentComponent::ReduceEquipmentDurability(EEquipmentSlot InSlot, float
 		EquipmentDurability[SlotIndex] = NewDurability;
 
 		// Calculate durability percentages
-		float OldPercent = (OldDurability / Item->TotalDurability) * 100.0f;
-		float NewPercent = (NewDurability / Item->TotalDurability) * 100.0f;
+		float OldPercent = (OldDurability / Item->GetTotalDurability()) * 100.0f;
+		float NewPercent = (NewDurability / Item->GetTotalDurability()) * 100.0f;
 
 		// Check for threshold crossings and broadcast warnings
 		// Thresholds: 50%, 25%, 10%, 0%

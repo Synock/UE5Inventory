@@ -80,7 +80,7 @@ void URepairWidget::BuildRepairableItemList()
 			// Get current durability for this slot
 			if (EquipmentComp->GetEquipmentDurability(EquipmentSlot, CurrentDurability))
 			{
-				const float MaxDurability = Item->TotalDurability;
+				const float MaxDurability = Item->GetTotalDurability();
 				const bool bNeedsRepair = CurrentDurability < MaxDurability;
 
 				// Calculate repair cost

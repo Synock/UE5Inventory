@@ -229,7 +229,7 @@ bool UFieldRepairComponent::CheckIncomingRepairValidity(int32 RepairKitItemID, E
 	if (TargetBagSlot != EBagSlot::Unknown)
 	{
 		FText ValidationReason;
-		if (!RepairInterface->CanRepairItem(TargetItem, CurrentDurability, TargetItem->TotalDurability,
+		if (!RepairInterface->CanRepairItem(TargetItem, CurrentDurability, TargetItem->GetTotalDurability(),
 		                                    RepairKitDurability, ValidationReason))
 			return false;
 	}
@@ -494,13 +494,13 @@ void UFieldRepairComponent::ServerInternalCompleteFieldRepair()
 		>= 0);
 
 	// SERVER-AUTHORITATIVE CALCULATIONS (same for both equipment and inventory)
-	float PlannedRepairAmount = RepairInterface->CalculateRepairAmount(CurrentDurability, TargetItem->TotalDurability) *
+	float PlannedRepairAmount = RepairInterface->CalculateRepairAmount(CurrentDurability, TargetItem->GetTotalDurability()) *
 		FieldRepairInterface->GetFieldRepairSkillModifier(RepairInterface);
 
 	float MaxThreshold = RepairInterface->GetMaxDurabilityThreshold();
 
 	float NewTargetDurability = FMath::Min(CurrentDurability + PlannedRepairAmount,
-	                                       TargetItem->TotalDurability * MaxThreshold);
+	                                       TargetItem->GetTotalDurability() * MaxThreshold);
 
 	float ActualRepairAmount = NewTargetDurability - CurrentDurability;
 

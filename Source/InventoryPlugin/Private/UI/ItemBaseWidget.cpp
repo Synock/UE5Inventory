@@ -210,7 +210,7 @@ void UItemBaseWidget::InitBareData(const UInventoryItemBase* InputItem, AActor* 
 	// Get max durability from item if it's equipable
 	if (const UInventoryItemEquipable* EquipableItem = Cast<UInventoryItemEquipable>(InputItem))
 	{
-		MaxDurability = FMath::Max(1.0f, EquipableItem->TotalDurability);
+		MaxDurability = FMath::Max(1.0f, EquipableItem->GetTotalDurability());
 	}
 	else
 	{

@@ -17,6 +17,12 @@ enum class EItemSize : uint8
 	Giant UMETA(DisplayName = "Giant")
 };
 
+UENUM(BlueprintType)
+enum class EItemType : uint8
+{
+	Unknown = 0 UMETA(DisplayName = "Unknown"),
+};
+
 USTRUCT(BlueprintType)
 struct FMaterialOverride
 {

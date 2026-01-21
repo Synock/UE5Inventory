@@ -117,7 +117,7 @@ void UFieldRepairWidget::SetTargetItem(const UInventoryItemEquipable* TargetItem
 
 	if (TargetItem)
 	{
-		MaxTargetDurability = FMath::Max(1.0f, TargetItem->TotalDurability);
+		MaxTargetDurability = FMath::Max(1.0f, TargetItem->GetTotalDurability());
 	}
 	else
 	{
