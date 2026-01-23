@@ -60,6 +60,17 @@ bool UMerchantSellWidget::MerchantCanSell(int32 ItemID) const
 
 //----------------------------------------------------------------------------------------------------------------------
 
+bool UMerchantSellWidget::CanMerchantAcceptItem(const UInventoryItemBase* Item) const
+{
+	if (!MerchantActor)
+		return false;
+
+	FText Reason;
+	return MerchantActor->CanAcceptItemType(Item, Reason);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 FCoinValue UMerchantSellWidget::GetCorrectPrice(float FloatValue) const
 {
 	FCoinValue BaseValue = UInventoryUtilities::CoinValueFromFloat(FloatValue);
@@ -176,10 +187,18 @@ void UMerchantSellWidget::UpdateItemPreview()
 	// Update price
 	UpdatePricePreview();
 
-	// Update button
+	// Update button - disable if worthless OR if merchant won't accept item type
 	if (BuySellButton)
 	{
-		BuySellButton->SetIsEnabled(!IsWorthless());
+		bool bCanSell = !IsWorthless();
+
+		// In Buy mode (player selling to merchant), also check if merchant accepts this item type
+		if (MerchantMode == EMerchantWindowMode::Buy && bCanSell)
+		{
+			bCanSell = CanMerchantAcceptItem(LocalBareItem);
+		}
+
+		BuySellButton->SetIsEnabled(bCanSell);
 	}
 
 	if (BuySellButtonText)
@@ -259,7 +278,7 @@ TArray<FMerchantItemDataStruct> UMerchantSellWidget::GetStaticDataDisplayable()
 		for (const auto& Item : MerchantActor->GetStaticItemsConst())
 		{
 			const UInventoryItemBase* LocalBareItem = UInventoryUtilities::GetItemFromID(Item, GetWorld());
-			if(!LocalBareItem)
+			if (!LocalBareItem)
 				continue;
 
 			Out.Add({
@@ -283,13 +302,14 @@ TArray<FMerchantItemDataStruct> UMerchantSellWidget::GetDynamicDataDisplayable()
 	{
 		for (const auto& Item : MerchantActor->GetDynamicItemsConst())
 		{
-			if (const UInventoryItemBase* LocalBareItem = UInventoryUtilities::GetItemFromID(Item.ItemID, GetWorld()); LocalBareItem)
+			if (const UInventoryItemBase* LocalBareItem = UInventoryUtilities::GetItemFromID(Item.ItemID, GetWorld());
+				LocalBareItem)
 			{
 				Out.Add({
-				   LocalBareItem->ItemID, LocalBareItem->Icon,
-				   LocalBareItem->Name, Item.Quantity,
-				   MerchantActor->AdjustPriceSell({LocalBareItem->BaseValue})
-			   });
+					LocalBareItem->ItemID, LocalBareItem->Icon,
+					LocalBareItem->Name, Item.Quantity,
+					MerchantActor->AdjustPriceSell({LocalBareItem->BaseValue})
+				});
 			}
 		}
 	}
@@ -331,7 +351,7 @@ bool UMerchantSellWidget::IsWorthless()
 
 void UMerchantSellWidget::StopTrading()
 {
-	if(IInventoryPlayerInterface* Player = Cast<IInventoryPlayerInterface>(GetOwningPlayer()))
+	if (IInventoryPlayerInterface* Player = Cast<IInventoryPlayerInterface>(GetOwningPlayer()))
 		Player->StopMerchantTrade();
 }
 
@@ -444,7 +464,7 @@ void UMerchantSellWidget::Refresh()
 
 void UMerchantSellWidget::ResetSellData()
 {
-	AssignSellData(0,0,EBagSlot::Unknown);
+	AssignSellData(0, 0, EBagSlot::Unknown);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -461,6 +481,28 @@ void UMerchantSellWidget::AssignSellData(int32 ItemID, int32 TopLeft, EBagSlot O
 	if (ItemList)
 	{
 		ItemList->ClearSelection();
+	}
+
+
+	// Broadcast price quote for the item
+	if (MerchantActor && ItemID > 0)
+	{
+		// Check if merchant accepts this item type
+
+		const UInventoryItemBase* Item = UInventoryUtilities::GetItemFromID(ItemID, GetWorld());
+		if (Item)
+		{
+			FText Reason;
+			if (!MerchantActor->CanAcceptItemType(Item, Reason))
+			{
+				// Merchant doesn't accept this item type - notify and don't allow the sale
+				OnMerchantRejectsItemType(MerchantActor->GetMerchantName(), Item->GetItemName());
+				return;
+			}
+
+			const FCoinValue OfferPrice = GetSelectedItemPrice();
+			OnMerchantOffersPriceQuote(MerchantActor->GetMerchantName(), Item->Name, OfferPrice);
+		}
 	}
 }
 
@@ -480,6 +522,17 @@ void UMerchantSellWidget::OnItemListSelectionChanged(int32 ItemID)
 
 	// Update the item preview
 	UpdateItemPreview();
+
+	// Broadcast that merchant is offering this item for sale
+	if (MerchantActor && ItemID > 0)
+	{
+		const UInventoryItemBase* Item = UInventoryUtilities::GetItemFromID(ItemID, GetWorld());
+		if (Item)
+		{
+			const FCoinValue SalePrice = GetSelectedItemPrice();
+			OnMerchantOffersItemForSale(MerchantActor->GetMerchantName(), Item->Name, SalePrice);
+		}
+	}
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -501,4 +554,27 @@ void UMerchantSellWidget::OnNotEnoughPlayerSpace()
 void UMerchantSellWidget::OnNotEnoughMerchantMoney()
 {
 	OnNotEnoughMerchantMoneyDelegate.Broadcast();
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UMerchantSellWidget::OnMerchantRejectsItemType(const FString& MerchantName, const FString& RefusedItemName)
+{
+	OnMerchantRejectsItemTypeDelegate.Broadcast(MerchantName, RefusedItemName);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UMerchantSellWidget::OnMerchantOffersPriceQuote(const FString& MerchantName, const FString& ItemOfferName,
+                                                     const FCoinValue& OfferPrice)
+{
+	OnMerchantOffersPriceQuoteDelegate.Broadcast(MerchantName, ItemOfferName, OfferPrice);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UMerchantSellWidget::OnMerchantOffersItemForSale(const FString& MerchantName, const FString& ItemOfferName,
+                                                       const FCoinValue& SalePrice)
+{
+	OnMerchantOffersItemForSaleDelegate.Broadcast(MerchantName, ItemOfferName, SalePrice);
 }

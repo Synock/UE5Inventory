@@ -226,12 +226,11 @@ bool UFieldRepairComponent::CheckIncomingRepairValidity(int32 RepairKitItemID, E
 		return false;
 
 	// Additional validation: Check if repair kit can repair this specific item type
-	if (TargetBagSlot != EBagSlot::Unknown)
+	FText ValidationReason;
+	if (!RepairInterface->CanRepairItem(TargetItem, CurrentDurability, TargetItem->GetTotalDurability(),
+	                                    RepairKitDurability, ValidationReason))
 	{
-		FText ValidationReason;
-		if (!RepairInterface->CanRepairItem(TargetItem, CurrentDurability, TargetItem->GetTotalDurability(),
-		                                    RepairKitDurability, ValidationReason))
-			return false;
+		return false;
 	}
 
 	return true;

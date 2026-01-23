@@ -4,6 +4,7 @@
 #include "Components/BankComponent.h"
 #include "Components/KeyringComponent.h"
 #include "Interfaces/EquipmentInterface.h"
+#include "Interfaces/MerchantInterface.h"
 #include "GameFramework/Actor.h"
 #include "Interfaces/InventoryHUDInterface.h"
 #include "Interfaces/LootableInterface.h"

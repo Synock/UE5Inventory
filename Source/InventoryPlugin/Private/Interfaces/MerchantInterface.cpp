@@ -127,3 +127,13 @@ void IMerchantInterface::AddDynamicItem(int32 ItemID)
 {
 	GetMerchantComponent()->AddItem(ItemID);
 }
+
+//----------------------------------------------------------------------------------------------------------------------
+
+bool IMerchantInterface::CanAcceptItemType(const UInventoryItemBase* Item, FText& OutReason) const
+{
+	// Default implementation: accept all items
+	// Derived classes can override to implement type restrictions
+	return true;
+}
+

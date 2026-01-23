@@ -21,6 +21,12 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FNotEnoughPlayerSpace);
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FNotEnoughMerchantMoney);
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FMerchantRejectsItemType, const FString&, MerchantName, const FString&, ItemName);
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FMerchantOffersPriceQuote, const FString&, MerchantName, const FString&, ItemName, const FCoinValue&, OfferPrice);
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FMerchantOffersItemForSale, const FString&, MerchantName, const FString&, ItemName, const FCoinValue&, SalePrice);
+
 UENUM(BlueprintType)
 enum class EMerchantWindowMode : uint8
 {
@@ -155,6 +161,14 @@ protected:
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Inventory|Merchant")
 	bool MerchantCanSell(int32 ItemID) const;
 
+	/**
+	 * @brief Check if merchant accepts this item type for purchase from player
+	 * @param ItemID The ID of the item player wants to sell
+	 * @return True if merchant accepts this item type, false otherwise
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Inventory|Merchant")
+	bool CanMerchantAcceptItem(const UInventoryItemBase* Item) const;
+
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Merchant")
 	FCoinValue GetCorrectPrice(float FloatValue) const;
 
@@ -208,6 +222,9 @@ public:
 	virtual void OnNotEnoughPlayerMoney();
 	virtual void OnNotEnoughPlayerSpace();
 	virtual void OnNotEnoughMerchantMoney();
+	virtual void OnMerchantRejectsItemType(const FString& MerchantName,const FString& RefusedItemName);
+	virtual void OnMerchantOffersPriceQuote(const FString& MerchantName, const FString& ItemName, const FCoinValue& OfferPrice);
+	virtual void OnMerchantOffersItemForSale(const FString& MerchantName, const FString& ItemName, const FCoinValue& SalePrice);
 
 	UPROPERTY(BlueprintAssignable, Category = "Inventory|Merchant")
 	FNotEnoughPlayerMoney OnNotEnoughPlayerMoneyDelegate;
@@ -217,4 +234,13 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "Inventory|Merchant")
 	FNotEnoughMerchantMoney OnNotEnoughMerchantMoneyDelegate;
+
+	UPROPERTY(BlueprintAssignable, Category = "Inventory|Merchant")
+	FMerchantRejectsItemType OnMerchantRejectsItemTypeDelegate;
+
+	UPROPERTY(BlueprintAssignable, Category = "Inventory|Merchant")
+	FMerchantOffersPriceQuote OnMerchantOffersPriceQuoteDelegate;
+
+	UPROPERTY(BlueprintAssignable, Category = "Inventory|Merchant")
+	FMerchantOffersItemForSale OnMerchantOffersItemForSaleDelegate;
 };

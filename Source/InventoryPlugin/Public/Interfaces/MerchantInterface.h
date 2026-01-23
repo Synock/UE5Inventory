@@ -9,6 +9,7 @@
 
 #include "MerchantInterface.generated.h"
 
+class UInventoryItemBase;
 class FOnMerchantDynamicPoolChangedDelegate;
 class UCoinComponent;
 class UMerchantComponent;
@@ -273,4 +274,17 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Merchant")
 	virtual void AddDynamicItem(int32 ItemID);
+
+	/**
+	 * @brief Check if merchant accepts this item type for purchase from player.
+	 *
+	 * This method validates whether the merchant will buy the specified item from a player.
+	 * Item type restrictions are implementation-specific (e.g., weapon merchant only buys weapons).
+	 *
+	 * @param Item The item player wants to sell.
+	 * @param OutReason Text explanation if item is rejected.
+	 * @return True if merchant accepts this item type, false otherwise.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Merchant")
+	virtual bool CanAcceptItemType(const UInventoryItemBase* Item, FText& OutReason) const;
 };
