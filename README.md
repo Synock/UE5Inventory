@@ -12,7 +12,10 @@ You will find find the following feature included:
 * Loot system
 * Merchant system
 * Banking system
-* Trading system
+* Trading system (player-to-player)
+* Repair system (NPC and field repair)
+* Durability system for equipment
+* Skeletal mesh equipment support
 
 Despite some effort to make this plugin a bit more generic, you'd better be off forking this repo and and tailoring it to you needs.
 
@@ -82,3 +85,32 @@ ListWidget is a code adaptation from https://www.youtube.com/watch?v=JyMEAx8-nbY
 Players can loot specific actors to gain access to new items and money.
 This Looting system is replicated and allow a simple one player access to the items at once.
 An automatic looting button is present.
+
+## Trading system
+Players can trade items and currency directly with each other through a secure two-phase commit system.
+Both players must accept the trade before items and currency are exchanged.
+The system includes trade cancellation, insufficient space detection, and full server-side validation to prevent cheating.
+
+## Repair systems
+
+### NPC Repair
+NPCs can repair player equipment for a fee. Repair costs are configurable based on item value and durability loss.
+NPCs can optionally refuse to repair certain item types. Full UI support with repair preview.
+
+### Field Repair
+Players can repair their own equipment using consumable repair kits. This system includes:
+* Success/failure mechanics with optional skill integration
+* Interruptible by combat, movement, or other actions
+* Repair kits with limited charges
+* Optional skill-up system on successful repairs
+
+## Durability system
+Equipment items can have durability that decreases with use (combat, time, etc.).
+The durability system is optional and can be configured per item.
+Items with low durability become less effective and require repair.
+Durability state is fully replicated and persists to backend storage.
+
+## Skeletal mesh equipment
+Weapons and equipment can use animated skeletal meshes instead of just static meshes.
+Includes support for left-hand IK for two-handed weapons and improved attachment system.
+

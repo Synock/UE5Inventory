@@ -32,21 +32,31 @@ void GridBagSolver::RecordData(const UInventoryItemBase* Item, int32 TopLeft)
 	const int SX = TopLeft % Width;
 	const int SY = TopLeft / Width;
 
-	for (int y = SY; y < SY + Item->Height; ++y)
-	{
-		for (int x = SX; x < SX + Item->Width; ++x)
-		{
-			// Validate bounds before writing
-			if (x < 0 || x >= Width || y < 0 || y >= Height)
-			{
-				UE_LOG(LogTemp, Warning, TEXT("GridBagSolver::RecordData - Item extends beyond bag bounds"));
-				return;
-			}
+	// CRITICAL FIX: Validate item fits entirely in bag BEFORE writing any cells
+	const int MaxX = SX + Item->Width;
+	const int MaxY = SY + Item->Height;
 
+	if (MaxX > Width || MaxY > Height)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("GridBagSolver::RecordData - Item of size %dx%d at position (%d,%d) extends beyond bag bounds %dx%d"),
+			Item->Width, Item->Height, SX, SY, Width, Height);
+		return;
+	}
+
+	// All validations passed - safe to write to grid
+	for (int y = SY; y < MaxY; ++y)
+	{
+		for (int x = SX; x < MaxX; ++x)
+		{
 			const int ID = x + y * Width;
 			if (ID >= 0 && ID < Grid.Num())
 			{
 				Grid[ID] = Item;
+			}
+			else
+			{
+				// This should never happen after pre-validation, but log if it does
+				UE_LOG(LogTemp, Error, TEXT("GridBagSolver::RecordData - Grid index %d out of bounds (should have been caught in pre-validation)"), ID);
 			}
 		}
 	}
@@ -118,10 +128,10 @@ void UBagStorage::OnRep_BagData()
 bool UBagStorage::InitializeData(EBagSlot InputBagSlot, int32 InputWidth, int32 InputHeight,
                                  EItemSize InputMaxStoreSize, float InputWeightReduction)
 {
-	// CRITICAL FIX 1.6: Actually prevent reinitialization if bag contains items
-	if (BagValidity && Items.Num() > 0)
+	// CRITICAL FIX: Prevent reinitialization if ANY items exist, regardless of validity state
+	if (Items.Num() > 0)
 	{
-		UE_LOG(LogTemp, Error, TEXT("Cannot re-initialize non-empty bag slot %d - has %d items"),
+		UE_LOG(LogTemp, Error, TEXT("Cannot re-initialize bag slot %d with %d existing items - potential data loss prevented"),
 			static_cast<int32>(InputBagSlot), Items.Num());
 		return false;
 	}
@@ -264,8 +274,17 @@ void UBagStorage::RemoveItem_Implementation(int32 TopLeftIndex)
 	if (!Item)
 		return;
 
-	//update the weight
-	BagWeight -= Item->Weight;
+	// Validate weight is finite before subtracting
+	if (!FMath::IsFinite(Item->Weight) || Item->Weight < 0.0f)
+	{
+		UE_LOG(LogTemp, Error, TEXT("Item %d has invalid weight during removal, not adjusting bag weight"), ItemID);
+	}
+	else
+	{
+		//update the weight
+		BagWeight = FMath::Max(0.0f, BagWeight - Item->Weight); // Clamp to prevent negative
+	}
+
 	BagStorageDispatcher_Server.Broadcast();
 
 	BagSlotUsage -= (Item->Width * Item->Height);
@@ -342,8 +361,18 @@ void UBagStorage::AddItemAt_Implementation(int32 ItemID, int32 TopLeftIndex, flo
 	Items.Add(NewItem);
 
 
-	//update the weight
-	BagWeight += Item->Weight;
+	// CRITICAL FIX: Validate weight is finite before adding
+	if (!FMath::IsFinite(Item->Weight) || Item->Weight < 0.0f)
+	{
+		UE_LOG(LogTemp, Error, TEXT("Item %d has invalid weight (NaN/Inf/negative), treating as 0"), ItemID);
+		// Don't add invalid weight to bag
+	}
+	else
+	{
+		//update the weight
+		BagWeight += Item->Weight;
+	}
+
 	BagStorageDispatcher_Server.Broadcast();
 	BagSlotUsage += (Item->Width * Item->Height);
 	float UsageRatio = static_cast<float>(BagSlotUsage) / (Width * Height);

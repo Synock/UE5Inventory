@@ -337,10 +337,11 @@ void UEquipmentComponent::Sheath()
 			return;
 		}
 
-		// If sheath already has mesh, log warning but continue (overwrite)
+		// CRITICAL FIX: Don't overwrite if sheath already occupied - return early to prevent mesh loss
 		if (ReturnSocket->GetSkeletalMeshAsset())
 		{
-			UE_LOG(LogTemp, Warning, TEXT("Primary sheath socket already occupied, overwriting"));
+			UE_LOG(LogTemp, Error, TEXT("Primary sheath socket already occupied - cannot sheath (would lose mesh reference)"));
+			return;
 		}
 
 		USkeletalMesh* MeshPointer = PrimaryWeaponComponent->GetSkeletalMeshAsset();
@@ -359,10 +360,11 @@ void UEquipmentComponent::Sheath()
 			return;
 		}
 
-		// If sheath already has mesh, log warning but continue (overwrite)
+		// CRITICAL FIX: Don't overwrite if sheath already occupied - return early to prevent mesh loss
 		if (ReturnSocket->GetSkeletalMeshAsset())
 		{
-			UE_LOG(LogTemp, Warning, TEXT("Secondary sheath socket already occupied, overwriting"));
+			UE_LOG(LogTemp, Error, TEXT("Secondary sheath socket already occupied - cannot sheath (would lose mesh reference)"));
+			return;
 		}
 
 		USkeletalMesh* MeshPointer = SecondaryWeaponComponent->GetSkeletalMeshAsset();
@@ -380,15 +382,24 @@ void UEquipmentComponent::UpdateEquipment_Implementation(USkeletalMeshComponent*
 	if (SkeletalSocket)
 	{
 		SkeletalSocket->SetSkeletalMeshAsset(LocalItem);
-		for (auto& Material : MaterialOverride)
+
+		// Only apply material overrides if we have a valid mesh
+		if (LocalItem)
 		{
-			SkeletalSocket->SetMaterial(Material.MaterialID, Material.OverrideMaterial);
-			if (UMaterialInstanceDynamic* DynMat = SkeletalSocket->CreateAndSetMaterialInstanceDynamic(
-				Material.MaterialID))
+			for (auto& Material : MaterialOverride)
 			{
-				DynMat->SetVectorParameterValue(TEXT("Tint"), Material.TintColor);
-				DynMat->SetScalarParameterValue(TEXT("TintIntensity"), Material.TintIntensity);
+				SkeletalSocket->SetMaterial(Material.MaterialID, Material.OverrideMaterial);
+				if (UMaterialInstanceDynamic* DynMat = SkeletalSocket->CreateAndSetMaterialInstanceDynamic(
+					Material.MaterialID))
+				{
+					DynMat->SetVectorParameterValue(TEXT("Tint"), Material.TintColor);
+					DynMat->SetScalarParameterValue(TEXT("TintIntensity"), Material.TintIntensity);
+				}
 			}
+		}
+		else if (MaterialOverride.Num() > 0)
+		{
+			UE_LOG(LogTemp, Verbose, TEXT("UpdateEquipment: Skipping %d material overrides because mesh is null"), MaterialOverride.Num());
 		}
 	}
 }
@@ -508,6 +519,7 @@ void UEquipmentComponent::TryUpdateDynamicMeshes(const TMap<EEquipmentSlot, USke
 	}
 
 	//cleanup obsolete slots
+	TArray<EEquipmentSlot> SlotsToRemove;
 	for (auto&& [Slot, SlotStatus] : RelevantSlots)
 	{
 		if (SlotStatus == false)
@@ -515,7 +527,16 @@ void UEquipmentComponent::TryUpdateDynamicMeshes(const TMap<EEquipmentSlot, USke
 			auto& NewSkeletalMeshComponent = VariableMeshesMap.FindChecked(Slot);
 			NewSkeletalMeshComponent->UnregisterComponent();
 			NewSkeletalMeshComponent->MarkAsGarbage();
+
+			// CRITICAL FIX: Remove from map to prevent dangling reference
+			SlotsToRemove.Add(Slot);
 		}
+	}
+
+	// Remove obsolete slots from map after iteration
+	for (EEquipmentSlot SlotToRemove : SlotsToRemove)
+	{
+		VariableMeshesMap.Remove(SlotToRemove);
 	}
 
 

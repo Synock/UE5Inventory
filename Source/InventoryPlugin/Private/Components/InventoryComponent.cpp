@@ -88,6 +88,14 @@ void UInventoryComponent::OnRep_ReplicatedBags()
 
 	for (auto& BagData : VariableBags)
 	{
+		// Validate bag pointer before adding to LUT
+		if (!BagData.Bag)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("OnRep_ReplicatedBags: Null bag encountered for slot %d, skipping"),
+				static_cast<int32>(BagData.Slot));
+			continue;
+		}
+
 		//UE_LOG(LogTemp, Error, TEXT("Repping bag slot %d"), BagData.Slot);
 		BagLUT.Emplace(BagData.Slot, BagData.Bag);
 		//BagData.Bag->BagUsageStorageChanged.AddUniqueDynamic(this, &UInventoryComponent::InventoryBagUsageChange);
@@ -130,6 +138,13 @@ void UInventoryComponent::RemoveItem_Implementation(EBagSlot ConsideredBag, int3
 
 bool UInventoryComponent::UpdateItemDurability(EBagSlot BagSlot, int32 TopLeft, int32 ItemID, float NewDurability)
 {
+	// SECURITY: Authority check to prevent client manipulation
+	if (GetOwnerRole() != ROLE_Authority)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("UpdateItemDurability called on client - ignoring (potential cheat attempt)"));
+		return false;
+	}
+
 	UBagStorage* Bag = GetRelatedBag(BagSlot);
 	if (!Bag)
 	{
@@ -161,22 +176,43 @@ void UInventoryComponent::AddItemAt_Implementation(EBagSlot ConsideredBag, int32
 void UInventoryComponent::BagSet(EBagSlot ConsideredBag, bool InputValidity, int32 InputWidth, int32 InputHeight,
                                  EItemSize InputMaxStoreSize, float WeightReduction)
 {
+	// CRITICAL FIX: Don't crash in shipping builds - log error and return
 	if (ConsideredBag == EBagSlot::Pocket1 || ConsideredBag == EBagSlot::Pocket2)
 	{
-		check(false);
+		UE_LOG(LogTemp, Error, TEXT("Cannot modify pocket bags (Pocket1/Pocket2) - they are pre-initialized"));
 		return;
 	}
 
-	GetRelatedBag(ConsideredBag)->InitializeData(ConsideredBag, InputWidth, InputHeight,
-	                                             InputMaxStoreSize, WeightReduction);
-	GetRelatedBag(ConsideredBag)->SetBagValidity(InputValidity);
+	UBagStorage* Bag = GetRelatedBag(ConsideredBag);
+	if (!Bag)
+	{
+		UE_LOG(LogTemp, Error, TEXT("BagSet: Failed to get bag for slot %d"), static_cast<int32>(ConsideredBag));
+		return;
+	}
+
+	Bag->InitializeData(ConsideredBag, InputWidth, InputHeight, InputMaxStoreSize, WeightReduction);
+	Bag->SetBagValidity(InputValidity);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
 
 void UInventoryComponent::QuiverSpecificSetup(EBagSlot ConsideredBag, EAmmoType NewAmmoType)
 {
-	GetRelatedBag(ConsideredBag)->InitializeQuiverData(NewAmmoType);
+	// Validate this is actually a quiver slot
+	if (ConsideredBag != EBagSlot::Quiver)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("QuiverSpecificSetup called on non-quiver bag slot %d - this may cause unexpected behavior"),
+			static_cast<int32>(ConsideredBag));
+	}
+
+	UBagStorage* Bag = GetRelatedBag(ConsideredBag);
+	if (!Bag)
+	{
+		UE_LOG(LogTemp, Error, TEXT("QuiverSpecificSetup: Failed to get bag for slot %d"), static_cast<int32>(ConsideredBag));
+		return;
+	}
+
+	Bag->InitializeQuiverData(NewAmmoType);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -266,6 +302,13 @@ EBagSlot UInventoryComponent::FindSuitableSlot(const UInventoryItemBase* Item, i
 {
 	for (const auto& Bag : VariableBags)
 	{
+		// CRITICAL FIX: Validate bag pointer before using
+		if (!Bag.Bag)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("FindSuitableSlot: Bag is null for slot %d"), static_cast<int32>(Bag.Slot));
+			continue;
+		}
+
 		if (Bag.Bag->IsValidBag())
 		{
 
@@ -364,7 +407,14 @@ void UInventoryComponent::ClearAllBags()
 
 bool UInventoryComponent::IsBagValid(EBagSlot InputSlot) const
 {
-	return BagLUT.Contains(InputSlot);
+	if (!BagLUT.Contains(InputSlot))
+		return false;
+
+	const UBagStorage* Bag = BagLUT.FindRef(InputSlot);
+	if (!Bag)
+		return false;
+
+	return Bag->IsValidBag();
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -374,8 +424,9 @@ UBagStorage* UInventoryComponent::GetRelatedBag(EBagSlot InputSlot) const
 	if (BagLUT.Contains(InputSlot))
 		return BagLUT.FindRef(InputSlot);
 
-	check(false);
-	UE_LOG(LogTemp, Error, TEXT("Cannot find related bag"));
+	// CRITICAL FIX: Don't crash in shipping builds - return nullptr and log error
+	UE_LOG(LogTemp, Error, TEXT("Cannot find related bag for slot %d - bag may not be initialized or was removed"),
+		static_cast<int32>(InputSlot));
 	return nullptr;
 }
 

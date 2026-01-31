@@ -13,14 +13,42 @@
 
 bool IEquipmentInterface::EquipmentHasAuthority()
 {
-	return GetEquipmentComponent()->GetOwner()->HasAuthority();
+	UEquipmentComponent* EquipComp = GetEquipmentComponent();
+	if (!EquipComp)
+	{
+		UE_LOG(LogTemp, Error, TEXT("EquipmentHasAuthority: Equipment component is null"));
+		return false;
+	}
+
+	AActor* Owner = EquipComp->GetOwner();
+	if (!Owner)
+	{
+		UE_LOG(LogTemp, Error, TEXT("EquipmentHasAuthority: Equipment component owner is null"));
+		return false;
+	}
+
+	return Owner->HasAuthority();
 }
 
 //----------------------------------------------------------------------------------------------------------------------
 
 UWorld* IEquipmentInterface::EquipmentGetWorldContext() const
 {
-	return GetEquipmentComponentConst()->GetOwner()->GetWorld();
+	const UEquipmentComponent* EquipComp = GetEquipmentComponentConst();
+	if (!EquipComp)
+	{
+		UE_LOG(LogTemp, Error, TEXT("EquipmentGetWorldContext: Equipment component is null"));
+		return nullptr;
+	}
+
+	AActor* Owner = EquipComp->GetOwner();
+	if (!Owner)
+	{
+		UE_LOG(LogTemp, Error, TEXT("EquipmentGetWorldContext: Equipment component owner is null"));
+		return nullptr;
+	}
+
+	return Owner->GetWorld();
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -35,16 +63,27 @@ const TArray<const UInventoryItemEquipable*>& IEquipmentInterface::GetAllEquipme
 
 const UInventoryItemEquipable* IEquipmentInterface::GetEquippedItem(EEquipmentSlot Slot) const
 {
-	check(GetEquipmentComponentConst());
-	return GetEquipmentComponentConst()->GetItemAtSlot(Slot);
+	const UEquipmentComponent* EquipComp = GetEquipmentComponentConst();
+	if (!EquipComp)
+	{
+		UE_LOG(LogTemp, Error, TEXT("GetEquippedItem: Equipment component is null for slot %d"), static_cast<int32>(Slot));
+		return nullptr;
+	}
+	return EquipComp->GetItemAtSlot(Slot);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
 
 bool IEquipmentInterface::GetEquipmentDurability(EEquipmentSlot Slot, float& OutDurability) const
 {
-	check(GetEquipmentComponentConst());
-	return GetEquipmentComponentConst()->GetEquipmentDurability(Slot, OutDurability);
+	const UEquipmentComponent* EquipComp = GetEquipmentComponentConst();
+	if (!EquipComp)
+	{
+		UE_LOG(LogTemp, Error, TEXT("GetEquipmentDurability: Equipment component is null for slot %d"), static_cast<int32>(Slot));
+		OutDurability = 0.f;
+		return false;
+	}
+	return EquipComp->GetEquipmentDurability(Slot, OutDurability);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -151,9 +190,10 @@ void IEquipmentInterface::HandleEquipmentEffect(EEquipmentSlot InSlot, const UIn
 		const EBagSlot AffectedSlot = UInventoryComponent::GetBagSlotFromInventory(InSlot);
 		if (IInventoryPlayerInterface* Inventory = Cast<IInventoryPlayerInterface>(Chara->GetController()))
 		{
+			// FIXED: Correct FMath::Clamp parameter order (Value, Min, Max)
+			const float WeightReduction = FMath::Clamp(1.f - LocalBag->GetWeightReduction(), 0.f, 1.f);
 			Inventory->GetInventoryComponent()->BagSet(AffectedSlot, true, LocalBag->GetBagWidth(), LocalBag->GetBagHeight(),
-			                                           LocalBag->GetBagSize(),
-			                                           FMath::Clamp(0.f, 1.f, 1.f - LocalBag->GetWeightReduction()));
+			                                           LocalBag->GetBagSize(), WeightReduction);
 
 			if (const IInventoryItemAmmoBagInterface* LocalQuiver = Cast<IInventoryItemAmmoBagInterface>(LocalBag);
 				LocalQuiver)
@@ -258,6 +298,13 @@ void IEquipmentInterface::HandleTwoSlotItemUnequip(const UInventoryItemEquipable
 				OtherSlots.Emplace(static_cast<EEquipmentSlot>(i));
 			}
 		}
+
+		// FIXED: Actually unequip from other slots (was building array but not using it)
+		for (EEquipmentSlot OtherSlot : OtherSlots)
+		{
+			GetEquipmentComponent()->RemoveItem(OtherSlot);
+			UE_LOG(LogTemp, Verbose, TEXT("Cleared secondary slot %d for multi-slot item"), static_cast<int32>(OtherSlot));
+		}
 	}
 }
 
@@ -322,14 +369,20 @@ TMap<FString, FMaterialOverride> IEquipmentInterface::GetMaterialOverridesMapFor
 {
 	TMap<FString, FMaterialOverride> MaterialOverrides;
 
-	if (const UInventoryItemEquipable* Item = GetEquipmentComponentConst()->GetItemAtSlot(Slot); Item && Item->
-		EquipmentMeshMaterialOverride.Num() > 0)
+	const UInventoryItemEquipable* Item = GetEquipmentComponentConst()->GetItemAtSlot(Slot);
+
+	// FIXED: Add null checks for Item, MaterialOverride array, and EquipmentMesh
+	if (!Item || Item->EquipmentMeshMaterialOverride.Num() == 0 || !Item->EquipmentMesh)
 	{
-		auto& MaterialList = Item->EquipmentMesh->GetMaterials();
-		for (const FMaterialOverride& Override : Item->EquipmentMeshMaterialOverride)
+		return MaterialOverrides;
+	}
+
+	const auto& MaterialList = Item->EquipmentMesh->GetMaterials();
+	for (const FMaterialOverride& Override : Item->EquipmentMeshMaterialOverride)
+	{
+		if (Override.MaterialID < MaterialList.Num())
 		{
-			if (Override.MaterialID < MaterialList.Num())
-				MaterialOverrides.FindOrAdd(MaterialList[Override.MaterialID].MaterialSlotName.ToString(), Override);
+			MaterialOverrides.FindOrAdd(MaterialList[Override.MaterialID].MaterialSlotName.ToString(), Override);
 		}
 	}
 
