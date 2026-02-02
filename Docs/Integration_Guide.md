@@ -15,17 +15,13 @@ For detailed explanations of mandatory plugin components, see these guides:
 3. [Installation](#installation)
 4. [Core Concepts](#core-concepts)
 5. [Step-by-Step Integration](#step-by-step-integration)
-6. [Interface Implementation](#interface-implementation)
-7. [Component Setup](#component-setup)
-8. [Item Definition](#item-definition)
-9. [UI Integration](#ui-integration)
-10. [Merchant System](#merchant-system)
-11. [Banking System](#banking-system)
-12. [Repair System](#repair-system)
-13. [Field Repair System](#field-repair-system)
-14. [Multiplayer Considerations](#multiplayer-considerations)
-15. [Testing](#testing)
-16. [Troubleshooting](#troubleshooting)
+6. [Component Setup](#component-setup)
+7. [Item Definition](#item-definition)
+8. [UI Integration](#ui-integration)
+9. [Multiplayer Considerations](#multiplayer-considerations)
+10. [Testing](#testing)
+11. [Troubleshooting](#troubleshooting)
+12. [Advanced Features](#advanced-features)
 
 ---
 
@@ -403,8 +399,8 @@ protected:
 **File: `YourGameMode.cpp`**
 ```cpp
 #include "YourGameMode.h"
-#include "Actors/PickableItem.h"
-#include "Actors/PickableCoins.h"
+#include "Actors/DroppedItem.h"
+#include "Actors/DroppedCoins.h"
 #include "Items/InventoryItemBase.h"
 #include "YourGameInstance.h"
 #include "Kismet/GameplayStatics.h"
@@ -440,7 +436,7 @@ ADroppedItem* AYourGameMode::SpawnItemFromActor(AActor* SpawningActor, uint32 It
     SpawnParams.Owner = this;
     SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
     
-    APickableItem* Item = GetWorld()->SpawnActor<APickableItem>(
+    ADroppedItem* Item = GetWorld()->SpawnActor<ADroppedItem>(
         SpawnLocation, 
         SpawningActor->GetActorRotation(), 
         SpawnParams
@@ -469,7 +465,7 @@ ADroppedItem* AYourGameMode::SpawnItemFromActorRaw(AActor* SpawningActor,
     SpawnParams.Owner = this;
     SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
     
-    APickableItem* Item = SpawningActor->GetWorld()->SpawnActor<APickableItem>(
+    ADroppedItem* Item = SpawningActor->GetWorld()->SpawnActor<ADroppedItem>(
         SpawningActor->GetActorLocation(), 
         SpawningActor->GetActorRotation(),
         SpawnParams
@@ -497,7 +493,7 @@ ADroppedCoins* AYourGameMode::SpawnCoinsFromActor(AActor* SpawningActor,
     SpawnParams.Owner = this;
     SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
     
-    APickableCoins* Coins = GetWorld()->SpawnActor<APickableCoins>(
+    ADroppedCoins* Coins = GetWorld()->SpawnActor<ADroppedCoins>(
         SpawnLocation, 
         SpawningActor->GetActorRotation(), 
         SpawnParams
@@ -616,7 +612,7 @@ public:
     virtual FString GetInventoryOwnerName() const override;
 
 protected:
-    // Replicated inventory components (server-only creation)
+    // Replicated inventory components
     UPROPERTY(Replicated, BlueprintReadOnly, Category = "Inventory")
     UInventoryComponent* Inventory;
     
@@ -660,33 +656,30 @@ protected:
 
 AYourPlayerController::AYourPlayerController()
 {
-    // Only create components on server
-    if (HasAuthority())
-    {
-        Inventory = CreateDefaultSubobject<UInventoryComponent>(TEXT("Inventory"));
-        Inventory->SetNetAddressable();
-        Inventory->SetIsReplicated(true);
-        
-        CoinPurse = CreateDefaultSubobject<UCoinComponent>(TEXT("CoinPurse"));
-        CoinPurse->SetNetAddressable();
-        CoinPurse->SetIsReplicated(true);
-        
-        StagingAreaItems = CreateDefaultSubobject<UStagingAreaComponent>(TEXT("StagingAreaItems"));
-        StagingAreaItems->SetNetAddressable();
-        StagingAreaItems->SetIsReplicated(true);
-        
-        StagingAreaCoin = CreateDefaultSubobject<UCoinComponent>(TEXT("StagingAreaCoin"));
-        StagingAreaCoin->SetNetAddressable();
-        StagingAreaCoin->SetIsReplicated(true);
-        
-        BankComponent = CreateDefaultSubobject<UBankComponent>(TEXT("BankComponent"));
-        BankComponent->SetNetAddressable();
-        BankComponent->SetIsReplicated(true);
-        
-        BankCoin = CreateDefaultSubobject<UCoinComponent>(TEXT("BankCoin"));
-        BankCoin->SetNetAddressable();
-        BankCoin->SetIsReplicated(true);
-    }
+    // Create replicated inventory components
+    Inventory = CreateDefaultSubobject<UInventoryComponent>(TEXT("Inventory"));
+    Inventory->SetNetAddressable();
+    Inventory->SetIsReplicated(true);
+    
+    CoinPurse = CreateDefaultSubobject<UCoinComponent>(TEXT("CoinPurse"));
+    CoinPurse->SetNetAddressable();
+    CoinPurse->SetIsReplicated(true);
+    
+    StagingAreaItems = CreateDefaultSubobject<UStagingAreaComponent>(TEXT("StagingAreaItems"));
+    StagingAreaItems->SetNetAddressable();
+    StagingAreaItems->SetIsReplicated(true);
+    
+    StagingAreaCoin = CreateDefaultSubobject<UCoinComponent>(TEXT("StagingAreaCoin"));
+    StagingAreaCoin->SetNetAddressable();
+    StagingAreaCoin->SetIsReplicated(true);
+    
+    BankComponent = CreateDefaultSubobject<UBankComponent>(TEXT("BankComponent"));
+    BankComponent->SetNetAddressable();
+    BankComponent->SetIsReplicated(true);
+    
+    BankCoin = CreateDefaultSubobject<UCoinComponent>(TEXT("BankCoin"));
+    BankCoin->SetNetAddressable();
+    BankCoin->SetIsReplicated(true);
     
     bInTransaction = false;
     CurrentMerchantActor = nullptr;
@@ -837,7 +830,7 @@ public:
     virtual USkeletalMeshComponent* GetMasterMeshComponent() override;
 
 protected:
-    // Equipment component (server-only creation)
+    // Equipment component (replicated)
     UPROPERTY(Replicated, BlueprintReadOnly, Category = "Equipment")
     UEquipmentComponent* Equipment;
     
@@ -855,16 +848,13 @@ protected:
 AYourCharacter::AYourCharacter(const FObjectInitializer& ObjectInitializer)
     : Super(ObjectInitializer)
 {
-    // Only create equipment component on server
-    if (HasAuthority())
-    {
-        Equipment = CreateDefaultSubobject<UEquipmentComponent>(TEXT("Equipment"));
-        Equipment->SetNetAddressable();
-        Equipment->SetIsReplicated(true);
-        
-        // Link equipment to character mesh
-        Equipment->UpdateMasterMeshComponent(GetMesh());
-    }
+    // Create equipment component
+    Equipment = CreateDefaultSubobject<UEquipmentComponent>(TEXT("Equipment"));
+    Equipment->SetNetAddressable();
+    Equipment->SetIsReplicated(true);
+    
+    // Link equipment to character mesh
+    Equipment->UpdateMasterMeshComponent(GetMesh());
 }
 
 void AYourCharacter::BeginPlay()
@@ -1381,6 +1371,5 @@ You now have a fully functional inventory system integrated into your project. K
 6. **Replication** is built-in but requires proper setup
 
 For questions or issues, refer to:
-- Plugin README: `Plugins/InventoryPlugin/README.md`
+- Plugin README: `Plugins/UE5Inventory/README.md`
 - Example project: https://github.com/Synock/UE5PluginIntegration
-- NeverQuest implementation files listed above
