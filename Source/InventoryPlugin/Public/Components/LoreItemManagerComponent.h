@@ -1,5 +1,3 @@
-// Copyright 2024 Maximilien (Synock) Guislain
-
 #pragma once
 
 #include "CoreMinimal.h"

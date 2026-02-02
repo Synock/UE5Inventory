@@ -1,5 +1,3 @@
-// Copyright 2022 Maximilien (Synock) Guislain
-
 #include "CoinValue.h"
 
 FCoinValue::FCoinValue(float ValueAsFloat)

@@ -1,5 +1,3 @@
-// Copyright 2022 Maximilien (Synock) Guislain
-
 #include "UI/Merchant/CoinDisplayWidget.h"
 #include "Interfaces/InventoryGameInstanceInterface.h"
 

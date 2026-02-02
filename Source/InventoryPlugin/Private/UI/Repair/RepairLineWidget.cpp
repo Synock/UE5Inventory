@@ -1,5 +1,3 @@
-// Copyright 2022 Maximilien (Synock) Guislain
-
 #include "UI/Repair/RepairLineWidget.h"
 #include "UI/Merchant/CoinDisplayWidget.h"
 #include "UI/Repair/RepairWidget.h"

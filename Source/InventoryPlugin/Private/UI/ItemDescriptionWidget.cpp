@@ -1,4 +1,4 @@
-﻿#include "UI/ItemDescriptionWidget.h"
+#include "UI/ItemDescriptionWidget.h"
 #include "InventoryUtilities.h"
 #include "Definitions.h"
 #include "Items/Interfaces/InventoryItemActivatableInterface.h"

@@ -1,4 +1,4 @@
-﻿#include "Interfaces/InventoryPlayerInterface.h"
+#include "Interfaces/InventoryPlayerInterface.h"
 
 #include "InventoryUtilities.h"
 #include "Components/BankComponent.h"

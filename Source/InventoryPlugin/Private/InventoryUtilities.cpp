@@ -1,5 +1,3 @@
-﻿// Copyright 2022 Maximilien (Synock) Guislain
-
 #include "InventoryUtilities.h"
 
 //these includes are somehow needed 

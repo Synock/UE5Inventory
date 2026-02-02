@@ -1,4 +1,4 @@
-﻿#include "Interfaces/PurseInterface.h"
+#include "Interfaces/PurseInterface.h"
 
 //----------------------------------------------------------------------------------------------------------------------
 

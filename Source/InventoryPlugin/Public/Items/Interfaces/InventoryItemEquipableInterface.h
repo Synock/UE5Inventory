@@ -1,5 +1,3 @@
-// Copyright 2025 Maximilien (Synock) Guislain
-
 #pragma once
 
 #include "UObject/Interface.h"

@@ -1,6 +1,4 @@
-// Copyright 2022 Maximilien (Synock) Guislain
 #include "Components/LootPoolComponent.h"
-
 #include <Net/UnrealNetwork.h>
 
 #include "InventoryUtilities.h"

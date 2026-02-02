@@ -1,5 +1,3 @@
-// Copyright 2022 Maximilien (Synock) Guislain
-
 #include "Components/MerchantComponent.h"
 #include <Net/UnrealNetwork.h>
 

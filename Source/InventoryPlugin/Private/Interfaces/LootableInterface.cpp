@@ -1,5 +1,3 @@
-﻿// Copyright 2022 Maximilien (Synock) Guislain
-
 
 #include "Interfaces/LootableInterface.h"
 #include "Components/CoinComponent.h"

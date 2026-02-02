@@ -1,4 +1,4 @@
-﻿#include "Components/InventoryComponent.h"
+#include "Components/InventoryComponent.h"
 #include "BagStorage.h"
 #include <Net/UnrealNetwork.h>
 

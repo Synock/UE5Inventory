@@ -1,4 +1,4 @@
-﻿#include "Interfaces/EquipmentInterface.h"
+#include "Interfaces/EquipmentInterface.h"
 #include "InventoryUtilities.h"
 #include "Components/EquipmentComponent.h"
 #include "Components/InventoryComponent.h"

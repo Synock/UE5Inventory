@@ -1,5 +1,3 @@
-// Copyright 2025 Maximilien (Synock) Guislain
-
 #include "Components/TradeComponent.h"
 
 #include "InventoryUtilities.h"
