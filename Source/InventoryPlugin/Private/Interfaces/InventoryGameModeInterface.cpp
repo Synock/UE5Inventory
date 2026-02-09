@@ -1,6 +1,8 @@
 
 #include "Interfaces/InventoryGameModeInterface.h"
 
+#include "CoinValue.h"
+#include "Actors/DroppedCoins.h"
 #include "Actors/DroppedItem.h"
 #include "Components/LoreItemManagerComponent.h"
 #include "GameFramework/Actor.h"
@@ -31,6 +33,8 @@ ADroppedItem* IInventoryGameModeInterface::SpawnItemFromActor(AActor* SpawningAc
 		return Item;
 }
 
+//------------------------------------------------------------------------------------------------------------------
+
 ADroppedItem* IInventoryGameModeInterface::SpawnItemFromActorRaw(AActor* SpawningActor, UInventoryItemBase* ItemToSpawn, float Durability)
 {
 	if (!SpawningActor)
@@ -49,6 +53,33 @@ ADroppedItem* IInventoryGameModeInterface::SpawnItemFromActorRaw(AActor* Spawnin
 	Item->InitializeFromItem(ItemToSpawn, false);
 	return Item;
 }
+
+//------------------------------------------------------------------------------------------------------------------
+
+ADroppedCoins* IInventoryGameModeInterface::SpawnCoinsFromActor(AActor* SpawningActor, const FCoinValue& CoinValue,
+	const FVector& DesiredDropLocation, bool ClampOnGround)
+{
+	if (!SpawningActor)
+		return nullptr;
+
+	if (CoinValue.IsEmpty())
+		return nullptr;
+
+	const FVector SpawnLocation = GetItemSpawnLocation(SpawningActor, DesiredDropLocation, ClampOnGround);
+
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.Owner = SpawningActor;
+	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+
+	ADroppedCoins* Item = SpawningActor->GetWorld()->SpawnActor<ADroppedCoins>(SpawnLocation, SpawningActor->GetActorRotation(),
+																  SpawnParams);
+	Item->SetReplicates(true);
+	Item->InitializeFromCoinValue(CoinValue);
+
+	return Item;
+}
+
+//------------------------------------------------------------------------------------------------------------------
 
 FVector IInventoryGameModeInterface::GetItemSpawnLocation(AActor* SpawningActor, const FVector& DesiredDropLocation, bool ClampOnGround)
 {
@@ -83,6 +114,8 @@ FVector IInventoryGameModeInterface::GetItemSpawnLocation(AActor* SpawningActor,
 	return SpawnLocation;
 }
 
+//------------------------------------------------------------------------------------------------------------------
+
 bool IInventoryGameModeInterface::CanSpawnItem(UInventoryItemBase* NewItem)
 {
 	const auto* LoreComponent = GetLoreManagementComponent();
@@ -92,6 +125,8 @@ bool IInventoryGameModeInterface::CanSpawnItem(UInventoryItemBase* NewItem)
 	return true;
 }
 
+//------------------------------------------------------------------------------------------------------------------
+
 bool IInventoryGameModeInterface::DelayedLoreItemValidation(const UInventoryItemBase* LocalItem, ULootPoolComponent* Origin)
 {
 	auto* LoreComponent = GetLoreManagementComponent();
@@ -100,6 +135,8 @@ bool IInventoryGameModeInterface::DelayedLoreItemValidation(const UInventoryItem
 
 	return LoreComponent->DelayedSpawnItem(LocalItem, Origin);
 }
+
+//------------------------------------------------------------------------------------------------------------------
 
 ULoreItemManagerComponent* IInventoryGameModeInterface::GetLoreManagementComponent()
 {
