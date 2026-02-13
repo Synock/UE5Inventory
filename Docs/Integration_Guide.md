@@ -351,6 +351,168 @@ UTexture2D* UYourGameInstance::GetPlatinumCoinIconTexture() const
 }
 ```
 
+#### Item Registration from DataTable (Production Example)
+
+For projects with many items, you can use DataTables to register items automatically. Here's my real-world implementation:
+
+**Step 1: Use FItemContainerLine (Built into Plugin)**
+
+The plugin provides `FItemContainerLine` struct for DataTable rows:
+
+**File: `InventoryPlugin/Public/Items/InventoryItemBase.h`** (already included in plugin)
+```cpp
+USTRUCT(BlueprintType)
+struct INVENTORYPLUGIN_API FItemContainerLine : public FTableRowBase
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Inventory")
+    UInventoryItemBase* Item = nullptr;
+};
+```
+
+> **💡 Note**: This struct is built into the InventoryPlugin - you don't need to create it yourself!
+
+**Step 2: Add DataTable Property to GameInstance**
+
+**File: `YourGameInstance.h`**
+```cpp
+UCLASS()
+class YOURPROJECT_API UYourGameInstance : public UGameInstance, public IInventoryGameInstanceInterface
+{
+    GENERATED_BODY()
+
+public:
+    // Override Init to auto-populate item registry
+    virtual void Init() override;
+
+    // IInventoryGameInstanceInterface Implementation
+    virtual UInventoryItemBase* FetchItemFromID(int32 ID) override;
+    virtual void RegisterItem(UInventoryItemBase* NewItem) override;
+    
+    // Setup function to populate ItemLUT from DataTables and arrays
+    UFUNCTION(BlueprintCallable)
+    void SetupInternals();
+
+protected:
+    // Editor-editable DataTable for bulk item registration
+    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Inventory")
+    UDataTable* ItemDataTable = nullptr;
+
+    // Manual item array (for items not in DataTable)
+    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Inventory")
+    TArray<UInventoryItemBase*> ItemTable;
+
+    // Runtime lookup table (populated by SetupInternals)
+    UPROPERTY(BlueprintReadOnly, Category = "Inventory")
+    TMap<int32, UInventoryItemBase*> ItemLUT;
+    
+    // ... other properties ...
+};
+```
+
+**Step 3: Implement Automatic Registration**
+
+**File: `YourGameInstance.cpp`**
+```cpp
+void UYourGameInstance::Init()
+{
+    Super::Init();
+    
+    // Populate item registry from DataTables and arrays
+    SetupInternals();
+}
+
+void UYourGameInstance::SetupInternals()
+{
+    // Register items from DataTable (editor-configured)
+    if (ItemDataTable)
+    {
+        for (auto& Item : ItemDataTable->GetRowMap())
+        {
+            FItemContainerLine* ItemRow = reinterpret_cast<FItemContainerLine*>(Item.Value);
+            if (ItemRow && ItemRow->Item)
+            {
+                ItemLUT.Add(ItemRow->Item->ItemID, ItemRow->Item);
+            }
+        }
+    }
+
+    // Register items from manual array (for special items, debug items, etc.)
+    for (auto& Item : ItemTable)
+    {
+        if (Item)
+        {
+            ItemLUT.Add(Item->ItemID, Item);
+        }
+    }
+    
+    UE_LOG(LogTemp, Log, TEXT("Registered %d items in GameInstance"), ItemLUT.Num());
+}
+```
+
+**Step 4: Create DataTable in Editor**
+
+1. In Unreal Editor, create a new DataTable asset
+2. Set Row Structure to `FItemContainerLine`
+3. Name it `DT_Items` (or similar)
+4. Add rows for each item:
+   - Row Name: `Item_Sword_Iron` (descriptive name)
+   - Item: Select your UInventoryItemBase Data Asset
+
+5. Assign the DataTable to your GameInstance Blueprint:
+   - Open your GameInstance Blueprint (e.g., `BP_MainGameInstance`)
+   - Set `Item Data Table` to your new DataTable
+   - Items will be auto-registered on game start (no Blueprint nodes needed!)
+
+> **💡 Best Practice**: Use DataTables for the bulk of your items (weapons, armor, consumables) and the `ItemTable` array for special cases (debug items, quest items that need code references)
+
+**DataTable Registration Workflow:**
+
+```
+Editor (Design Time)                     Runtime (Game Start)
+━━━━━━━━━━━━━━━━━━━━                    ━━━━━━━━━━━━━━━━━━━━━
+                                        
+1. Create Data Assets                   UYourGameInstance::Init()
+   ├─ DA_Item_Sword                              │
+   ├─ DA_Item_Potion                             ├─> SetupInternals()
+   └─ DA_Item_Helmet                             │       │
+                                                 │       ├─> Loop ItemDataTable
+2. Create DataTable                              │       │   ├─ Get FItemContainerLine rows
+   └─ DT_Items                                   │       │   └─ ItemLUT.Add(Item->ItemID, Item)
+      (Row Structure: FItemContainerLine)        │       │
+                                                 │       └─> Loop ItemTable array
+3. Add Items to DataTable                        │           └─ ItemLUT.Add(Item->ItemID, Item)
+   ├─ Row_Sword → DA_Item_Sword                  │
+   ├─ Row_Potion → DA_Item_Potion                └─> Items ready for use
+   └─ Row_Helmet → DA_Item_Helmet                    (accessible via FetchItemFromID)
+
+4. Assign DT_Items to GameInstance
+   └─ BP_MainGameInstance::ItemDataTable
+```
+
+This approach allows designers to add/modify items in the editor without touching code!
+
+#### Troubleshooting: Broken DataTables After Plugin Update
+
+If you had `FItemContainerLine` in your own project code before it was moved into the plugin, existing DataTables may show errors like:
+
+```
+"Struct '/Script/YourProject.ItemContainerLine' not found"
+```
+
+**Solution:** Add a CoreRedirect in `Config/DefaultEngine.ini`:
+
+```ini
+[CoreRedirects]
+; Redirect old FItemContainerLine location to plugin
++StructRedirects=(OldName="/Script/YourProject.ItemContainerLine",NewName="/Script/InventoryPlugin.ItemContainerLine")
+```
+
+Replace `YourProject` with your actual module name. This automatically updates all DataTable references when the editor loads.
+
+> **💡 Note**: After adding the redirect, restart the editor. Your DataTables will automatically fix themselves!
+
 ---
 
 ### Step 2: Implement GameMode Interface
@@ -1043,26 +1205,17 @@ void UYourGameInstance::Init()
 {
     Super::Init();
     
-    // Option 1: Register items manually
+    // SetupInternals is called automatically to populate items from DataTable and arrays
+    // (See detailed DataTable implementation in Step 1 above)
+    SetupInternals();
+    
+    // OR manually register specific items:
     RegisterItem(LoadObject<UInventoryItemBase>(nullptr, TEXT("/Game/Items/DA_Item_Sword.DA_Item_Sword")));
     RegisterItem(LoadObject<UInventoryItemBase>(nullptr, TEXT("/Game/Items/DA_Item_Potion.DA_Item_Potion")));
-    
-    // Option 2: Use a DataTable
-    if (ItemDataTable)
-    {
-        TArray<FItemTableRow*> AllRows;
-        ItemDataTable->GetAllRows<FItemTableRow>(TEXT("ItemRegistry"), AllRows);
-        
-        for (FItemTableRow* Row : AllRows)
-        {
-            if (Row && Row->Item)
-            {
-                RegisterItem(Row->Item);
-            }
-        }
-    }
 }
 ```
+
+> **💡 Recommended Approach**: Use the DataTable-based `SetupInternals()` method shown in the GameInstance implementation section above. This allows you to manage hundreds of items through the editor without hardcoding paths.
 
 ### Equipment Items
 

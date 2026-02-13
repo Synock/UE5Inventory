@@ -114,3 +114,23 @@ Durability state is fully replicated and persists to backend storage.
 Weapons and equipment can use animated skeletal meshes instead of just static meshes.
 Includes support for left-hand IK for two-handed weapons and improved attachment system.
 
+---
+
+## Migration Notes
+
+### FItemContainerLine Now Built Into Plugin
+
+As of the latest version, `FItemContainerLine` (used for DataTable item registration) is now part of the InventoryPlugin instead of requiring manual implementation.
+
+**If you get DataTable errors after updating:**
+
+Add this to your `Config/DefaultEngine.ini`:
+
+```ini
+[CoreRedirects]
++StructRedirects=(OldName="/Script/YourModuleName.ItemContainerLine",NewName="/Script/InventoryPlugin.ItemContainerLine")
+```
+
+Replace `YourModuleName` with your game module name, then restart the editor. Your DataTables will automatically fix themselves.
+
+See [Integration Guide - DataTable Troubleshooting](./Docs/Integration_Guide.md#troubleshooting-broken-datatables-after-plugin-update) for details.

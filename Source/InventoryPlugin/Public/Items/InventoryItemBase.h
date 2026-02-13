@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
+#include "Engine/DataTable.h"
 #include "Interfaces/InventoryItemInterface.h"
 #include "InventoryItemBase.generated.h"
 
@@ -114,4 +115,26 @@ public:
 	virtual bool IsLoreItem() const override { return LoreItem; }
 	virtual bool IsMagicItem() const override { return MagicItem; }
 	virtual bool IsTemporary() const override { return Temporary; }
+};
+
+
+/**
+ * DataTable row structure for bulk item registration.
+ * Use this as the Row Structure when creating item DataTables in the editor.
+ *
+ * Example usage in GameInstance:
+ *   for (auto& Row : ItemDataTable->GetRowMap())
+ *   {
+ *       FItemContainerLine* ItemRow = reinterpret_cast<FItemContainerLine*>(Row.Value);
+ *       if (ItemRow && ItemRow->Item)
+ *           ItemLUT.Add(ItemRow->Item->ItemID, ItemRow->Item);
+ *   }
+ */
+USTRUCT(BlueprintType)
+struct INVENTORYPLUGIN_API FItemContainerLine : public FTableRowBase
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Inventory")
+	UInventoryItemBase* Item = nullptr;
 };
