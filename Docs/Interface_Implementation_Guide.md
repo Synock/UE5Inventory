@@ -828,8 +828,8 @@ ADroppedItem* AYourGameMode::SpawnItemFromActorRaw(
     SpawnParams.SpawnCollisionHandlingOverride = 
         ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
     
-    APickableItem* DroppedItem = GetWorld()->SpawnActor<APickableItem>(
-        APickableItem::StaticClass(),
+    ADroppedItem* DroppedItem = GetWorld()->SpawnActor<ADroppedItem>(
+        ADroppedItem::StaticClass(),
         SpawnLocation,
         SpawningActor->GetActorRotation(),
         SpawnParams
@@ -1538,3 +1538,4 @@ if (HasAuthority())
 ---
 
 *Last Updated: 2026-01-30*
+

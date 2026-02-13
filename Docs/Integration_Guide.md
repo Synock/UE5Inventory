@@ -7,6 +7,7 @@ For detailed explanations of mandatory plugin components, see these guides:
 - **[Interface Implementation Guide](./Interface_Implementation_Guide.md)** - Deep dive into the four required interfaces (GameInstance, GameMode, PlayerController, Character)
 - **[Component Architecture Guide](./Component_Architecture_Guide.md)** - Complete reference for all inventory components and their interactions
 - **[Item System Guide](./Item_System_Guide.md)** - Creating, configuring, and managing items (weapons, armor, consumables, etc.)
+- **[Item Architecture Best Practices](../../../Docs/ITEM_ARCHITECTURE_BEST_PRACTICES.md)** - ⭐ IMPORTANT: Understanding production vs demo item classes
 - **[Replication System Guide](./Replication_System_Guide.md)** - Understanding multiplayer synchronization, RPCs, and networking patterns
 
 ## Table of Contents
