@@ -2,842 +2,246 @@
 
 ## Overview
 
-The InventoryPlugin uses a **data-driven item system** where all items are `UPrimaryDataAsset` objects configured in the Unreal Editor. This guide explains how to create, configure, and manage items.
+Items in the InventoryPlugin are **`UPrimaryDataAsset`** subclasses — editor-authored data definitions, not spawned actors. Items are registered in a **`DataTable`** using the `FItemContainerLine` row struct, then loaded into a lookup table (typically in your `GameInstance`).
 
-## Table of Contents
-
-1. [Item Class Hierarchy](#item-class-hierarchy)
-2. [Creating Items](#creating-items)
-3. [Item Types](#item-types)
-4. [Item Properties](#item-properties)
-5. [Item Registration](#item-registration)
-6. [Item Spawning](#item-spawning)
-7. [Best Practices](#best-practices)
+At runtime, inventory slots store only an `FMinimalItemStorage` (ItemID, grid position, durability, lock state). The full item definition is resolved from the lookup table when needed.
 
 ---
 
-## Item Class Hierarchy
+## Class Hierarchy
 
 ```
-UPrimaryDataAsset
-└── UInventoryItemBase (Base item class)
-    ├── UInventoryItemEquipable (Wearable items)
-    │   ├── UInventoryItemArmor (Armor pieces)
-    │   ├── UInventoryItemWeapon (Weapons)
-    │   │   ├── UInventoryItemMeleeWeapon (Melee weapons)
-    │   │   └── UInventoryItemRangedWeapon (Bows, crossbows)
-    │   └── UInventoryItemBag (Bags/containers)
-    │       └── UInventoryItemAmmoBag (Quivers)
-    ├── UInventoryItemConsumable (Potions, food)
-    ├── UInventoryItemBook (Readable books)
-    ├── UInventoryItemCraftingMaterial (Crafting components)
-    └── UInventoryItemQuestItem (Quest-specific items)
+UInventoryItemBase (UPrimaryDataAsset, IInventoryItemInterface)
+├── UInventoryItemEquipable (+IInventoryItemEquipableInterface, +IInventoryItemWeaponInterface, +IInventoryItemDurableInterface)
+│   ├── UInventoryItemWeapon (marker subclass — no additional properties)
+│   ├── UInventoryItemBag (+IInventoryItemBagInterface)
+│   │   └── UInventoryItemAmmoBag (+IInventoryItemAmmoBagInterface)
+│   ├── UInventoryItemActionnable (activatable/consumable items)
+│   └── UInventoryItemFieldRepair (+IInventoryItemFieldRepairInterface)
+└── UInventoryItemKey (key items with KeyID)
 ```
 
 ---
 
-## Creating Items
+## UInventoryItemBase
 
-### Method 1: In-Editor (Recommended)
+Base class for all items. Implements `IInventoryItemInterface`.
 
-**Step 1: Create Data Asset**
-1. Right-click in Content Browser
-2. **Miscellaneous** → **Data Asset**
-3. Select parent class (e.g., `InventoryItemWeapon`)
-4. Name it `DA_Item_YourItemName` (convention: `DA_Item_*`)
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `ItemID` | `int32` | -1 | Unique identifier |
+| `Name` | `FString` | | Display name |
+| `Width` | `uint8` | 1 | Grid width |
+| `Height` | `uint8` | 1 | Grid height |
+| `Icon` | `UTexture2D*` | nullptr | Inventory icon |
+| `Mesh` | `UStaticMesh*` | nullptr | World/dropped mesh |
+| `OverrideMaterial` | `FMaterialOverride` | | Material override spec |
+| `ItemSize` | `EItemSize` | Tiny | Size category (Tiny/Small/Medium/Large/Giant) |
+| `Description` | `FString` | | Item description |
+| `LoreItem` | `bool` | false | Unique lore item (tracked by `ULoreItemManagerComponent`) |
+| `MagicItem` | `bool` | false | Magical item flag |
+| `Temporary` | `bool` | false | Auto-removes on logout/death |
+| `BaseValue` | `float` | 0 | Base monetary value |
+| `Weight` | `float` | 0 | Item weight |
 
-**Step 2: Configure Properties**
-1. Double-click to open asset
-2. Set **ItemID** (unique integer)
-3. Set **Name** (display name)
-4. Configure all required properties
-5. Save asset
-
-**Step 3: Register Item**
-- Item will be auto-registered if using directory loading
-- Or manually register in `GameInstance::Init()`
-
-### Method 2: C++ (Advanced)
+### FMaterialOverride
 
 ```cpp
-// Create custom item class
-UCLASS()
-class YOURPROJECT_API UCustomItem : public UInventoryItemBase
+struct FMaterialOverride
 {
-    GENERATED_BODY()
-
-public:
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Custom")
-    int32 CustomProperty;
-    
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Custom")
-    FString CustomString;
-    
-    // Override behavior
-    virtual bool CanBeUsed() const override;
-    virtual void OnItemUsed(AActor* User) override;
-};
-
-// Implementation
-bool UCustomItem::CanBeUsed() const
-{
-    return CustomProperty > 0;
-}
-
-void UCustomItem::OnItemUsed(AActor* User)
-{
-    Super::OnItemUsed(User);
-    
-    UE_LOG(LogTemp, Log, TEXT("Used custom item: %s"), *Name);
-    // Custom logic here
-}
-```
-
----
-
-## Item Types
-
-### Base Item (UInventoryItemBase)
-
-**Purpose**: Generic non-equipable items (quest items, materials, etc.)
-
-**Key Properties**:
-```cpp
-UCLASS(BlueprintType)
-class UInventoryItemBase : public UPrimaryDataAsset
-{
-    GENERATED_BODY()
-
-public:
-    // Core identification
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item")
-    int32 ItemID = -1;                          // Unique identifier
-    
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item")
-    FString Name = TEXT("Unnamed Item");        // Display name
-    
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item", meta = (MultiLine = true))
-    FString Description = TEXT("");             // Tooltip text
-    
-    // Visual properties
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item|Visual")
-    UTexture2D* Icon = nullptr;                 // Inventory icon
-    
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item|Visual")
-    UStaticMesh* Mesh = nullptr;                // 3D mesh for dropped item
-    
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item|Visual")
-    UStaticMesh* GroundPlacedMesh = nullptr;    // Alternative mesh for ground
-    
-    // Physical properties
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item|Properties")
-    int32 Width = 1;                            // Grid width (cells)
-    
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item|Properties")
-    int32 Height = 1;                           // Grid height (cells)
-    
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item|Properties")
-    float Weight = 0.1f;                        // Encumbrance weight
-    
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item|Properties")
-    EItemSize ItemSize = EItemSize::Small;      // Size category
-    
-    // Economic properties
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item|Economy")
-    int32 BaseValue = 0;                        // Price in copper
-    
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item|Economy")
-    bool bCanBeSold = true;                     // Merchant will buy
-    
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item|Economy")
-    bool bCanBeTraded = true;                   // Can trade between players
-    
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item|Economy")
-    bool bCanBeDropped = true;                  // Can drop on ground
-    
-    // Special flags
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item|Special")
-    bool bLoreItem = false;                     // Unique/quest item
-    
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item|Special")
-    bool bMagicItem = false;                    // Has magical properties
-    
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item|Special")
-    bool bStackable = false;                    // Can stack multiple
-    
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item|Special", meta = (EditCondition = "bStackable"))
-    int32 MaxStackSize = 1;                     // Max stack count
+    UMaterialInstance* OverrideMaterial = nullptr;
+    int32 MaterialID = 0;
+    FLinearColor TintColor = FLinearColor::White;
+    float TintIntensity = 1.0f;
 };
 ```
 
-**Example: Quest Item**
-```
-ItemID: 5001
-Name: "Ancient Amulet"
-Description: "A mysterious amulet pulsing with dark energy. Quest item."
-Icon: T_Icon_Amulet
-Mesh: SM_Amulet
-Width: 1
-Height: 1
-Weight: 0.5
-ItemSize: Small
-BaseValue: 0 (quest items have no value)
-bCanBeSold: false
-bCanBeTraded: false
-bCanBeDropped: false
-bLoreItem: true
-```
+### EItemSize
+
+`Tiny`, `Small`, `Medium`, `Large`, `Giant` — used for bag size restrictions. A bag with `BagSize = Medium` can store items of size Medium or smaller.
 
 ---
 
-### Equipable Item (UInventoryItemEquipable)
+## UInventoryItemEquipable
 
-**Purpose**: Items that can be worn/wielded by characters.
+Extends `UInventoryItemBase` with equipment slot targeting, visual meshes, and durability.
 
-**Additional Properties**:
-```cpp
-UCLASS(BlueprintType)
-class UInventoryItemEquipable : public UInventoryItemBase
-{
-    GENERATED_BODY()
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `Equipable` | `bool` | false | Whether this item can be equipped |
+| `EquipableSlotBitMask` | `int32` (bitmask) | 0 | Bitfield of valid `EEquipmentSlot` values |
+| `MultiSlotItem` | `bool` | false | If true, occupies all slots in the bitmask simultaneously |
+| `Shield` | `bool` | false | Shield flag |
+| `Weapon` | `bool` | false | Weapon flag |
+| `EquipmentMesh` | `USkeletalMesh*` | nullptr | Skeletal mesh rendered on the character |
+| `EquipmentMeshMaterialOverride` | `TArray<FMaterialOverride>` | | Per-slot material overrides for equipment mesh |
+| `Unsheathable` | `bool` | false | Can be drawn/sheathed visually |
+| `TotalDurability` | `float` | 100.0 | Maximum durability |
+| `DurabilityModifier` | `float` | 1.0 | Multiplier for durability loss calculations |
 
-public:
-    // Equipment slots (bitmask)
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment")
-    int32 EquipableSlotBitMask = 0;             // Which slots can equip this
-    
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment")
-    bool MultiSlotItem = false;                 // Occupies multiple slots (2H weapon)
-    
-    // Visual attachment
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment|Visual")
-    UStaticMesh* EquipmentMesh = nullptr;       // Mesh when equipped
-    
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment|Visual")
-    FName AttachmentSocket = NAME_None;         // Skeleton socket name
-    
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment|Visual")
-    TArray<FMaterialOverride> EquipmentMeshMaterialOverride; // Custom materials
-    
-    // Durability
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment|Durability")
-    float MaxDurability = 100.0f;               // Max condition
-    
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment|Durability")
-    float DurabilityLossPerHit = 0.1f;          // Degradation rate
-    
-    // Stats (override in subclasses)
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment|Stats")
-    int32 ArmorClass = 0;                       // Armor value
-    
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment|Stats")
-    TMap<FString, int32> BonusStats;            // Str, Dex, Int, etc.
-};
-```
+### Interfaces Implemented
 
-**Slot Bitmask Reference**:
-```cpp
-// Calculate bitmask for multiple slots
-int32 CalculateSlotBitmask(TArray<EEquipmentSlot> Slots)
-{
-    int32 Bitmask = 0;
-    for (EEquipmentSlot Slot : Slots)
-    {
-        Bitmask |= (1 << static_cast<int32>(Slot));
-    }
-    return Bitmask;
-}
-
-// Examples:
-// Head only: 1 << 1 = 2
-// Chest only: 1 << 2 = 4
-// Head + Chest: (1 << 1) | (1 << 2) = 6
-// Primary + Secondary (2H weapon): (1 << 11) | (1 << 12) = 6144
-```
-
-**Example: Iron Helmet**
-```
-ItemID: 2001
-Name: "Iron Helmet"
-Description: "A sturdy iron helmet. Provides +15 armor."
-Icon: T_Icon_Helmet_Iron
-Mesh: SM_Helmet_Iron_Dropped
-Width: 2
-Height: 2
-Weight: 5.0
-ItemSize: Medium
-BaseValue: 500
-EquipableSlotBitMask: 2 (Head slot only)
-MultiSlotItem: false
-EquipmentMesh: SM_Helmet_Iron_Worn
-AttachmentSocket: "head_socket"
-MaxDurability: 100.0
-ArmorClass: 15
-BonusStats: {"STR": 1}
-```
+- **`IInventoryItemEquipableInterface`**: `IsEquipable()`, `GetEquipableSlotBitMask()`, `IsMultiSlotItem()`, `IsShield()`, `IsWeapon()`, `GetEquipmentMesh()`, `GetEquipmentMeshMaterialOverride()`, `IsUnsheathable()`
+- **`IInventoryItemWeaponInterface`**: Weapon-related queries
+- **`IInventoryItemDurableInterface`**: `GetTotalDurability()`, `GetDurabilityModifier()`
 
 ---
 
-### Weapon Item (UInventoryItemWeapon)
+## UInventoryItemWeapon
 
-**Purpose**: Weapons with damage, attack speed, and range.
-
-**Additional Properties**:
-```cpp
-UCLASS(BlueprintType)
-class UInventoryItemWeapon : public UInventoryItemEquipable
-{
-    GENERATED_BODY()
-
-public:
-    // Weapon type
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon")
-    EWeaponType WeaponType = EWeaponType::OneHandedSword;
-    
-    // Damage
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Damage")
-    int32 DamageMin = 1;                        // Minimum damage
-    
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Damage")
-    int32 DamageMax = 5;                        // Maximum damage
-    
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Damage")
-    EDamageType DamageType = EDamageType::Physical; // Damage type
-    
-    // Attack properties
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Attack")
-    float AttackSpeed = 2.5f;                   // Attacks per second
-    
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Attack")
-    float Range = 150.0f;                       // Attack range (cm)
-    
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Attack")
-    float KnockbackForce = 0.0f;                // Knockback strength
-    
-    // Skill requirements
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Requirements")
-    int32 RequiredLevel = 1;                    // Min character level
-    
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Requirements")
-    int32 RequiredStrength = 0;                 // Min STR stat
-    
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Requirements")
-    TMap<ESkillType, int32> RequiredSkills;     // Skill requirements
-    
-    // Ammunition (for ranged weapons)
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Ammo")
-    EAmmoType RequiredAmmoType = EAmmoType::None;
-};
-```
-
-**Example: Longsword**
-```
-ItemID: 3001
-Name: "Steel Longsword"
-Description: "A well-balanced longsword. Deals 15-25 slashing damage."
-Icon: T_Icon_Sword_Long
-Mesh: SM_Sword_Long_Dropped
-Width: 1
-Height: 4
-Weight: 3.5
-ItemSize: Large
-BaseValue: 1000
-EquipableSlotBitMask: 2048 (Primary weapon slot)
-MultiSlotItem: false
-EquipmentMesh: SM_Sword_Long_Equipped
-AttachmentSocket: "hand_r_socket"
-MaxDurability: 150.0
-WeaponType: OneHandedSword
-DamageMin: 15
-DamageMax: 25
-DamageType: Slashing
-AttackSpeed: 2.2
-Range: 180.0
-RequiredLevel: 10
-RequiredStrength: 15
-```
-
-**Example: Two-Handed Greatsword**
-```
-ItemID: 3002
-Name: "Greatsword"
-Description: "A massive two-handed blade. Deals 30-50 slashing damage."
-Width: 2
-Height: 5
-Weight: 8.0
-ItemSize: Giant
-EquipableSlotBitMask: 6144 (Primary + Secondary slots)
-MultiSlotItem: true  ← Occupies both hands
-WeaponType: TwoHandedSword
-DamageMin: 30
-DamageMax: 50
-AttackSpeed: 1.5
-RequiredStrength: 25
-```
+Empty marker subclass of `UInventoryItemEquipable`. No additional properties. Use as a type filter or extend in your project for weapon-specific data.
 
 ---
 
-### Bag Item (UInventoryItemBag)
+## UInventoryItemBag
 
-**Purpose**: Containers that expand inventory space.
+Bag items that, when equipped in bag slots, activate corresponding `EBagSlot` storage.
 
-**Additional Properties**:
-```cpp
-UCLASS(BlueprintType)
-class UInventoryItemBag : public UInventoryItemEquipable
-{
-    GENERATED_BODY()
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `Bag` | `bool` | false | Whether this works as a bag |
+| `BagSize` | `EItemSize` | Giant | Maximum item size this bag can hold |
+| `BagWidth` | `uint8` | 1 | Grid width of bag interior |
+| `BagHeight` | `uint8` | 1 | Grid height of bag interior |
+| `WeightReduction` | `float` | 0.0 | Weight reduction factor (0.0 = none, 1.0 = weightless) |
 
-public:
-    // Bag dimensions
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Bag")
-    int32 BagWidth = 4;                         // Grid width
-    
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Bag")
-    int32 BagHeight = 4;                        // Grid height
-    
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Bag")
-    int32 BagSize = 16;                         // Total cells (Width × Height)
-    
-    // Size restriction
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Bag")
-    EItemSize MaximumItemSizeToContain = EItemSize::Giant;
-    
-    // Weight reduction
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Bag")
-    float WeightReductionFactor = 1.0f;         // 0.0-1.0 (0.5 = 50% reduction)
-};
-```
+Implements `IInventoryItemBagInterface`.
 
-**Example: Small Pouch**
-```
-ItemID: 4001
-Name: "Small Pouch"
-Description: "A small leather pouch. Provides 3×2 storage."
-Icon: T_Icon_Bag_Small
-Width: 1
-Height: 2
-Weight: 0.5
-ItemSize: Small
-BaseValue: 50
-EquipableSlotBitMask: 2097152 (WaistBag1)
-BagWidth: 3
-BagHeight: 2
-BagSize: 6
-MaximumItemSizeToContain: Medium
-WeightReductionFactor: 1.0 (no reduction)
-```
+### UInventoryItemAmmoBag
 
-**Example: Enchanted Backpack**
-```
-ItemID: 4002
-Name: "Enchanted Backpack of Holding"
-Description: "A magical backpack. Provides 8×8 storage with 50% weight reduction."
-Icon: T_Icon_Bag_Enchanted
-BaseValue: 5000
-EquipableSlotBitMask: 8388608 (BackPack1)
-BagWidth: 8
-BagHeight: 8
-BagSize: 64
-MaximumItemSizeToContain: Giant
-WeightReductionFactor: 0.5 ← Items weigh 50% less
-bMagicItem: true
-```
+Extends `UInventoryItemBag` with ammo-type restriction and fill-level visual meshes.
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `AmmoType` | `EAmmoType` | Accepted ammo type (Throwable/SmallBolts/Bolts/GreatBolts/Arrows) |
+| `SingleAmmoMesh` | `UStaticMesh*` | Mesh when bag has few items |
+| `MidAmmoMesh` | `UStaticMesh*` | Mesh when bag is partially full |
+| `FullAmmoMesh` | `UStaticMesh*` | Mesh when bag is full |
+
+Implements `IInventoryItemAmmoBagInterface`.
 
 ---
 
-## Item Properties
+## UInventoryItemActionnable
 
-### Item Size Categories
+Activatable items (food, drinks, books, etc.).
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `Actionnable` | `bool` | Whether this item can be activated |
+| `NeedToBeEquipped` | `bool` | Must be equipped before use |
+| `HungerValue` | `float` | Hunger restoration (game-defined) |
+| `ThirstValue` | `float` | Thirst restoration (game-defined) |
+| `BookText` | `FString` | Readable text content |
+
+---
+
+## UInventoryItemFieldRepair
+
+Consumable repair kits used via `UFieldRepairComponent`. Uses durability as charge count.
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `ChargeConsumption` | `int32` | 1 | Charges used per repair |
+| `MinRepairPercentage` | `float` | 0.05 | Minimum repair % per use |
+| `MaxRepairPercentage` | `float` | 0.20 | Maximum repair % per use |
+| `MinDurabilityThreshold` | `float` | 0.33 | Target must be at/above this % |
+| `MaxDurabilityThreshold` | `float` | 0.75 | Repairs cannot exceed this % |
+| `RepairDuration` | `float` | 3.0 | Seconds to complete (0 = instant) |
+| `WeaponsOnly` | `bool` | false | Restrict to weapons only |
+| `ArmorOnly` | `bool` | false | Restrict to armor only |
+| `ShieldsOnly` | `bool` | false | Restrict to shields only |
+| `AllowedEquipmentSlotBitMask` | `int32` | 0 | Restrict to specific slots (0 = all) |
+| `RepairStartSound` | `USoundBase*` | nullptr | Audio feedback |
+| `RepairCompleteSound` | `USoundBase*` | nullptr | Audio feedback |
+| `RepairFailSound` | `USoundBase*` | nullptr | Audio feedback |
+| `RepairParticleEffect` | `UParticleSystem*` | nullptr | Visual feedback |
+
+Implements `IInventoryItemFieldRepairInterface`.
+
+---
+
+## UInventoryItemKey
+
+Key items for lock/unlock systems via `UKeyringComponent`.
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `KeyID` | `int32` | -1 | Unique key identifier for matching locks |
+
+---
+
+## Runtime Item Storage
+
+### FMinimalItemStorage
+
+The actual stored representation of an item in a bag slot:
 
 ```cpp
-UENUM(BlueprintType)
-enum class EItemSize : uint8
+struct FMinimalItemStorage
 {
-    Tiny = 0,       // Rings, coins, gems
-    Small = 1,      // Potions, scrolls, daggers
-    Medium = 2,     // Swords, helmets, books
-    Large = 3,      // Two-handed weapons, shields
-    Giant = 4       // Massive items, furniture
+    int32 ItemID = -1;         // References item definition via lookup table
+    int32 TopLeftID = 0;       // Grid position: Row * BagWidth + Column
+    float Durability = 100.0f; // Current durability percentage
+    bool bIsLocked = false;    // Transient: UI lock (not replicated)
 };
 ```
 
-**Bag Restrictions**: Bags have `MaximumItemSizeToContain`:
-- Small pouch (Medium) cannot hold Large/Giant items
-- Backpack (Giant) can hold all sizes
+### FItemContainerLine
 
-### Material Overrides
-
-Custom materials for equipped items:
+DataTable row structure for item registration:
 
 ```cpp
 USTRUCT(BlueprintType)
-struct FMaterialOverride
+struct FItemContainerLine : public FTableRowBase
 {
-    GENERATED_BODY()
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    int32 MaterialID = 0;                       // Material slot index
-    
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    UMaterialInterface* Material = nullptr;     // Override material
+    UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Inventory")
+    UInventoryItemBase* Item = nullptr;
 };
-```
-
-**Example**:
-```
-Item: "Red Cloak"
-EquipmentMesh: SM_Cloak_Generic
-EquipmentMeshMaterialOverride:
-  - MaterialID: 0
-    Material: M_Cloak_Red
-  - MaterialID: 1
-    Material: M_Cloak_Trim_Gold
 ```
 
 ---
 
 ## Item Registration
 
-### Automatic Registration (Recommended)
-
-Load all items from a directory at startup:
+1. **Create item assets**: Right-click in Content Browser → Miscellaneous → Data Asset → select the appropriate item class
+2. **Create a DataTable**: Row Structure = `FItemContainerLine`
+3. **Add rows**: Each row references one item asset
+4. **Load in GameInstance**: Populate a `TMap<int32, UInventoryItemBase*>` from the DataTable
 
 ```cpp
-void UYourGameInstance::Init()
+// In your GameInstance (implementing IInventoryGameInstanceInterface)
+void UMyGameInstance::LoadItems()
 {
-    Super::Init();
-    
-    // Load all items from Content/Items directory
-    LoadItemsFromDirectory(TEXT("/Game/Items"));
-}
-
-void UYourGameInstance::LoadItemsFromDirectory(const FString& DirectoryPath)
-{
-    FAssetRegistryModule& AssetRegistryModule = 
-        FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
-    IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
-    
-    // Find all UInventoryItemBase assets
-    TArray<FAssetData> AssetData;
-    FARFilter Filter;
-    Filter.PackagePaths.Add(*DirectoryPath);
-    Filter.ClassPaths.Add(UInventoryItemBase::StaticClass()->GetClassPathName());
-    Filter.bRecursivePaths = true;
-    
-    AssetRegistry.GetAssets(Filter, AssetData);
-    
-    // Register each item
-    for (const FAssetData& Asset : AssetData)
+    for (auto& Row : ItemDataTable->GetRowMap())
     {
-        UInventoryItemBase* Item = Cast<UInventoryItemBase>(Asset.GetAsset());
-        if (Item)
-        {
-            RegisterItem(Item);
-        }
+        FItemContainerLine* ItemRow = reinterpret_cast<FItemContainerLine*>(Row.Value);
+        if (ItemRow && ItemRow->Item)
+            ItemLUT.Add(ItemRow->Item->ItemID, ItemRow->Item);
     }
-    
-    UE_LOG(LogTemp, Log, TEXT("Registered %d items from %s"), 
-        AssetData.Num(), *DirectoryPath);
 }
-```
 
-### Manual Registration
-
-For specific items or database-driven systems:
-
-```cpp
-void UYourGameInstance::Init()
+// Interface implementation
+const UInventoryItemBase* UMyGameInstance::GetItemFromID(int32 ItemID) const
 {
-    Super::Init();
-    
-    // Register hardcoded items
-    RegisterItem(LoadObject<UInventoryItemBase>(nullptr, 
-        TEXT("/Game/Items/DA_Item_Sword.DA_Item_Sword")));
-    
-    RegisterItem(LoadObject<UInventoryItemBase>(nullptr, 
-        TEXT("/Game/Items/DA_Item_Potion.DA_Item_Potion")));
-    
-    // Load from database (custom implementation)
-    LoadItemsFromDatabase();
-}
-```
-
-### DataTable Registration
-
-Using a DataTable for item metadata:
-
-```cpp
-USTRUCT(BlueprintType)
-struct FItemTableRow : public FTableRowBase
-{
-    GENERATED_BODY()
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    UInventoryItemBase* Item = nullptr;
-    
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    bool bAutoRegister = true;
-    
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    FString Category = TEXT("General");
-};
-
-void UYourGameInstance::LoadItemsFromDataTable(UDataTable* ItemTable)
-{
-    if (!ItemTable)
-        return;
-    
-    TArray<FItemTableRow*> AllRows;
-    ItemTable->GetAllRows<FItemTableRow>(TEXT("LoadItems"), AllRows);
-    
-    for (FItemTableRow* Row : AllRows)
-    {
-        if (Row && Row->Item && Row->bAutoRegister)
-        {
-            RegisterItem(Row->Item);
-        }
-    }
+    if (const auto* Found = ItemLUT.Find(ItemID))
+        return *Found;
+    return nullptr;
 }
 ```
 
 ---
 
-## Item Spawning
+## Item Interfaces
 
-### Server-Side Spawning
+Each item class implements one or more interfaces. These allow the plugin's components to query item properties polymorphically without casting.
 
-Always spawn items through GameMode:
-
-```cpp
-// Spawn item on ground
-void AYourCharacter::DropItem(int32 ItemID)
-{
-    if (!HasAuthority())
-    {
-        Server_DropItem(ItemID);
-        return;
-    }
-    
-    // Get GameMode
-    AYourGameMode* GM = GetWorld()->GetAuthGameMode<AYourGameMode>();
-    if (!GM)
-        return;
-    
-    // Calculate drop location
-    FVector DropLocation = GetActorLocation() + 
-        GetActorForwardVector() * 100.0f;
-    
-    // Spawn dropped item
-    ADroppedItem* DroppedItem = GM->SpawnItemFromActor(
-        this,
-        ItemID,
-        DropLocation,
-        true,  // Clamp to ground
-        100.0f // Full durability
-    );
-    
-    if (DroppedItem)
-    {
-        UE_LOG(LogTemp, Log, TEXT("Dropped item %d"), ItemID);
-    }
-}
-
-UFUNCTION(Server, Reliable, WithValidation)
-void Server_DropItem(int32 ItemID);
-
-void AYourCharacter::Server_DropItem_Implementation(int32 ItemID)
-{
-    DropItem(ItemID);
-}
-
-bool AYourCharacter::Server_DropItem_Validate(int32 ItemID)
-{
-    return ItemID > 0;
-}
-```
-
-### Loot Spawning
-
-Spawn multiple items from loot tables:
-
-```cpp
-USTRUCT(BlueprintType)
-struct FLootEntry
-{
-    GENERATED_BODY()
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    int32 ItemID = -1;
-    
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    float DropChance = 1.0f;  // 0.0-1.0
-    
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    int32 MinQuantity = 1;
-    
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    int32 MaxQuantity = 1;
-};
-
-void AYourNPC::SpawnLootOnDeath()
-{
-    if (!HasAuthority())
-        return;
-    
-    AYourGameMode* GM = GetWorld()->GetAuthGameMode<AYourGameMode>();
-    if (!GM)
-        return;
-    
-    FVector CorpseLocation = GetActorLocation();
-    
-    // Roll loot table
-    for (const FLootEntry& Entry : LootTable)
-    {
-        // Check drop chance
-        float Roll = FMath::FRand();
-        if (Roll > Entry.DropChance)
-            continue;
-        
-        // Calculate quantity
-        int32 Quantity = FMath::RandRange(Entry.MinQuantity, Entry.MaxQuantity);
-        
-        // Spawn items
-        for (int32 i = 0; i < Quantity; ++i)
-        {
-            FVector ItemLocation = CorpseLocation + 
-                FMath::VRand() * 100.0f; // Random offset
-            
-            GM->SpawnItemFromActor(this, Entry.ItemID, ItemLocation);
-        }
-    }
-    
-    // Spawn coins
-    if (CoinDrop.GetTotalCopper() > 0)
-    {
-        GM->SpawnCoinsFromActor(this, CoinDrop, CorpseLocation);
-    }
-}
-```
-
----
-
-## Best Practices
-
-### Item ID Organization
-
-Use ID ranges for different item types:
-
-```
-1-999:        Quest items
-1000-1999:    Consumables (potions, food)
-2000-2999:    Armor
-3000-3999:    Weapons
-4000-4999:    Bags
-5000-5999:    Crafting materials
-6000-6999:    Books
-10000+:       Special/event items
-```
-
-### Naming Conventions
-
-- **Data Assets**: `DA_Item_<Name>` (e.g., `DA_Item_IronHelmet`)
-- **Textures**: `T_Icon_<Type>_<Name>` (e.g., `T_Icon_Armor_IronHelmet`)
-- **Meshes**: `SM_<Type>_<Name>_<State>` (e.g., `SM_Helmet_Iron_Dropped`, `SM_Helmet_Iron_Worn`)
-- **Materials**: `M_<Type>_<Name>` (e.g., `M_Armor_Iron`)
-
-### Performance Optimization
-
-**✅ DO:**
-- Use texture atlases for item icons (reduce draw calls)
-- Keep item descriptions short (< 200 characters)
-- Use LODs for 3D item meshes
-- Preload frequently used items at startup
-
-**❌ DON'T:**
-- Load all items synchronously (use async loading)
-- Create unique materials for every item (use material instances)
-- Store large textures in item definitions (use references)
-
-### Validation
-
-Add validation to catch errors early:
-
-```cpp
-void UYourGameInstance::ValidateItemRegistry()
-{
-    TSet<int32> UsedIDs;
-    TArray<FString> Errors;
-    
-    for (const auto& Pair : ItemLUT)
-    {
-        UInventoryItemBase* Item = Pair.Value;
-        if (!Item)
-        {
-            Errors.Add(FString::Printf(TEXT("Null item at ID %d"), Pair.Key));
-            continue;
-        }
-        
-        // Check ItemID matches registry key
-        if (Item->ItemID != Pair.Key)
-        {
-            Errors.Add(FString::Printf(
-                TEXT("Item '%s' has mismatched ID: Registry=%d, Item=%d"),
-                *Item->Name, Pair.Key, Item->ItemID));
-        }
-        
-        // Check for missing icon
-        if (!Item->Icon)
-        {
-            Errors.Add(FString::Printf(
-                TEXT("Item '%s' (ID=%d) missing icon"),
-                *Item->Name, Item->ItemID));
-        }
-        
-        // Check for invalid dimensions
-        if (Item->Width <= 0 || Item->Height <= 0)
-        {
-            Errors.Add(FString::Printf(
-                TEXT("Item '%s' (ID=%d) has invalid dimensions: %dx%d"),
-                *Item->Name, Item->ItemID, Item->Width, Item->Height));
-        }
-        
-        // Check for duplicate IDs
-        if (UsedIDs.Contains(Item->ItemID))
-        {
-            Errors.Add(FString::Printf(
-                TEXT("Duplicate ItemID: %d (Item: '%s')"),
-                Item->ItemID, *Item->Name));
-        }
-        UsedIDs.Add(Item->ItemID);
-    }
-    
-    // Log all errors
-    if (Errors.Num() > 0)
-    {
-        UE_LOG(LogTemp, Error, TEXT("Item validation failed with %d errors:"), 
-            Errors.Num());
-        for (const FString& Error : Errors)
-        {
-            UE_LOG(LogTemp, Error, TEXT("  - %s"), *Error);
-        }
-    }
-    else
-    {
-        UE_LOG(LogTemp, Log, TEXT("Item validation passed: %d items OK"), 
-            ItemLUT.Num());
-    }
-}
-```
-
----
-
-## Related Documentation
-
-- [Interface Implementation Guide](./Interface_Implementation_Guide.md) - How to fetch and register items
-- [Component Architecture Guide](./Component_Architecture_Guide.md) - How components store items
-- [Integration Guide](./Integration_Guide.md) - Full system setup
-
----
-
-*Last Updated: 2026-01-30*
+| Interface | Implemented By | Purpose |
+|-----------|----------------|---------|
+| `IInventoryItemInterface` | `UInventoryItemBase` | Core item data (ID, name, size, weight, value) |
+| `IInventoryItemEquipableInterface` | `UInventoryItemEquipable` | Equipment slot targeting, mesh, sheath |
+| `IInventoryItemWeaponInterface` | `UInventoryItemEquipable` | Weapon queries |
+| `IInventoryItemDurableInterface` | `UInventoryItemEquipable` | Durability values |
+| `IInventoryItemBagInterface` | `UInventoryItemBag` | Bag dimensions, size restriction, weight reduction |
+| `IInventoryItemAmmoBagInterface` | `UInventoryItemAmmoBag` | Ammo type, fill-level meshes |
+| `IInventoryItemFieldRepairInterface` | `UInventoryItemFieldRepair` | Repair logic, thresholds, charges |
