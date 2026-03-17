@@ -418,6 +418,23 @@ public:
 	UFUNCTION(BlueprintCallable, meta = (BlueprintThreadSafe))
 	FTransform GetOffHandTransform() const;
 
+	/**
+	 * World-space location of the primary weapon's tip.
+	 * Reads the "WeaponTip" socket from PrimaryWeaponComponent (weapon skeletal mesh).
+	 * Falls back to the weapon component root, then to SOCKET_RightHandWeapon if no weapon is drawn.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Combat|FX")
+	FVector GetWeaponTipLocation() const;
+
+	/**
+	 * World-space location of the defender's contact point.
+	 * Reads "ShieldCenter" from SecondaryWeaponComponent if a shield is equipped,
+	 * "WeaponTip" if an off-hand weapon is equipped, or falls back to SOCKET_LeftHandWeapon.
+	 * Used by ComputeDefenseContactPoint to spawn ClashFX at the right midpoint.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Combat|FX")
+	FVector GetDefenseContactLocation() const;
+
 	UFUNCTION(BlueprintCallable)
 	void UpdateBagUsage(EBagSlot BagSlot, float BagUsage);
 };

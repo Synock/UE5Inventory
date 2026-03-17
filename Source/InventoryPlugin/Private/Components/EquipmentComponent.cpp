@@ -125,6 +125,47 @@ bool UEquipmentComponent::UnEquip(const UInventoryItemEquipable* Item, EEquipmen
 	{
 		if (USkeletalMeshComponent* SkeletalSocket = GetSkeletalMeshComponentFromSocket(PossibleSocket))
 		{
+			EEquipmentSocket LiveSocket = EEquipmentSocket::Unknown;
+			if (PossibleSocket == EEquipmentSocket::PrimarySheath)
+			{
+				LiveSocket = EEquipmentSocket::Primary;
+			}
+			else if (PossibleSocket == EEquipmentSocket::SecondarySheath)
+			{
+				LiveSocket = EEquipmentSocket::Secondary;
+			}
+			else if (PossibleSocket == EEquipmentSocket::BackSheath)
+			{
+				// BackSheath is used for shields (Secondary slot → SecondaryWeaponComponent)
+				// and primary-routed weapons.  Use EquipSlot to match Unsheath() logic.
+				LiveSocket = (EquipSlot == EEquipmentSlot::Secondary)
+					? EEquipmentSocket::Secondary
+					: EEquipmentSocket::Primary;
+			}
+			else if (PossibleSocket == EEquipmentSocket::RangedSheath)
+			{
+				LiveSocket = EEquipmentSocket::Primary;
+			}
+
+			if (LiveSocket != EEquipmentSocket::Unknown)
+			{
+				if (USkeletalMeshComponent* LiveSocketComponent = GetSkeletalMeshComponentFromSocket(LiveSocket))
+				{
+					// Always send the multicast so clients that have the weapon drawn in-hand
+					// receive the clear command even when the server-local pointer is already null.
+					UpdateEquipment(LiveSocketComponent, nullptr, {});
+					LiveSocketComponent->SetSkeletalMeshAsset(nullptr);
+					// Reset the tracked original slot so Sheath() doesn't try to return
+					// a mesh that no longer exists.
+					if (LiveSocket == EEquipmentSocket::Primary)
+						PrimaryWeaponOriginalSlot = EEquipmentSocket::PrimarySheath;
+					else if (LiveSocket == EEquipmentSocket::Secondary)
+						SecondaryWeaponOriginalSlot = EEquipmentSocket::SecondarySheath;
+				}
+			}
+
+			// Clear the sheath socket itself (may already be null on the server if the weapon
+			// was unsheathed on the client, but the multicast still notifies all clients).
 			UpdateEquipment(SkeletalSocket, nullptr, {});
 			SkeletalSocket->SetSkeletalMeshAsset(nullptr);
 			return true;
@@ -515,6 +556,21 @@ void UEquipmentComponent::TryUpdateDynamicMeshes(const TMap<EEquipmentSlot, USke
 			NewSkeletalMeshComponent->AttachToComponent(Cast<ACharacter>(GetOwner())->GetMesh(), TransformRules2);
 			NewSkeletalMeshComponent->SetLeaderPoseComponent(Cast<ACharacter>(GetOwner())->GetMesh());
 			VariableMeshesMap.Emplace(Slot, NewSkeletalMeshComponent);
+		}
+
+		// Apply material overrides for this slot's cloth mesh component
+		if (const TArray<FMaterialOverride>* Overrides = OverrideArray.Find(Slot))
+		{
+			USkeletalMeshComponent* MeshComp = VariableMeshesMap.FindChecked(Slot);
+			for (const FMaterialOverride& Override : *Overrides)
+			{
+				MeshComp->SetMaterial(Override.MaterialID, Override.OverrideMaterial);
+				if (UMaterialInstanceDynamic* DynMat = MeshComp->CreateAndSetMaterialInstanceDynamic(Override.MaterialID))
+				{
+					DynMat->SetVectorParameterValue(TEXT("Tint"), Override.TintColor);
+					DynMat->SetScalarParameterValue(TEXT("TintIntensity"), Override.TintIntensity);
+				}
+			}
 		}
 	}
 
@@ -1071,6 +1127,62 @@ FTransform UEquipmentComponent::GetOffHandTransform() const
 	}
 
 	return Out;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+FVector UEquipmentComponent::GetWeaponTipLocation() const
+{
+	// Primary weapon mesh owns the WeaponTip socket — the weapon component tracks hand_r
+	// automatically (SnapToTarget attachment to SOCKET_RightHandWeapon on the character mesh).
+	// Fall back to the character's right-hand socket if the weapon has no WeaponTip defined.
+	if (PrimaryWeaponComponent && PrimaryWeaponComponent->GetSkeletalMeshAsset())
+	{
+		if (PrimaryWeaponComponent->DoesSocketExist(FName("WeaponTip")))
+			return PrimaryWeaponComponent->GetSocketLocation(FName("WeaponTip"));
+
+		// No WeaponTip socket on this weapon mesh — use the attachment root (grip) as fallback
+		return PrimaryWeaponComponent->GetComponentLocation();
+	}
+
+	// No weapon drawn — fall back to the character's right-hand socket
+	if (const ACharacter* Owner = Cast<ACharacter>(GetOwner()))
+	{
+		if (const USkeletalMeshComponent* Mesh = Owner->GetMesh())
+			return Mesh->GetSocketLocation(FName("SOCKET_RightHandWeapon"));
+	}
+
+	return FVector::ZeroVector;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+FVector UEquipmentComponent::GetDefenseContactLocation() const
+{
+	// Defender contact point:
+	//   - Shield equipped  → ShieldCenter socket on SecondaryWeaponComponent (shield mesh)
+	//   - Off-hand weapon  → WeaponTip socket on SecondaryWeaponComponent (parrying weapon)
+	//   - Nothing equipped → SOCKET_LeftHandWeapon bone on the character mesh
+	if (SecondaryWeaponComponent && SecondaryWeaponComponent->GetSkeletalMeshAsset())
+	{
+		// Prefer ShieldCenter (defined on shields), then WeaponTip (defined on weapons)
+		if (SecondaryWeaponComponent->DoesSocketExist(FName("ShieldCenter")))
+			return SecondaryWeaponComponent->GetSocketLocation(FName("ShieldCenter"));
+
+		if (SecondaryWeaponComponent->DoesSocketExist(FName("WeaponTip")))
+			return SecondaryWeaponComponent->GetSocketLocation(FName("WeaponTip"));
+
+		return SecondaryWeaponComponent->GetComponentLocation();
+	}
+
+	// Nothing in the off-hand — use the left-hand socket as best approximation
+	if (const ACharacter* Owner = Cast<ACharacter>(GetOwner()))
+	{
+		if (const USkeletalMeshComponent* Mesh = Owner->GetMesh())
+			return Mesh->GetSocketLocation(FName("SOCKET_LeftHandWeapon"));
+	}
+
+	return FVector::ZeroVector;
 }
 
 //----------------------------------------------------------------------------------------------------------------------
