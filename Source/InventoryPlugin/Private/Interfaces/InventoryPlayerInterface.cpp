@@ -2,6 +2,7 @@
 
 #include "InventoryUtilities.h"
 #include "Components/BankComponent.h"
+#include "Components/InventoryNetComponent.h"
 #include "Components/KeyringComponent.h"
 #include "Interfaces/EquipmentInterface.h"
 #include "Interfaces/MerchantInterface.h"
@@ -762,4 +763,248 @@ void IInventoryPlayerInterface::PlayerCancelTrade()
 	Server_PlayerCancelTrade();
 }
 
+//======================================================================================================================
+// Default Server_ implementations - forward to UInventoryNetComponent
+//======================================================================================================================
+
+void IInventoryPlayerInterface::Server_MerchantTrade(AActor* InputMerchantActor)
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_MerchantTrade(InputMerchantActor);
+}
+
+void IInventoryPlayerInterface::Server_StopMerchantTrade()
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_StopMerchantTrade();
+}
+
+void IInventoryPlayerInterface::Server_PlayerBuyFromMerchant(int32 ItemId, const FCoinValue& Price)
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_PlayerBuyFromMerchant(ItemId, Price);
+}
+
+void IInventoryPlayerInterface::Server_PlayerSellToMerchant(EBagSlot OutSlot, int32 ItemId, int32 TopLeft,
+                                                             const FCoinValue& Price)
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_PlayerSellToMerchant(OutSlot, ItemId, TopLeft, Price);
+}
+
+void IInventoryPlayerInterface::Server_RepairTrade(AActor* InputRepairerActor)
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_RepairTrade(InputRepairerActor);
+}
+
+void IInventoryPlayerInterface::Server_StopRepairTrade()
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_StopRepairTrade();
+}
+
+void IInventoryPlayerInterface::Server_PlayerRepairEquipment(EEquipmentSlot Slot, const FCoinValue& Price)
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_PlayerRepairEquipment(Slot, Price);
+}
+
+void IInventoryPlayerInterface::Server_PlayerRepairAllEquipment(const FCoinValue& TotalPrice)
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_PlayerRepairAllEquipment(TotalPrice);
+}
+
+void IInventoryPlayerInterface::Server_PlayerAutoEquipItem(int32 InTopLeft, EBagSlot InSlot, int32 InItemId)
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_PlayerAutoEquipItem(InTopLeft, InSlot, InItemId);
+}
+
+void IInventoryPlayerInterface::Server_LootActor(AActor* InputLootedActor)
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_LootActor(InputLootedActor);
+}
+
+void IInventoryPlayerInterface::Server_StopLooting()
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_StopLooting();
+}
+
+void IInventoryPlayerInterface::Server_PlayerLootItem(int32 InTopLeft, EBagSlot InSlot, int32 InItemId,
+                                                       int32 OutTopLeft)
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_PlayerLootItem(InTopLeft, InSlot, InItemId, OutTopLeft);
+}
+
+void IInventoryPlayerInterface::Server_PlayerEquipItemFromLoot(int32 InItemId, EEquipmentSlot InSlot, int32 OutTopLeft)
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_PlayerEquipItemFromLoot(InItemId, InSlot, OutTopLeft);
+}
+
+void IInventoryPlayerInterface::Server_PlayerAutoLootAll()
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_PlayerAutoLootAll();
+}
+
+void IInventoryPlayerInterface::Server_PlayerMoveItem(int32 InTopLeft, EBagSlot InSlot, int32 InItemId,
+                                                       int32 OutTopLeft, EBagSlot OutSlot)
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_PlayerMoveItem(InTopLeft, InSlot, InItemId, OutTopLeft, OutSlot);
+}
+
+void IInventoryPlayerInterface::Server_PlayerUnequipItem(int32 InTopLeft, EBagSlot InSlot, int32 InItemId,
+                                                          EEquipmentSlot OutSlot)
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_PlayerUnequipItem(InTopLeft, InSlot, InItemId, OutSlot);
+}
+
+void IInventoryPlayerInterface::Server_PlayerEquipItemFromInventory(int32 InItemId, EEquipmentSlot InSlot,
+                                                                     int32 OutTopLeft, EBagSlot OutSlot)
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_PlayerEquipItemFromInventory(InItemId, InSlot, OutTopLeft, OutSlot);
+}
+
+void IInventoryPlayerInterface::Server_PlayerSwapEquipment(int32 DroppedItemId, EEquipmentSlot DroppedInSlot,
+                                                            int32 SwappedItemId, EEquipmentSlot DraggedOutSlot)
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_PlayerSwapEquipment(DroppedItemId, DroppedInSlot, SwappedItemId, DraggedOutSlot);
+}
+
+void IInventoryPlayerInterface::Server_TransferCoinTo(UCoinComponent* GivingComponent,
+                                                       UCoinComponent* ReceivingComponent,
+                                                       const FCoinValue& RemovedCoinValue,
+                                                       const FCoinValue& AddedCoinValue)
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_TransferCoinTo(GivingComponent, ReceivingComponent, RemovedCoinValue, AddedCoinValue);
+}
+
+void IInventoryPlayerInterface::Server_DropItemFromInventory(int32 TopLeft, EBagSlot Slot, FVector DropLocation)
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_DropItemFromInventory(TopLeft, Slot, DropLocation);
+}
+
+void IInventoryPlayerInterface::Server_DropItemFromEquipment(EEquipmentSlot Slot, FVector DropLocation)
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_DropItemFromEquipment(Slot, DropLocation);
+}
+
+void IInventoryPlayerInterface::Server_CancelStagingArea()
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_CancelStagingArea();
+}
+
+void IInventoryPlayerInterface::Server_TransferStagingToActor(AActor* TargetActor)
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_TransferStagingToActor(TargetActor);
+}
+
+void IInventoryPlayerInterface::Server_MoveEquipmentToStagingArea(int32 InItemId, EEquipmentSlot OutSlot)
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_MoveEquipmentToStagingArea(InItemId, OutSlot);
+}
+
+void IInventoryPlayerInterface::Server_MoveInventoryItemToStagingArea(int32 InItemId, int32 OutTopLeft,
+                                                                       EBagSlot OutSlot)
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_MoveInventoryItemToStagingArea(InItemId, OutTopLeft, OutSlot);
+}
+
+void IInventoryPlayerInterface::Server_PlayerAddKeyFromInventory(int32 InTopLeft, EBagSlot InSlot, int32 InItemId)
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_PlayerAddKeyFromInventory(InTopLeft, InSlot, InItemId);
+}
+
+void IInventoryPlayerInterface::Server_PlayerRemoveKeyToInventory(int32 KeyId)
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_PlayerRemoveKeyToInventory(KeyId);
+}
+
+void IInventoryPlayerInterface::Server_PlayerRequestTrade(ACharacter* OtherPlayerCharacter)
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_PlayerRequestTrade(OtherPlayerCharacter);
+}
+
+void IInventoryPlayerInterface::Server_PlayerRequestTradeWithItem(ACharacter* OtherPlayerCharacter, int32 ItemID,
+                                                                   EBagSlot BagSlot, int32 TopLeft)
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_PlayerRequestTradeWithItem(OtherPlayerCharacter, ItemID, BagSlot, TopLeft);
+}
+
+void IInventoryPlayerInterface::Server_PlayerAcceptTradeRequest(ACharacter* RequestingPlayerCharacter)
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_PlayerAcceptTradeRequest(RequestingPlayerCharacter);
+}
+
+void IInventoryPlayerInterface::Server_PlayerDeclineTradeRequest(ACharacter* RequestingPlayerCharacter)
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_PlayerDeclineTradeRequest(RequestingPlayerCharacter);
+}
+
+void IInventoryPlayerInterface::Server_PlayerAddItemToTrade(int32 ItemID, EBagSlot BagSlot, int32 TopLeft)
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_PlayerAddItemToTrade(ItemID, BagSlot, TopLeft);
+}
+
+void IInventoryPlayerInterface::Server_PlayerRemoveItemFromTrade(int32 SlotIndex)
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_PlayerRemoveItemFromTrade(SlotIndex);
+}
+
+void IInventoryPlayerInterface::Server_PlayerSetTradeCoin(const FCoinValue& CoinAmount)
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_PlayerSetTradeCoin(CoinAmount);
+}
+
+void IInventoryPlayerInterface::Server_PlayerToggleTradeAcceptance(bool bAccept)
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_PlayerToggleTradeAcceptance(bAccept);
+}
+
+void IInventoryPlayerInterface::Server_PlayerCancelTrade()
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_PlayerCancelTrade();
+}
+
 //----------------------------------------------------------------------------------------------------------------------
+// Drop wrappers
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryPlayerInterface::DropItemFromInventory(int32 TopLeft, EBagSlot Slot, FVector DropLocation)
+{
+	Server_DropItemFromInventory(TopLeft, Slot, DropLocation);
+}
+
+void IInventoryPlayerInterface::DropItemFromEquipment(EEquipmentSlot Slot, FVector DropLocation)
+{
+	Server_DropItemFromEquipment(Slot, DropLocation);
+}
+
