@@ -17,7 +17,8 @@
 6. [Item Creation](#item-creation)
 7. [UI Integration](#ui-integration)
 8. [Multiplayer](#multiplayer)
-9. [Troubleshooting](#troubleshooting)
+9. [Customizing Server Behavior](#customizing-server-behavior)
+10. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -31,7 +32,7 @@ The Inventory Plugin is a fully replicated, grid-based inventory and equipment s
 - **Full replication** with server authority
 - **Equipment system** with skeletal mesh attachment and sheath/unsheath
 - **Weight management** and encumbrance
-- **Currency system** (Copper, Silver, Gold, Platinum — 10x conversion per tier)
+- **Currency system** (Copper, Silver, Gold, Platinum - 10x conversion per tier)
 - **Loot system** for pickable items and coins
 - **Merchant system** with buy/sell and dynamic inventory
 - **Banking system** for persistent storage
@@ -86,7 +87,7 @@ PublicDependencyModuleNames.AddRange(new string[] {
 
 ### 4. Regenerate and Compile
 
-Right-click `.uproject` → Generate Visual Studio project files, then build.
+Right-click `.uproject` -> Generate Visual Studio project files, then build.
 
 ---
 
@@ -94,25 +95,29 @@ Right-click `.uproject` → Generate Visual Studio project files, then build.
 
 ```
 GameInstance (IInventoryGameInstanceInterface)
-    └── Item Registry (ItemID → UInventoryItemBase*)
+    +-- Item Registry (ItemID -> UInventoryItemBase*)
 
 GameMode (IInventoryGameModeInterface)
-    ├── Item Spawning (ADroppedItem / ADroppedCoins)
-    └── Item Lookup (delegates to GameInstance)
+    +-- Item Spawning (ADroppedItem / ADroppedCoins)
+    +-- Item Lookup (delegates to GameInstance)
 
 PlayerController (IInventoryPlayerInterface)
-    ├── UInventoryComponent    (bag storage)
-    ├── UCoinComponent         (player currency)
-    ├── UStagingAreaComponent  (trade/merchant staging)
-    ├── UCoinComponent         (staging coins)
-    ├── UBankComponent         (bank storage)
-    └── UCoinComponent         (bank coins)
+    +-- UInventoryNetComponent  (Server RPCs, replicated interaction state)
+    +-- UInventoryComponent     (bag storage)
+    +-- UCoinComponent          (player currency)
+    +-- UStagingAreaComponent   (trade/merchant staging)
+    +-- UCoinComponent          (staging coins)
+    +-- UBankComponent          (bank storage)
+    +-- UCoinComponent          (bank coins)
+    +-- UKeyringComponent       (key items, optional)
+    +-- UTradeComponent         (trade state, optional)
+    +-- UFieldRepairComponent   (field repair, optional)
 
 Character (IEquipmentInterface + IInventoryModularCharacterInterface)
-    └── UEquipmentComponent    (worn items + visual meshes)
+    +-- UEquipmentComponent     (worn items + visual meshes)
 ```
 
-All state changes are server-authoritative. Components replicate via `ReplicatedUsing` callbacks that fire delegates for UI updates.
+All state changes are server-authoritative. The `UInventoryNetComponent` owns every `UFUNCTION(Server, Reliable)` RPC for inventory operations (loot, equip, trade, merchant, repair, etc.). Data components replicate via `ReplicatedUsing` callbacks that fire delegates for UI updates.
 
 ---
 
@@ -120,7 +125,7 @@ All state changes are server-authoritative. Components replicate via `Replicated
 
 > For detailed interface documentation, see the [Interface Implementation Guide](./Interface_Implementation_Guide.md).
 
-### Step 1: GameInstance — Item Registry
+### Step 1: GameInstance - Item Registry
 
 Your `GameInstance` implements `IInventoryGameInstanceInterface` to serve as the global item lookup table.
 
@@ -145,7 +150,7 @@ public:
     virtual UInventoryItemBase* FetchItemFromID(int32 ID) override;
     virtual void RegisterItem(UInventoryItemBase* NewItem) override;
 
-    // Optional coin icon overrides
+    // Optional coin icon overrides (return nullptr to use widget defaults)
     virtual UTexture2D* GetCopperCoinIconTexture() const override;
     virtual UTexture2D* GetSilverCoinIconTexture() const override;
     virtual UTexture2D* GetGoldCoinIconTexture() const override;
@@ -157,13 +162,13 @@ protected:
 
     // Assign in the Blueprint derived from this class
     UPROPERTY(EditDefaultsOnly, Category = "Inventory|Currency")
-    UTexture2D* CopperCoinIcon;
+    UTexture2D* CopperCoinIcon = nullptr;
     UPROPERTY(EditDefaultsOnly, Category = "Inventory|Currency")
-    UTexture2D* SilverCoinIcon;
+    UTexture2D* SilverCoinIcon = nullptr;
     UPROPERTY(EditDefaultsOnly, Category = "Inventory|Currency")
-    UTexture2D* GoldCoinIcon;
+    UTexture2D* GoldCoinIcon = nullptr;
     UPROPERTY(EditDefaultsOnly, Category = "Inventory|Currency")
-    UTexture2D* PlatinumCoinIcon;
+    UTexture2D* PlatinumCoinIcon = nullptr;
 
     // DataTable for bulk item registration (row struct: FItemContainerLine)
     UPROPERTY(EditDefaultsOnly, Category = "Inventory|Items")
@@ -197,9 +202,7 @@ void UYourGameInstance::SetupInternals()
         {
             FItemContainerLine* ItemRow = reinterpret_cast<FItemContainerLine*>(Row.Value);
             if (ItemRow && ItemRow->Item)
-            {
                 ItemLUT.Add(ItemRow->Item->ItemID, ItemRow->Item);
-            }
         }
     }
 
@@ -239,9 +242,9 @@ UTexture2D* UYourGameInstance::GetPlatinumCoinIconTexture() const { return Plati
 
 ---
 
-### Step 2: GameMode — Item Spawning
+### Step 2: GameMode - Item Spawning
 
-Your `GameMode` implements `IInventoryGameModeInterface`. The spawn methods (`SpawnItemFromActor`, `SpawnCoinsFromActor`, etc.) have **default implementations** in the interface — you only need to override `FetchItemFromID` and `RegisterItem`.
+Your `GameMode` implements `IInventoryGameModeInterface`. The spawn methods (`SpawnItemFromActor`, `SpawnCoinsFromActor`, etc.) have **default implementations** in the interface - you only need to override `FetchItemFromID` and `RegisterItem`.
 
 **Header:**
 ```cpp
@@ -285,9 +288,9 @@ void AYourGameMode::RegisterItem(UInventoryItemBase* NewItem)
 
 ---
 
-### Step 3: PlayerController — Inventory Components
+### Step 3: PlayerController - Inventory Components and Net Component
 
-Your `PlayerController` implements `IInventoryPlayerInterface` and creates all inventory-related components.
+Your `PlayerController` implements `IInventoryPlayerInterface` and creates all inventory-related components, including the `UInventoryNetComponent` that owns every Server RPC.
 
 **Header:**
 ```cpp
@@ -298,6 +301,7 @@ Your `PlayerController` implements `IInventoryPlayerInterface` and creates all i
 #include "YourPlayerController.generated.h"
 
 class UInventoryComponent;
+class UInventoryNetComponent;
 class UCoinComponent;
 class UStagingAreaComponent;
 class UBankComponent;
@@ -311,7 +315,8 @@ class YOURPROJECT_API AYourPlayerController : public APlayerController,
 public:
     AYourPlayerController();
 
-    // IInventoryPlayerInterface — required overrides
+    // IInventoryPlayerInterface - required overrides
+    virtual UInventoryNetComponent* GetInventoryNetComponent() override;
     virtual UInventoryComponent* GetInventoryComponent() override;
     virtual const UInventoryComponent* GetInventoryComponentConst() const override;
     virtual UCoinComponent* GetCoinComponent() override;
@@ -326,8 +331,15 @@ public:
     virtual AActor* GetLootedActor() override;
     virtual const AActor* GetLootedActorConst() const override;
     virtual void SetLootedActor(AActor* Actor) override;
+    virtual IInventoryHUDInterface* GetInventoryHUDInterface() override;
+    virtual UObject* GetInventoryHUDObject() override;
+    virtual UCoinComponent* GetStagingAreaCoin() override;
+    virtual UStagingAreaComponent* GetStagingAreaItems() override;
+    virtual FOnWeightChanged& GetWeightChangedDelegate() override;
 
 protected:
+    UPROPERTY(Replicated, BlueprintReadOnly, Category = "Inventory")
+    UInventoryNetComponent* InventoryNetComponent;
     UPROPERTY(Replicated, BlueprintReadOnly, Category = "Inventory")
     UInventoryComponent* Inventory;
     UPROPERTY(Replicated, BlueprintReadOnly, Category = "Inventory")
@@ -341,12 +353,8 @@ protected:
     UPROPERTY(Replicated, BlueprintReadOnly, Category = "Inventory")
     UCoinComponent* BankCoin;
 
-    UPROPERTY(Replicated)
-    bool bInTransaction = false;
-    UPROPERTY(Replicated)
-    AActor* CurrentMerchantActor = nullptr;
-    UPROPERTY(Replicated)
-    AActor* CurrentLootedActor = nullptr;
+    UPROPERTY(BlueprintAssignable)
+    FOnWeightChanged WeightDispatcher;
 
     virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 };
@@ -355,6 +363,7 @@ protected:
 **Implementation:**
 ```cpp
 #include "YourPlayerController.h"
+#include "Components/InventoryNetComponent.h"
 #include "Components/InventoryComponent.h"
 #include "Components/CoinComponent.h"
 #include "Components/StagingAreaComponent.h"
@@ -363,6 +372,9 @@ protected:
 
 AYourPlayerController::AYourPlayerController()
 {
+    // Net component owns all Server RPCs and replicated interaction state
+    InventoryNetComponent = CreateDefaultSubobject<UInventoryNetComponent>(TEXT("InventoryNetComponent"));
+
     Inventory = CreateDefaultSubobject<UInventoryComponent>(TEXT("Inventory"));
     Inventory->SetNetAddressable();
     Inventory->SetIsReplicated(true);
@@ -392,37 +404,84 @@ void AYourPlayerController::GetLifetimeReplicatedProps(
     TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
     Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+    DOREPLIFETIME(AYourPlayerController, InventoryNetComponent);
     DOREPLIFETIME(AYourPlayerController, Inventory);
     DOREPLIFETIME(AYourPlayerController, CoinPurse);
     DOREPLIFETIME(AYourPlayerController, StagingAreaItems);
     DOREPLIFETIME(AYourPlayerController, StagingAreaCoin);
     DOREPLIFETIME(AYourPlayerController, BankComponent);
     DOREPLIFETIME(AYourPlayerController, BankCoin);
-    DOREPLIFETIME(AYourPlayerController, bInTransaction);
-    DOREPLIFETIME(AYourPlayerController, CurrentMerchantActor);
-    DOREPLIFETIME(AYourPlayerController, CurrentLootedActor);
 }
 
-// Interface getters — straightforward delegation
+// Interface getters - delegate to components
+UInventoryNetComponent* AYourPlayerController::GetInventoryNetComponent()
+{
+    return InventoryNetComponent;
+}
+
 UInventoryComponent* AYourPlayerController::GetInventoryComponent() { return Inventory; }
 const UInventoryComponent* AYourPlayerController::GetInventoryComponentConst() const { return Inventory; }
 UCoinComponent* AYourPlayerController::GetCoinComponent() { return CoinPurse; }
 const UCoinComponent* AYourPlayerController::GetCoinComponentConst() const { return CoinPurse; }
 AActor* AYourPlayerController::GetInventoryOwningActor() { return GetPawn(); }
 AActor const* AYourPlayerController::GetInventoryOwningActorConst() const { return GetPawn(); }
-bool AYourPlayerController::GetTransactionBoolean() { return bInTransaction; }
-void AYourPlayerController::SetTransactionBoolean(bool Value) { bInTransaction = Value; }
-AActor* AYourPlayerController::GetMerchantActor() { return CurrentMerchantActor; }
-const AActor* AYourPlayerController::GetMerchantActorConst() const { return CurrentMerchantActor; }
-void AYourPlayerController::SetMerchantActor(AActor* Actor) { CurrentMerchantActor = Actor; }
-AActor* AYourPlayerController::GetLootedActor() { return CurrentLootedActor; }
-const AActor* AYourPlayerController::GetLootedActorConst() const { return CurrentLootedActor; }
-void AYourPlayerController::SetLootedActor(AActor* Actor) { CurrentLootedActor = Actor; }
+
+// Transaction state, merchant, and looted actor delegate to the net component
+bool AYourPlayerController::GetTransactionBoolean()
+{
+    return InventoryNetComponent ? InventoryNetComponent->TransactionBoolean : false;
+}
+
+void AYourPlayerController::SetTransactionBoolean(bool Value)
+{
+    if (InventoryNetComponent)
+        InventoryNetComponent->TransactionBoolean = Value;
+}
+
+AActor* AYourPlayerController::GetMerchantActor()
+{
+    return InventoryNetComponent ? InventoryNetComponent->MerchantActor.Get() : nullptr;
+}
+
+const AActor* AYourPlayerController::GetMerchantActorConst() const
+{
+    return InventoryNetComponent ? InventoryNetComponent->MerchantActor.Get() : nullptr;
+}
+
+void AYourPlayerController::SetMerchantActor(AActor* Actor)
+{
+    if (InventoryNetComponent)
+        InventoryNetComponent->MerchantActor = Actor;
+}
+
+AActor* AYourPlayerController::GetLootedActor()
+{
+    return InventoryNetComponent ? InventoryNetComponent->LootedActor.Get() : nullptr;
+}
+
+const AActor* AYourPlayerController::GetLootedActorConst() const
+{
+    return InventoryNetComponent ? InventoryNetComponent->LootedActor.Get() : nullptr;
+}
+
+void AYourPlayerController::SetLootedActor(AActor* Actor)
+{
+    if (InventoryNetComponent)
+        InventoryNetComponent->LootedActor = Actor;
+}
+
+UCoinComponent* AYourPlayerController::GetStagingAreaCoin() { return StagingAreaCoin; }
+UStagingAreaComponent* AYourPlayerController::GetStagingAreaItems() { return StagingAreaItems; }
+FOnWeightChanged& AYourPlayerController::GetWeightChangedDelegate() { return WeightDispatcher; }
 ```
+
+**Key points:**
+- `TransactionBoolean`, `MerchantActor`, `LootedActor`, and `RepairerActor` live on `UInventoryNetComponent` as replicated properties. The interface getters delegate to the component.
+- `UInventoryNetComponent` calls `SetIsReplicatedByDefault(true)` in its own constructor, so you do **not** need to call `SetNetAddressable()` or `SetIsReplicated(true)` on it.
 
 ---
 
-### Step 4: Character — Equipment
+### Step 4: Character - Equipment
 
 Your `Character` implements `IEquipmentInterface` (and optionally `IInventoryModularCharacterInterface` for modular mesh support).
 
@@ -506,7 +565,7 @@ void AYourPlayerController::BeginPlay()
         Inventory->BagSet(EBagSlot::Pocket1, true, 3, 2, EItemSize::Giant, 1.0f);
         Inventory->BagSet(EBagSlot::Pocket2, true, 3, 2, EItemSize::Giant, 1.0f);
 
-        // Bag slots start inactive — activated when bag items are equipped
+        // Bag slots start inactive - activated when bag items are equipped
         Inventory->BagSet(EBagSlot::WaistBag1, false, 0, 0, EItemSize::Tiny, 1.0f);
         Inventory->BagSet(EBagSlot::WaistBag2, false, 0, 0, EItemSize::Tiny, 1.0f);
         Inventory->BagSet(EBagSlot::BackPack1, false, 0, 0, EItemSize::Tiny, 1.0f);
@@ -534,7 +593,7 @@ if (BagItem && BagItem->IsBag())
 
 > For detailed item configuration, see the [Item System Guide](./Item_System_Guide.md).
 
-1. Right-click in Content Browser → **Miscellaneous** → **Data Asset**
+1. Right-click in Content Browser -> **Miscellaneous** -> **Data Asset**
 2. Select the appropriate parent class (e.g., `InventoryItemBase`, `InventoryItemEquipable`, `InventoryItemBag`)
 3. Configure properties (ItemID, Name, Icon, Width, Height, etc.)
 4. Add to your DataTable or `ItemTable` array in the GameInstance Blueprint
@@ -567,23 +626,143 @@ Equipment->EquipmentDispatcher.AddDynamic(this, &UMyWidget::OnEquipmentChanged);
 CoinPurse->PurseDispatcher.AddDynamic(this, &UMyWidget::OnCoinChanged);
 ```
 
+To respond to loot/merchant/repair window changes, override the `OnRep_*` methods in your `UInventoryNetComponent` subclass (see [Customizing Server Behavior](#customizing-server-behavior)) and drive your HUD from there.
+
 ---
 
 ## Multiplayer
 
-All inventory mutations must happen on the server. The `UInventoryComponent::AddItemAt()` and `RemoveItem()` methods are already declared as `Server, Reliable` RPCs.
+All inventory mutations happen on the server via `UInventoryNetComponent`'s Server RPCs. Client code calls public wrapper methods on `IInventoryPlayerInterface` (e.g., `PlayerUnequipItem()`, `PlayerRequestTrade()`), which forward to the appropriate `Server_*` RPC on the net component.
 
 **Replication flow:**
-1. Client triggers UI action
-2. Server RPC is called (e.g., `AddItemAt`)
-3. Server validates and modifies component state
-4. `ReplicatedUsing` callback fires on clients → delegates broadcast → UI updates
+1. Client triggers UI action (e.g., drag item to equipment slot)
+2. Interface wrapper calls `Server_*` RPC on `UInventoryNetComponent`
+3. Server validates the request (`Validate*` virtual), then executes it (`Handle*` virtual)
+4. Server modifies component state (e.g., `UInventoryComponent`, `UEquipmentComponent`)
+5. `ReplicatedUsing` callback fires on clients -> delegates broadcast -> UI updates
 
 **Component setup checklist:**
-- `CreateDefaultSubobject<>()` in constructor
-- `SetNetAddressable()` on each component
-- `SetIsReplicated(true)` on each component
-- `DOREPLIFETIME()` in `GetLifetimeReplicatedProps()`
+- `CreateDefaultSubobject<>()` in constructor for all components
+- `SetNetAddressable()` + `SetIsReplicated(true)` on data components (`UInventoryComponent`, `UCoinComponent`, etc.)
+- `UInventoryNetComponent` handles its own replication setup (`SetIsReplicatedByDefault(true)`)
+- `DOREPLIFETIME()` in `GetLifetimeReplicatedProps()` for all replicated component UPROPERTYs
+
+---
+
+## Customizing Server Behavior
+
+`UInventoryNetComponent` owns every `UFUNCTION(Server, Reliable, WithValidation)` RPC. Each RPC dispatches to a pair of `virtual` methods:
+
+- **`Handle*()`** - Performs the actual inventory mutation. Override to add game-specific logic (chat messages, backend saves, lore tracking, etc.).
+- **`Validate*()`** - Runs anti-cheat checks before execution. Override to add extra validation; call `Super::Validate*()` to keep built-in checks.
+
+### Standard Behavior (No Subclass Needed)
+
+If the default inventory behavior is sufficient, use `UInventoryNetComponent` directly:
+
+```cpp
+// In PlayerController constructor
+InventoryNetComponent = CreateDefaultSubobject<UInventoryNetComponent>(TEXT("InventoryNetComponent"));
+```
+
+This gives you working loot, equip, trade, merchant, repair, staging, and key operations out of the box.
+
+### Custom Behavior (Subclass)
+
+To add game-specific behavior, create a subclass and override only the methods you need:
+
+**Header:**
+```cpp
+#pragma once
+#include "CoreMinimal.h"
+#include "Components/InventoryNetComponent.h"
+#include "MyInventoryNetComponent.generated.h"
+
+UCLASS(ClassGroup=(Inventory), meta=(BlueprintSpawnableComponent))
+class YOURPROJECT_API UMyInventoryNetComponent : public UInventoryNetComponent
+{
+    GENERATED_BODY()
+
+protected:
+    // Add chat message when player loots an item
+    virtual void HandlePlayerLootItem(int32 InTopLeft, EBagSlot InSlot,
+                                      int32 InItemId, int32 OutTopLeft) override;
+
+    // Spawn a world item when dropping from inventory
+    virtual void HandleDropItemFromInventory(int32 TopLeft, EBagSlot Slot,
+                                             FVector DropLocation) override;
+
+    // Drive HUD when loot/merchant/repair windows open or close
+    virtual void OnRep_LootedActor() override;
+    virtual void OnRep_MerchantActor() override;
+    virtual void OnRep_RepairerActor() override;
+};
+```
+
+**Implementation pattern:**
+```cpp
+void UMyInventoryNetComponent::HandlePlayerLootItem(int32 InTopLeft, EBagSlot InSlot,
+                                                     int32 InItemId, int32 OutTopLeft)
+{
+    // Call base to perform the actual loot operation
+    Super::HandlePlayerLootItem(InTopLeft, InSlot, InItemId, OutTopLeft);
+
+    // Add game-specific behavior after the base operation
+    NotifyGroupChat(InItemId);  // your custom logic
+}
+
+void UMyInventoryNetComponent::HandleDropItemFromInventory(int32 TopLeft, EBagSlot Slot,
+                                                            FVector DropLocation)
+{
+    // Replace the default behavior with a game-specific one
+    IInventoryPlayerInterface* PlayerInv = GetPlayerInterface();
+    if (!PlayerInv)
+        return;
+
+    const int32 ItemID = PlayerInv->PlayerGetItem(TopLeft, Slot);
+    PlayerInv->PlayerRemoveItem(TopLeft, Slot);
+
+    // Spawn dropped item via GameMode
+    if (auto* GMI = Cast<IInventoryGameModeInterface>(GetWorld()->GetAuthGameMode()))
+        GMI->SpawnItemFromActor(GetOwner(), ItemID, DropLocation);
+}
+
+void UMyInventoryNetComponent::OnRep_LootedActor()
+{
+    // Drive your HUD from the replicated state change
+    // LootedActor != nullptr -> show loot window
+    // LootedActor == nullptr -> hide loot window
+}
+```
+
+Then use your subclass in the PlayerController constructor:
+
+```cpp
+InventoryNetComponent = CreateDefaultSubobject<UMyInventoryNetComponent>(TEXT("InventoryNetComponent"));
+```
+
+### Available Handle/Validate Overrides
+
+| Category | Handle Methods | Validate Methods |
+|----------|---------------|-----------------|
+| **Inventory** | `HandlePlayerMoveItem`, `HandlePlayerUnequipItem`, `HandlePlayerEquipItemFromInventory`, `HandlePlayerSwapEquipment`, `HandlePlayerAutoEquipItem`, `HandleTransferCoinTo`, `HandleDropItemFromInventory`, `HandleDropItemFromEquipment` | `ValidatePlayerMoveItem`, `ValidatePlayerUnequipItem`, `ValidatePlayerEquipItemFromInventory`, `ValidatePlayerSwapEquipment`, `ValidatePlayerAutoEquipItem`, `ValidateTransferCoinTo`, `ValidateDropItemFromInventory`, `ValidateDropItemFromEquipment` |
+| **Loot** | `HandleLootActor`, `HandleStopLooting`, `HandlePlayerLootItem`, `HandlePlayerEquipItemFromLoot`, `HandlePlayerAutoLootAll` | `ValidateLootActor`, `ValidatePlayerLootItem`, `ValidatePlayerEquipItemFromLoot` |
+| **Merchant** | `HandleMerchantTrade`, `HandleStopMerchantTrade`, `HandlePlayerBuyFromMerchant`, `HandlePlayerSellToMerchant` | `ValidatePlayerBuyFromMerchant`, `ValidatePlayerSellToMerchant` |
+| **Repair** | `HandleRepairTrade`, `HandleStopRepairTrade`, `HandlePlayerRepairEquipment`, `HandlePlayerRepairAllEquipment` | `ValidatePlayerRepairEquipment`, `ValidatePlayerRepairAllEquipment` |
+| **Staging** | `HandleCancelStagingArea`, `HandleTransferStagingToActor`, `HandleMoveEquipmentToStagingArea`, `HandleMoveInventoryItemToStagingArea` | `ValidateTransferStagingToActor`, `ValidateMoveEquipmentToStagingArea`, `ValidateMoveInventoryItemToStagingArea` |
+| **Keys** | `HandlePlayerAddKeyFromInventory`, `HandlePlayerRemoveKeyToInventory` | `ValidatePlayerAddKeyFromInventory`, `ValidatePlayerRemoveKeyToInventory` |
+| **Trade** | `HandlePlayerRequestTrade`, `HandlePlayerRequestTradeWithItem`, `HandlePlayerAcceptTradeRequest`, `HandlePlayerDeclineTradeRequest`, `HandlePlayerAddItemToTrade`, `HandlePlayerRemoveItemFromTrade`, `HandlePlayerSetTradeCoin`, `HandlePlayerToggleTradeAcceptance`, `HandlePlayerCancelTrade` | `ValidatePlayerRequestTrade`, `ValidatePlayerRequestTradeWithItem`, `ValidatePlayerAcceptTradeRequest`, `ValidatePlayerAddItemToTrade`, `ValidatePlayerSetTradeCoin` |
+| **Replication** | `OnRep_LootedActor`, `OnRep_MerchantActor`, `OnRep_RepairerActor` | - |
+
+### Helper Methods
+
+`UInventoryNetComponent` provides helpers available to subclasses:
+
+```cpp
+IInventoryPlayerInterface* GetPlayerInterface() const;  // Cached owner interface (set in BeginPlay)
+IEquipmentInterface*       GetEquipmentInterface() const; // Equipment from owning actor's pawn
+UTradeComponent*           GetTradeComponent() const;     // Trade component from owner
+```
 
 ---
 
@@ -594,7 +773,7 @@ All inventory mutations must happen on the server. The `UInventoryComponent::Add
 1. Item registered? `FetchItemFromID()` should return non-null
 2. Bag initialized? `BagSet()` called with valid dimensions
 3. Index valid? `TopLeftID < Width * Height`
-4. Server authority? `AddItemAt` is a Server RPC — call it, don't check `HasAuthority()` yourself
+4. Server authority? RPCs are server-only - the interface wrappers handle calling them
 
 ### Equipment Not Visible
 
@@ -605,11 +784,26 @@ All inventory mutations must happen on the server. The `UInventoryComponent::Add
 ### Replication Not Working
 
 1. `SetReplicates(true)` on owning actor
-2. `SetIsReplicated(true)` + `SetNetAddressable()` on component
-3. `DOREPLIFETIME()` in `GetLifetimeReplicatedProps()`
-4. Making changes on server, not client
+2. `SetIsReplicated(true)` + `SetNetAddressable()` on data components
+3. `UInventoryNetComponent` created via `CreateDefaultSubobject` (handles its own replication)
+4. `DOREPLIFETIME()` in `GetLifetimeReplicatedProps()` for all replicated UPROPERTYs
+5. Making changes on server, not client
 
-### Bag Slot ↔ Equipment Slot Mapping
+### Loot/Merchant/Repair Windows Not Opening
+
+The `OnRep_LootedActor`, `OnRep_MerchantActor`, and `OnRep_RepairerActor` callbacks on `UInventoryNetComponent` are empty by default. Override them in your subclass to drive your HUD:
+
+```cpp
+void UMyInventoryNetComponent::OnRep_LootedActor()
+{
+    if (LootedActor)
+        ShowLootWindow(LootedActor);
+    else
+        HideLootWindow();
+}
+```
+
+### Bag Slot <-> Equipment Slot Mapping
 
 Use the built-in static helpers:
 
@@ -632,10 +826,15 @@ If `FItemContainerLine` was previously defined in your project, add to `Config/D
 ## Summary
 
 1. Implement **four interfaces**: `IInventoryGameInstanceInterface` (GameInstance), `IInventoryGameModeInterface` (GameMode), `IInventoryPlayerInterface` (PlayerController), `IEquipmentInterface` (Character)
-2. Create **components** in constructors with `SetNetAddressable()` + `SetIsReplicated(true)`
-3. Register **`DOREPLIFETIME`** for all replicated components
-4. Create **items** as Data Assets, register via DataTable in GameInstance
-5. Initialize **bags** in `BeginPlay()` with `BagSet()`
-6. Bind **UI widgets** to component delegates
+2. Create **components** in constructors:
+   - `UInventoryNetComponent` (or your subclass) for Server RPCs - handles its own replication
+   - Data components (`UInventoryComponent`, `UCoinComponent`, etc.) with `SetNetAddressable()` + `SetIsReplicated(true)`
+3. Register **`DOREPLIFETIME`** for all replicated component UPROPERTYs
+4. Implement **`GetInventoryNetComponent()`** in your PlayerController to return the net component
+5. Delegate **`GetMerchantActor()`**, **`GetLootedActor()`**, **`GetTransactionBoolean()`** to the net component's replicated properties
+6. Create **items** as Data Assets, register via DataTable in GameInstance
+7. Initialize **bags** in `BeginPlay()` with `BagSet()`
+8. Bind **UI widgets** to component delegates
+9. Optionally **subclass** `UInventoryNetComponent` to override `Handle*`/`Validate*` for game-specific behavior
 
 For deeper details, see the linked guides above.
