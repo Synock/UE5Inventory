@@ -9,16 +9,176 @@
 
 ## Table of Contents
 
-1. [Overview](#overview)
-2. [Installation](#installation)
-3. [Architecture](#architecture)
-4. [Step-by-Step Integration](#step-by-step-integration)
-5. [Inventory Initialization](#inventory-initialization)
-6. [Item Creation](#item-creation)
-7. [UI Integration](#ui-integration)
-8. [Multiplayer](#multiplayer)
-9. [Customizing Server Behavior](#customizing-server-behavior)
-10. [Troubleshooting](#troubleshooting)
+1. [Migration from Previous Version](#migration-from-previous-version)
+2. [Overview](#overview)
+3. [Installation](#installation)
+4. [Architecture](#architecture)
+5. [Step-by-Step Integration](#step-by-step-integration)
+6. [Inventory Initialization](#inventory-initialization)
+7. [Item Creation](#item-creation)
+8. [UI Integration](#ui-integration)
+9. [Multiplayer](#multiplayer)
+10. [Customizing Server Behavior](#customizing-server-behavior)
+11. [Troubleshooting](#troubleshooting)
+
+---
+
+## Migration from Previous Version
+
+This section covers breaking changes when upgrading from the previous `master` branch. If you are integrating the plugin for the first time, skip to [Overview](#overview).
+
+### 1. Server RPCs Moved to `UInventoryNetComponent` (**Major**)
+
+Previously, `IInventoryPlayerInterface` declared all `Server_*` methods as **pure virtual** functions (with `//UFUNCTION(Server, Reliable)` comments). You had to redeclare every one as a `UFUNCTION(Server, Reliable, WithValidation)` in your PlayerController and write both `_Implementation` and `_Validate` stubs.
+
+Now, a new `UInventoryNetComponent` ActorComponent owns all the Server RPCs with full default implementations and built-in anti-cheat validation. The `Server_*` methods on the interface are still present as **non-pure virtuals** that simply forward to the net component.
+
+**What to do:**
+
+1. **Add the component** in your PlayerController constructor:
+   ```cpp
+   InventoryNetComponent = CreateDefaultSubobject<UInventoryNetComponent>(TEXT("InventoryNetComponent"));
+   // No SetNetAddressable/SetIsReplicated needed — the component handles it internally.
+   ```
+
+2. **Implement the new pure virtual** `GetInventoryNetComponent()`:
+   ```cpp
+   UInventoryNetComponent* AYourPlayerController::GetInventoryNetComponent()
+   {
+       return InventoryNetComponent;
+   }
+   ```
+
+3. **Remove all `Server_*` UFUNCTION declarations and implementations** from your PlayerController:
+   - `Server_PlayerMoveItem`, `Server_PlayerUnequipItem`, `Server_PlayerEquipItemFromInventory`, `Server_PlayerSwapEquipment`, `Server_PlayerAutoEquipItem`, `Server_TransferCoinTo`, `Server_DropItemFromInventory`, `Server_DropItemFromEquipment`
+   - `Server_LootActor`, `Server_StopLooting`, `Server_PlayerLootItem`, `Server_PlayerEquipItemFromLoot`, `Server_PlayerAutoLootAll`
+   - `Server_MerchantTrade`, `Server_StopMerchantTrade`, `Server_PlayerBuyFromMerchant`, `Server_PlayerSellToMerchant`
+   - `Server_CancelStagingArea`, `Server_TransferStagingToActor`, `Server_MoveEquipmentToStagingArea`, `Server_MoveInventoryItemToStagingArea`
+   - `Server_PlayerAddKeyFromInventory`, `Server_PlayerRemoveKeyToInventory`
+   
+   This includes removing every `_Implementation()` and `_Validate()` function body for the above.
+
+4. **Move replicated interaction state** to the net component. `TransactionBoolean`, `MerchantActor`, `LootedActor`, and `RepairerActor` now live as replicated properties on `UInventoryNetComponent`. Your interface getter/setter implementations should delegate:
+   ```cpp
+   bool AYourPC::GetTransactionBoolean() { return InventoryNetComponent->TransactionBoolean; }
+   void AYourPC::SetTransactionBoolean(bool V) { InventoryNetComponent->TransactionBoolean = V; }
+   AActor* AYourPC::GetMerchantActor() { return InventoryNetComponent->MerchantActor.Get(); }
+   void AYourPC::SetMerchantActor(AActor* A) { InventoryNetComponent->MerchantActor = A; }
+   AActor* AYourPC::GetLootedActor() { return InventoryNetComponent->LootedActor.Get(); }
+   void AYourPC::SetLootedActor(AActor* A) { InventoryNetComponent->LootedActor = A; }
+   ```
+
+5. **Optionally subclass** `UInventoryNetComponent` if you had game-specific logic (chat messages, backend saves, combat checks, etc.) in your old `Server_*` implementations. Override only the `Handle*()` / `Validate*()` methods you need. See [Customizing Server Behavior](#customizing-server-behavior).
+
+### 2. New Systems: Trade, Repair, Field Repair, Drop
+
+The plugin now includes full implementations for several systems that were previously left to the consumer:
+
+| System | Components / Classes | Notes |
+|--------|---------------------|-------|
+| **Player Trading** | `UTradeComponent`, Trade RPCs on `UInventoryNetComponent`, `UI_TradeWidget` | Player-to-player trade with item + coin offers |
+| **NPC Repair** | `URepairComponent`, `IRepairInterface`, Repair RPCs on `UInventoryNetComponent`, `UI_RepairWidget` | NPC-based equipment repair with durability costs |
+| **Field Repair** | `UFieldRepairComponent`, `IFieldRepairInterface`, `UInventoryItemFieldRepair`, `UI_FieldRepairWidget` | Self-repair using consumable repair kits |
+| **Item Dropping** | `DropItemFromInventory()`, `DropItemFromEquipment()` wrappers + RPCs | Drop items from inventory or equipment into the world |
+
+If you had custom implementations for any of these, you can keep your logic by overriding the corresponding `Handle*` methods on your `UInventoryNetComponent` subclass.
+
+### 3. Durability System (**New**)
+
+Equipment items now support durability tracking:
+
+- `UInventoryItemEquipable` gains `TotalDurability` and `DurabilityModifier` properties (via `IInventoryItemDurableInterface`).
+- `PlayerRemoveItem()` now **returns `float`** (the removed item's durability) instead of `void`. Update any override signatures accordingly.
+- `PlayerAddItemWithDurability()` is a new method for adding items with a specific durability value.
+- `EquipItemWithDurability()` added to `IEquipmentInterface`.
+- `SpawnItemFromActor()` on `IInventoryGameModeInterface` now accepts an optional `float Durability` parameter.
+- `FInventoryItemAdd` delegate changed from 3 params to **4 params** (added `float Durability`). Update any bound callbacks.
+- `AddItemAt()` on `UInventoryComponent` now accepts an optional `float Durability` parameter.
+
+### 4. Item Interface Refactor
+
+Items now implement interfaces for type-safe access:
+
+- `UInventoryItemBase` implements `IInventoryItemInterface` (getters for ID, name, weight, etc.)
+- `UInventoryItemEquipable` implements `IInventoryItemEquipableInterface`, `IInventoryItemWeaponInterface`, and `IInventoryItemDurableInterface`
+- New item interfaces: `IInventoryItemBagInterface`, `IInventoryItemAmmoInterface`, `IInventoryItemAmmoBagInterface`, `IInventoryItemFieldRepairInterface`, `IInventoryItemActivatableInterface`, `IInventoryItemBookInterface`, `IInventoryItemFoodInterface`, `IInventoryItemDrinkInterface`
+
+If you were casting items to concrete classes, consider using the interfaces instead for better decoupling.
+
+### 5. `FItemContainerLine` Moved to Plugin
+
+`FItemContainerLine` (the DataTable row struct for item registration) is now defined in the plugin. If you previously defined this struct in your project, add a redirect:
+
+```ini
+[CoreRedirects]
++StructRedirects=(OldName="/Script/YourProject.ItemContainerLine",NewName="/Script/InventoryPlugin.ItemContainerLine")
+```
+
+### 6. `IInventoryGameInstanceInterface` — New Optional Overrides
+
+Four new optional methods for coin icon textures:
+```cpp
+virtual UTexture2D* GetCopperCoinIconTexture() const;  // default: nullptr
+virtual UTexture2D* GetSilverCoinIconTexture() const;
+virtual UTexture2D* GetGoldCoinIconTexture() const;
+virtual UTexture2D* GetPlatinumCoinIconTexture() const;
+```
+These have default implementations returning `nullptr`, so no action required unless you want custom coin icons.
+
+### 7. `IInventoryGameModeInterface` — Signature Changes
+
+- `SpawnItemFromActor()` now takes an optional `float Durability = 100.0f` parameter.
+- `SpawnItemFromActorRaw()` now takes an optional `float Durability = 100.0f` parameter.
+- `SpawnCoinsFromActor()` changed from **pure virtual** to **virtual with default implementation**. If you were only forwarding to a default spawn, you can remove your override.
+
+### 8. `IInventoryHUDInterface` — New Events
+
+New `BlueprintImplementableEvent` methods to implement in your HUD:
+
+- `DisplayRepairScreen(AActor*)` / `HideRepairScreen()` / `OnRepairTransactionComplete()` — for NPC repair UI
+- `OpenTradeWindow()` / `CloseTradeWindow()` — for trade UI
+- `DisplayFieldRepairScreen(int32, EBagSlot, int32)` / `HideFieldRepairScreen()` / `NotifyFieldRepairFinished(...)` — for field repair UI
+- `DisplayItemDescriptionWithDurability(...)` — item tooltip with durability bar
+- `LockInventorySlot(EBagSlot, int32, bool)` / `LockEquipmentSlot(EEquipmentSlot, bool)` — slot locking during field repair
+
+These are `BlueprintImplementableEvent` so they won't cause compile errors, but the new UI features won't work until you implement them in your HUD Blueprint.
+
+### 9. Enum Changes
+
+- **`EBagSlot`**: Added `Quiver = 7` before `LastValidBag` (now `= 8`). If you had hardcoded `LastValidBag = 7`, update accordingly.
+- **`EAmmoType`**: Added `SmallBolts` and `GreatBolts` entries.
+- **`EEquipmentSocket`**: Added `RangedSheath`.
+
+### 10. Delegate Signature Changes
+
+- `FInventoryItemAdd` changed from `ThreeParams(EBagSlot, int32, int32)` to `FourParams(EBagSlot, int32, int32, float)` — added `Durability`.
+- New delegates: `FInventoryItemDurabilityUpdate`, `FInventoryBagUsageChanged`.
+
+### 11. Ammo System
+
+New ammo-related methods added to interfaces:
+- `IInventoryPlayerInterface`: `CanSpendAmmo(EAmmoType)`, `SpendAmmo(EAmmoType)`
+- `IEquipmentInterface`: `HasCompatibleAmmoEquipped(EAmmoType)`, `RemoveAmmoEquipped(EAmmoType)`
+- `UInventoryComponent`: `HasCompatibleAmmoInQuiver(EAmmoType)`, `RemoveAmmoFromQuiver(EAmmoType)`
+
+These have default implementations and don't require changes unless you use ranged weapons with ammo.
+
+### 12. Merchant — Refuse Items
+
+`IMerchantInterface` now supports merchants that can refuse certain items. Check if your merchant implementations need updating.
+
+### Quick Migration Checklist
+
+- [ ] Add `UInventoryNetComponent` to PlayerController constructor
+- [ ] Implement `GetInventoryNetComponent()` pure virtual
+- [ ] Remove all `Server_*` UFUNCTION declarations and `_Implementation`/`_Validate` bodies from PlayerController
+- [ ] Delegate `TransactionBoolean`, `MerchantActor`, `LootedActor` getters/setters to net component
+- [ ] Add `DOREPLIFETIME` for `InventoryNetComponent` in `GetLifetimeReplicatedProps()`
+- [ ] Update `PlayerRemoveItem` overrides to return `float` instead of `void`
+- [ ] Update `FInventoryItemAdd` delegate bindings (now 4 params)
+- [ ] Optionally subclass `UInventoryNetComponent` for game-specific Handle/Validate overrides
+- [ ] Implement new HUD events in Blueprint if using repair/trade/field repair features
+- [ ] Update any hardcoded `EBagSlot::LastValidBag` references
 
 ---
 
@@ -510,8 +670,15 @@ public:
     virtual UEquipmentComponent* GetEquipmentComponent() override;
     virtual const UEquipmentComponent* GetEquipmentComponentConst() const override;
 
-    // IInventoryModularCharacterInterface (optional)
-    virtual USkeletalMeshComponent* GetMasterMeshComponent() override;
+    // IInventoryModularCharacterInterface (optional overrides — all default to nullptr)
+    // Override only the body-part getters you use for modular mesh swapping, e.g.:
+    //   virtual USkeletalMeshComponent* GetHeadComponent() override;
+    //   virtual USkeletalMeshComponent* GetTorsoComponent() override;
+    //   virtual USkeletalMeshComponent* GetArmsComponent() override;
+    //   virtual USkeletalMeshComponent* GetHandsComponent() override;
+    //   virtual USkeletalMeshComponent* GetLegsComponent() override;
+    //   virtual USkeletalMeshComponent* GetFootComponent() override;
+    // See IInventoryModularCharacterInterface for the full list.
 
 protected:
     UPROPERTY(Replicated, BlueprintReadOnly, Category = "Equipment")
@@ -533,7 +700,21 @@ AYourCharacter::AYourCharacter(const FObjectInitializer& ObjectInitializer)
     Equipment = CreateDefaultSubobject<UEquipmentComponent>(TEXT("Equipment"));
     Equipment->SetNetAddressable();
     Equipment->SetIsReplicated(true);
-    Equipment->UpdateMasterMeshComponent(GetMesh());
+    // Do NOT call Equipment->UpdateMasterMeshComponent here — GetMesh() components are
+    // not fully initialized during the constructor. Call it in BeginPlay() instead.
+}
+
+void AYourCharacter::BeginPlay()
+{
+    Super::BeginPlay();
+
+    // Connect the character's base skeletal mesh to the equipment component so it can
+    // attach weapon/sheath meshes.  On the authority (server) the equipment state is
+    // managed via replicated data; the visual mesh setup is only needed on clients.
+    if (!HasAuthority())
+    {
+        Equipment->UpdateMasterMeshComponent(GetMesh());
+    }
 }
 
 void AYourCharacter::GetLifetimeReplicatedProps(
@@ -545,7 +726,6 @@ void AYourCharacter::GetLifetimeReplicatedProps(
 
 UEquipmentComponent* AYourCharacter::GetEquipmentComponent() { return Equipment; }
 const UEquipmentComponent* AYourCharacter::GetEquipmentComponentConst() const { return Equipment; }
-USkeletalMeshComponent* AYourCharacter::GetMasterMeshComponent() { return GetMesh(); }
 ```
 
 ---
@@ -778,7 +958,7 @@ UTradeComponent*           GetTradeComponent() const;     // Trade component fro
 ### Equipment Not Visible
 
 1. `EquipmentMesh` set on the item Data Asset? (must be `USkeletalMesh`)
-2. `Equipment->UpdateMasterMeshComponent(GetMesh())` called in Character constructor?
+2. `Equipment->UpdateMasterMeshComponent(GetMesh())` called in Character `BeginPlay()` (client-side, i.e. inside a `!HasAuthority()` block)?
 3. Component replicated? Check `DOREPLIFETIME`
 
 ### Replication Not Working
