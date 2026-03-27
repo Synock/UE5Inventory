@@ -83,7 +83,7 @@ enum class EEquipmentSlot : uint8
 	FingerR = 17,
 	Waist = 18,
 	Legs = 19,
-	Foot = 20,
+	Feet = 20,
 	Arms = 21,
 	WaistBag1 = 22,
 	WaistBag2 = 23,

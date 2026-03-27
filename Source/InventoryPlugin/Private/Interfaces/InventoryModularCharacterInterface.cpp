@@ -112,7 +112,7 @@ USkeletalMeshComponent* IInventoryModularCharacterInterface::GetEquipmentCompone
 		break;
 	case EEquipmentSlot::Legs:
 		return GetLegsComponent();
-	case EEquipmentSlot::Foot:
+	case EEquipmentSlot::Feet:
 		return GetFootComponent();
 	case EEquipmentSlot::Arms:
 		return GetArmsComponent();
@@ -132,7 +132,7 @@ USkeletalMeshComponent* IInventoryModularCharacterInterface::GetEquipmentCompone
 
 bool IInventoryModularCharacterInterface::IsBodyPart(EEquipmentSlot Slot)
 {
-	return Slot == EEquipmentSlot::Legs || Slot == EEquipmentSlot::Foot || Slot == EEquipmentSlot::Arms || Slot ==
+	return Slot == EEquipmentSlot::Legs || Slot == EEquipmentSlot::Feet || Slot == EEquipmentSlot::Arms || Slot ==
 		EEquipmentSlot::Torso || Slot == EEquipmentSlot::Hands;
 }
 

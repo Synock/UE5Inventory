@@ -157,8 +157,8 @@ FString URepairLineWidget::GetEquipmentSlotDisplayName(EEquipmentSlot EquipmentS
 			return TEXT("Waist");
 		case EEquipmentSlot::Legs:
 			return TEXT("Legs");
-		case EEquipmentSlot::Foot:
-			return TEXT("Foot");
+		case EEquipmentSlot::Feet:
+			return TEXT("Feet");
 		case EEquipmentSlot::Arms:
 			return TEXT("Arms");
 		case EEquipmentSlot::Unknown:

@@ -85,7 +85,7 @@ FString UInventoryUtilities::GetSlotName(EEquipmentSlot Slot)
 	case EEquipmentSlot::FingerR: return "Finger (R)";
 	case EEquipmentSlot::Waist: return "Waist";
 	case EEquipmentSlot::Legs: return "Legs";
-	case EEquipmentSlot::Foot: return "Foot";
+	case EEquipmentSlot::Feet: return "Feet";
 	case EEquipmentSlot::Arms: return "Arms";
 	case EEquipmentSlot::WaistBag1: return "Waist Bag";
 	case EEquipmentSlot::WaistBag2: return "Waist Bag";
