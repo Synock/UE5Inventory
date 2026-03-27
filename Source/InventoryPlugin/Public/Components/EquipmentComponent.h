@@ -39,6 +39,31 @@ public:
 	void TryUpdateDynamicMeshes(const TMap<EEquipmentSlot, USkeletalMesh*>& MeshArray,const TMap<EEquipmentSlot, TArray<FMaterialOverride>>& OverrideArray);
 	void SellMaterialForAllMeshes(int MaterialID, UMaterialInstance* MaterialInstance);
 
+private:
+	/**
+	 * Allocates, configures, attaches, and registers a new USkeletalMeshComponent for the given slot.
+	 * Sets both ECC_Camera and ECC_Pawn to ECR_Ignore and sets LeaderPoseComponent.
+	 * Adds the result to VariableMeshesMap. Returns nullptr if the owner is not a valid ACharacter.
+	 */
+	USkeletalMeshComponent* CreateAndRegisterOverlayComponent(EEquipmentSlot Slot, USkeletalMesh* Mesh);
+
+	/**
+	 * Applies a list of material overrides to a component.
+	 * Creates a UMaterialInstanceDynamic per entry to support tint/intensity parameters.
+	 */
+	static void ApplyMaterialOverrides(USkeletalMeshComponent* MeshComp, const TArray<FMaterialOverride>& Overrides);
+
+	/**
+	 * Creates, updates, or removes the dynamic overlay USkeletalMeshComponent for a single slot,
+	 * without touching any other slot in VariableMeshesMap.
+	 * Called directly on equip/unequip so the overlay appears before UpdateMeshFromInternal rebuilds.
+	 *
+	 * @param Slot      Equipment slot to target.
+	 * @param Mesh      Mesh to display; nullptr removes the existing overlay component.
+	 * @param Overrides Material overrides to apply after setting the mesh.
+	 */
+	void UpdateSingleOverlayMesh(EEquipmentSlot Slot, USkeletalMesh* Mesh, const TArray<FMaterialOverride>& Overrides);
+
 protected:
 	// Called when the game starts
 	virtual void BeginPlay() override;

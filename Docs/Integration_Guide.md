@@ -643,7 +643,7 @@ FOnWeightChanged& AYourPlayerController::GetWeightChangedDelegate() { return Wei
 
 ### Step 4: Character - Equipment
 
-Your `Character` implements `IEquipmentInterface` (and optionally `IInventoryModularCharacterInterface` for modular mesh support).
+Your `Character` implements `IEquipmentInterface` and `IInventoryModularCharacterInterface`. The equipment interface owns the `UEquipmentComponent`; the modular character interface controls how the component renders equipped items visually.
 
 **Header:**
 ```cpp
@@ -666,55 +666,63 @@ class YOURPROJECT_API AYourCharacter : public ACharacter,
 public:
     AYourCharacter(const FObjectInitializer& ObjectInitializer);
 
-    // IEquipmentInterface
+    // IEquipmentInterface — required
     virtual UEquipmentComponent* GetEquipmentComponent() override;
     virtual const UEquipmentComponent* GetEquipmentComponentConst() const override;
 
-    // IInventoryModularCharacterInterface (optional overrides — all default to nullptr)
-    // Override only the body-part getters you use for modular mesh swapping, e.g.:
-    //   virtual USkeletalMeshComponent* GetHeadComponent() override;
-    //   virtual USkeletalMeshComponent* GetTorsoComponent() override;
-    //   virtual USkeletalMeshComponent* GetArmsComponent() override;
-    //   virtual USkeletalMeshComponent* GetHandsComponent() override;
-    //   virtual USkeletalMeshComponent* GetLegsComponent() override;
-    //   virtual USkeletalMeshComponent* GetFootComponent() override;
-    // See IInventoryModularCharacterInterface for the full list.
+    // IInventoryModularCharacterInterface — body-part accessors (all default to nullptr)
+    // Override the ones your character exposes as modular mesh components:
+    virtual USkeletalMeshComponent* GetHeadComponent() override;
+    // virtual USkeletalMeshComponent* GetTorsoComponent() override;
+    // virtual USkeletalMeshComponent* GetArmsComponent() override;
+    // ... etc. See IInventoryModularCharacterInterface for the full list.
+
+    // IInventoryModularCharacterInterface — overlay mesh resolver
+    // Called by UEquipmentComponent on every equip/unequip.
+    // Return a mesh to create a dedicated overlay component for that slot,
+    // or nullptr to handle the slot through your own path (e.g. merged mesh).
+    // The plugin's default returns Item->EquipmentMesh for all slots.
+    virtual USkeletalMesh* GetEquipmentOverlayMesh(
+        EEquipmentSlot Slot, const UInventoryItemEquipable* Item) const override;
 
 protected:
     UPROPERTY(Replicated, BlueprintReadOnly, Category = "Equipment")
     UEquipmentComponent* Equipment;
 
-    virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+    // Called by EquipmentDispatcher / EquipmentDispatcher_Server when
+    // the full equipment state must be re-evaluated (race change, skin change, etc.)
+    UFUNCTION()
+    void UpdateMeshFromInternal();
+
+    virtual void GetLifetimeReplicatedProps(
+        TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 };
 ```
 
 **Implementation:**
 ```cpp
-#include "YourCharacter.h"
-#include "Components/EquipmentComponent.h"
-#include "Net/UnrealNetwork.h"
-
 AYourCharacter::AYourCharacter(const FObjectInitializer& ObjectInitializer)
     : Super(ObjectInitializer)
 {
     Equipment = CreateDefaultSubobject<UEquipmentComponent>(TEXT("Equipment"));
     Equipment->SetNetAddressable();
     Equipment->SetIsReplicated(true);
-    // Do NOT call Equipment->UpdateMasterMeshComponent here — GetMesh() components are
-    // not fully initialized during the constructor. Call it in BeginPlay() instead.
 }
 
 void AYourCharacter::BeginPlay()
 {
     Super::BeginPlay();
 
-    // Connect the character's base skeletal mesh to the equipment component so it can
-    // attach weapon/sheath meshes.  On the authority (server) the equipment state is
-    // managed via replicated data; the visual mesh setup is only needed on clients.
     if (!HasAuthority())
-    {
         Equipment->UpdateMasterMeshComponent(GetMesh());
-    }
+
+    // Full visual rebuild whenever the server or client marks equipment as changed.
+    Equipment->EquipmentDispatcher_Server.AddUniqueDynamic(
+        this, &AYourCharacter::UpdateMeshFromInternal);
+    Equipment->EquipmentDispatcher.AddUniqueDynamic(
+        this, &AYourCharacter::UpdateMeshFromInternal);
+
+    UpdateMeshFromInternal();
 }
 
 void AYourCharacter::GetLifetimeReplicatedProps(
@@ -729,6 +737,103 @@ const UEquipmentComponent* AYourCharacter::GetEquipmentComponentConst() const { 
 ```
 
 ---
+
+#### Implementing `GetEquipmentOverlayMesh`
+
+The component calls this on every `EquipItem`, `RemoveItem`, and `OnRep_ItemList`. Return a `USkeletalMesh*` to have the component manage a dedicated overlay `USkeletalMeshComponent` for that slot, or `nullptr` to leave it to your `UpdateMeshFromInternal` path (e.g. merged skeletal mesh).
+
+The **default implementation** (inherited, no override needed) returns `Item->EquipmentMesh` for every slot — suitable for simple characters that do not need race/gender correction or a merged mesh path.
+
+For characters with a modular body system:
+
+```cpp
+USkeletalMesh* AYourCharacter::GetEquipmentOverlayMesh(
+    EEquipmentSlot Slot, const UInventoryItemEquipable* Item) const
+{
+    if (!Item || !Item->EquipmentMesh)
+        return nullptr;
+
+    switch (Slot)
+    {
+    // Overlay slots: plugin creates a USkeletalMeshComponent on top of the body.
+    case EEquipmentSlot::Shoulders:
+    case EEquipmentSlot::Neck:
+    case EEquipmentSlot::Back:
+    case EEquipmentSlot::Face:
+    case EEquipmentSlot::WristR:
+        return GetRaceCorrectedMesh(Item->EquipmentMesh);  // your race/gender lookup
+
+    case EEquipmentSlot::WristL:
+        // Use a separate left-arm mesh asset — do NOT use negative scale.
+        // SetLeaderPoseComponent binds bones by name; mirroring via scale
+        // would make the left bracer animate with the wrong arm.
+        return GetMirrorMesh(GetRaceCorrectedMesh(Item->EquipmentMesh));
+
+    // These slots are handled by a merged skeletal mesh in UpdateMeshFromInternal.
+    // Returning nullptr prevents the plugin from creating a duplicate overlay.
+    case EEquipmentSlot::Head:   // helmet UVs must match face mesh
+    case EEquipmentSlot::Torso:
+    case EEquipmentSlot::Legs:
+    case EEquipmentSlot::Arms:
+    case EEquipmentSlot::Hands:
+    default:
+        return nullptr;
+    }
+}
+```
+
+---
+
+#### `UpdateMeshFromInternal` and `TryUpdateDynamicMeshes`
+
+`UpdateMeshFromInternal` is your game-side full rebuild function, bound to `EquipmentDispatcher` and `EquipmentDispatcher_Server`. It is responsible for the **merged skeletal mesh path** (slots returning `nullptr` from `GetEquipmentOverlayMesh`) and calls `TryUpdateDynamicMeshes` at the end to sync any remaining overlay slots.
+
+For slots that return a mesh from `GetEquipmentOverlayMesh`, route them directly into `ClothMeshParts` (the map passed to `TryUpdateDynamicMeshes`) rather than the merged mesh set. A lambda helper keeps this clean:
+
+```cpp
+void AYourCharacter::UpdateMeshFromInternal()
+{
+    // ... build MeshParts (merged) and ClothMeshParts (overlay) ...
+
+    // Overlay-eligible slots: query GetEquipmentOverlayMesh.
+    // Non-null → overlay component; null → fall back to merged path.
+    auto FillOrOverlay = [&](EEquipmentSlot Slot)
+    {
+        const UInventoryItemEquipable* Item = Equipment->GetItemAtSlot(Slot);
+        if (USkeletalMesh* OverlayMesh = GetEquipmentOverlayMesh(Slot, Item))
+        {
+            ClothMeshParts.Emplace(Slot, OverlayMesh);
+            if (Item)
+                ClothOverride.Emplace(Slot, GetMaterialOverridesForSlot(Slot));
+        }
+        else
+        {
+            FillUpData(Slot, MeshParts, OverrideMap, ClothMeshParts, ClothOverride, ModularBody);
+        }
+    };
+
+    FillOrOverlay(EEquipmentSlot::Shoulders);
+    FillOrOverlay(EEquipmentSlot::Neck);
+    FillOrOverlay(EEquipmentSlot::Back);
+    FillOrOverlay(EEquipmentSlot::Face);
+    FillOrOverlay(EEquipmentSlot::WristL);
+    FillOrOverlay(EEquipmentSlot::WristR);
+
+    // Merged slots (always):
+    // FillUpData(EEquipmentSlot::Head, ...);
+    // FillUpData(EEquipmentSlot::Torso, ...);
+    // ...
+
+    // Sync overlay components; also removes components for unequipped slots.
+    Equipment->TryUpdateDynamicMeshes(ClothMeshParts, ClothOverride);
+}
+```
+
+> **Note**: `TryUpdateDynamicMeshes` is called by `UpdateMeshFromInternal` for a full sync. The plugin also calls `UpdateSingleOverlayMesh` internally on each individual `EquipItem`/`RemoveItem`, so the overlay appears immediately without waiting for the full rebuild. Both paths are idempotent — calling them in sequence is safe.
+
+---
+
+
 
 ## Inventory Initialization
 

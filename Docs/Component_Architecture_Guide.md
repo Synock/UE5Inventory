@@ -166,6 +166,8 @@ bool GetEquipmentLockState(EEquipmentSlot Slot) const;
 
 // Visual mesh management
 void UpdateMasterMeshComponent(USkeletalMeshComponent* Mesh);
+void TryUpdateDynamicMeshes(const TMap<EEquipmentSlot, USkeletalMesh*>& MeshArray,
+                             const TMap<EEquipmentSlot, TArray<FMaterialOverride>>& OverrideArray);
 void UnsheathMelee();
 void SheathMelee();
 void UnsheathRanged();
@@ -182,6 +184,53 @@ void SheathRanged();
 | `ItemUnEquipedDispatcher_Server` | `EEquipmentSlot, const UInventoryItemEquipable*` | Item unequipped (server) |
 | `EquipmentDurabilityChangedDispatcher_Server` | `EEquipmentSlot, float` | Durability changed (server) |
 | `DurabilityWarningDispatcher` | `EEquipmentSlot, float, const UInventoryItemEquipable*` | Low durability warning |
+
+---
+
+#### Dynamic Overlay Mesh System (`VariableMeshesMap`)
+
+`VariableMeshesMap` is an internal `TMap<EEquipmentSlot, USkeletalMeshComponent*>` that tracks runtime-created skeletal mesh components for equipment pieces displayed as overlays on top of the body mesh (shoulders, neck, back, face, bracers, cloth physics items, etc.).
+
+Each component in the map:
+- Is attached to the owner character's root mesh with `SnapToTarget` on all axes.
+- Uses `SetLeaderPoseComponent` to follow the skeleton automatically.
+- Has `ECC_Camera` and `ECC_Pawn` set to `ECR_Ignore` at creation.
+- Is **not replicated** directly — the `Equipment` array replication and `OnRep_ItemList` drive recreation on clients.
+
+##### Lifecycle
+
+```
+EquipItem() / EquipItemWithDurability()
+    └─ IInventoryModularCharacterInterface::GetEquipmentOverlayMesh(Slot, Item)
+           ├─ non-null  →  UpdateSingleOverlayMesh()  →  creates/updates VariableMeshesMap[Slot]
+           └─ nullptr   →  slot handled externally (e.g. merged skeletal mesh)
+
+RemoveItem()
+    └─ UpdateSingleOverlayMesh(Slot, nullptr, {})  →  destroys VariableMeshesMap[Slot] if present
+
+OnRep_ItemList()  [client]
+    └─ sweeps all slots, calls GetEquipmentOverlayMesh + UpdateSingleOverlayMesh for each
+    └─ EquipmentDispatcher.Broadcast()  →  game's UpdateMeshFromInternal  →  TryUpdateDynamicMeshes
+```
+
+##### `TryUpdateDynamicMeshes` vs `UpdateSingleOverlayMesh`
+
+| | `TryUpdateDynamicMeshes` | `UpdateSingleOverlayMesh` |
+|-|--------------------------|--------------------------|
+| **Scope** | Full rebuild — diffs the entire `VariableMeshesMap` against an incoming set, removes stale entries | Single slot — touches only `VariableMeshesMap[Slot]` |
+| **Called from** | Game's `UpdateMeshFromInternal` (after merged mesh rebuild) | Plugin's `EquipItem` / `RemoveItem` / `OnRep_ItemList` |
+| **Use case** | Cloth physics items; full visual resync after race/gender change | Immediate per-slot overlay update on equip/unequip |
+| **Material overrides** | Applied only when mesh pointer changes, avoiding redundant `UMaterialInstanceDynamic` allocations | Same — applied only on actual mesh change |
+
+Both paths share `CreateAndRegisterOverlayComponent` (component creation) and `ApplyMaterialOverrides` (DMI setup) as private helpers, so behaviour is identical regardless of which path created the component.
+
+##### Integration with `IInventoryModularCharacterInterface`
+
+The component queries `GetEquipmentOverlayMesh(Slot, Item)` on every equip and unequip. The default implementation returns `Item->EquipmentMesh` (raw asset). Override this on your character to:
+- Return `nullptr` for slots handled by a merged skeletal mesh.
+- Return a race/gender-corrected mesh for overlay-eligible slots.
+
+See the [Interface Implementation Guide](./Interface_Implementation_Guide.md#iinventorymodularcharacterinterface) for a full override example.
 
 ---
 

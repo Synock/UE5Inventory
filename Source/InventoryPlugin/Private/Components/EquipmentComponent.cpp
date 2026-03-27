@@ -520,82 +520,56 @@ void UEquipmentComponent::UpdateMasterMeshComponent(USkeletalMeshComponent* Mesh
 void UEquipmentComponent::TryUpdateDynamicMeshes(const TMap<EEquipmentSlot, USkeletalMesh*>& MeshArray,
 	const TMap<EEquipmentSlot, TArray<FMaterialOverride>>& OverrideArray)
 {
-
-	TMap<EEquipmentSlot, bool> RelevantSlots;
-
-	for (auto&& [Slot, NotUsed] : VariableMeshesMap)
-	{
-		RelevantSlots.Emplace(Slot, false);
-	}
-
-	for (auto && [Slot, MeshPointer] : MeshArray)
-	{
-		RelevantSlots.FindOrAdd(Slot) = true;
-
-		//If the slot and component already exist
-		if (VariableMeshesMap.Contains(Slot))
-		{
-			auto& NewSkeletalMeshComponent = VariableMeshesMap.FindChecked(Slot);
-			if (NewSkeletalMeshComponent->GetSkeletalMeshAsset() != MeshPointer)
-			{
-				NewSkeletalMeshComponent->SetSkeletalMesh(MeshPointer);
-			}
-		}
-		else // We need to add this one
-		{
-			USkeletalMeshComponent* NewSkeletalMeshComponent = NewObject<USkeletalMeshComponent>(this);
-			NewSkeletalMeshComponent->RegisterComponent();
-			NewSkeletalMeshComponent->SetIsReplicated(true);
-			NewSkeletalMeshComponent->SetSkeletalMesh(MeshPointer);
-			NewSkeletalMeshComponent->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
-
-			FAttachmentTransformRules TransformRules2(EAttachmentRule::SnapToTarget, EAttachmentRule::SnapToTarget,
-								  EAttachmentRule::SnapToTarget, true);
-
-
-			NewSkeletalMeshComponent->AttachToComponent(Cast<ACharacter>(GetOwner())->GetMesh(), TransformRules2);
-			NewSkeletalMeshComponent->SetLeaderPoseComponent(Cast<ACharacter>(GetOwner())->GetMesh());
-			VariableMeshesMap.Emplace(Slot, NewSkeletalMeshComponent);
-		}
-
-		// Apply material overrides for this slot's cloth mesh component
-		if (const TArray<FMaterialOverride>* Overrides = OverrideArray.Find(Slot))
-		{
-			USkeletalMeshComponent* MeshComp = VariableMeshesMap.FindChecked(Slot);
-			for (const FMaterialOverride& Override : *Overrides)
-			{
-				MeshComp->SetMaterial(Override.MaterialID, Override.OverrideMaterial);
-				if (UMaterialInstanceDynamic* DynMat = MeshComp->CreateAndSetMaterialInstanceDynamic(Override.MaterialID))
-				{
-					DynMat->SetVectorParameterValue(TEXT("Tint"), Override.TintColor);
-					DynMat->SetScalarParameterValue(TEXT("TintIntensity"), Override.TintIntensity);
-				}
-			}
-		}
-	}
-
-	//cleanup obsolete slots
+	// Seed the stale list from all currently managed slots.
+	// Each slot present in the incoming set is removed; whatever remains is destroyed.
 	TArray<EEquipmentSlot> SlotsToRemove;
-	for (auto&& [Slot, SlotStatus] : RelevantSlots)
-	{
-		if (SlotStatus == false)
-		{
-			auto& NewSkeletalMeshComponent = VariableMeshesMap.FindChecked(Slot);
-			NewSkeletalMeshComponent->UnregisterComponent();
-			NewSkeletalMeshComponent->MarkAsGarbage();
+	SlotsToRemove.Reserve(VariableMeshesMap.Num());
+	for (auto&& [Slot, _] : VariableMeshesMap)
+		SlotsToRemove.Add(Slot);
 
-			// CRITICAL FIX: Remove from map to prevent dangling reference
-			SlotsToRemove.Add(Slot);
+	for (auto&& [Slot, MeshPointer] : MeshArray)
+	{
+		SlotsToRemove.RemoveSingleSwap(Slot, EAllowShrinking::No);
+
+		bool bMeshChanged = false;
+		USkeletalMeshComponent* MeshComp;
+
+		if (USkeletalMeshComponent** Existing = VariableMeshesMap.Find(Slot))
+		{
+			MeshComp = *Existing;
+			if (MeshComp->GetSkeletalMeshAsset() != MeshPointer)
+			{
+				MeshComp->SetSkeletalMesh(MeshPointer);
+				bMeshChanged = true;
+			}
+		}
+		else
+		{
+			MeshComp = CreateAndRegisterOverlayComponent(Slot, MeshPointer);
+			if (!MeshComp)
+				continue;
+			bMeshChanged = true;
+		}
+
+		// Only reapply overrides when the mesh actually changed.
+		// Avoids allocating new UMaterialInstanceDynamic objects on every rebuild
+		// when only an unrelated slot triggered UpdateMeshFromInternal.
+		if (bMeshChanged)
+		{
+			if (const TArray<FMaterialOverride>* Overrides = OverrideArray.Find(Slot))
+				ApplyMaterialOverrides(MeshComp, *Overrides);
 		}
 	}
 
-	// Remove obsolete slots from map after iteration
 	for (EEquipmentSlot SlotToRemove : SlotsToRemove)
 	{
+		if (USkeletalMeshComponent* Comp = VariableMeshesMap.FindRef(SlotToRemove))
+		{
+			Comp->UnregisterComponent();
+			Comp->MarkAsGarbage();
+		}
 		VariableMeshesMap.Remove(SlotToRemove);
 	}
-
-
 }
 //----------------------------------------------------------------------------------------------------------------------
 
@@ -609,6 +583,92 @@ void UEquipmentComponent::SellMaterialForAllMeshes(int MaterialID, UMaterialInst
 			Mesh->SetMaterial(MaterialID, MaterialInstance);
 		}
 	}
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+USkeletalMeshComponent* UEquipmentComponent::CreateAndRegisterOverlayComponent(EEquipmentSlot Slot,
+	USkeletalMesh* Mesh)
+{
+	ACharacter* Owner = Cast<ACharacter>(GetOwner());
+	if (!ensure(Owner))
+		return nullptr;
+
+	USkeletalMeshComponent* MasterMesh = Owner->GetMesh();
+	if (!ensure(MasterMesh))
+		return nullptr;
+
+	USkeletalMeshComponent* MeshComp = NewObject<USkeletalMeshComponent>(this);
+	MeshComp->RegisterComponent();
+	// Dynamic overlay components are not replicated directly.
+	// The Equipment array replication + OnRep_ItemList drives their recreation on clients.
+	MeshComp->SetSkeletalMesh(Mesh);
+	MeshComp->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
+	MeshComp->SetCollisionResponseToChannel(ECC_Pawn,   ECR_Ignore);
+
+	const FAttachmentTransformRules TransformRules(EAttachmentRule::SnapToTarget,
+	                                               EAttachmentRule::SnapToTarget,
+	                                               EAttachmentRule::SnapToTarget, true);
+	MeshComp->AttachToComponent(MasterMesh, TransformRules);
+	MeshComp->SetLeaderPoseComponent(MasterMesh);
+	VariableMeshesMap.Emplace(Slot, MeshComp);
+	return MeshComp;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UEquipmentComponent::ApplyMaterialOverrides(USkeletalMeshComponent* MeshComp,
+	const TArray<FMaterialOverride>& Overrides)
+{
+	for (const FMaterialOverride& Override : Overrides)
+	{
+		MeshComp->SetMaterial(Override.MaterialID, Override.OverrideMaterial);
+		if (UMaterialInstanceDynamic* DynMat = MeshComp->CreateAndSetMaterialInstanceDynamic(Override.MaterialID))
+		{
+			DynMat->SetVectorParameterValue(TEXT("Tint"), Override.TintColor);
+			DynMat->SetScalarParameterValue(TEXT("TintIntensity"), Override.TintIntensity);
+		}
+	}
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UEquipmentComponent::UpdateSingleOverlayMesh(EEquipmentSlot Slot, USkeletalMesh* Mesh,
+	const TArray<FMaterialOverride>& Overrides)
+{
+	if (!Mesh)
+	{
+		if (USkeletalMeshComponent* Comp = VariableMeshesMap.FindRef(Slot))
+		{
+			Comp->UnregisterComponent();
+			Comp->MarkAsGarbage();
+			VariableMeshesMap.Remove(Slot);
+		}
+		return;
+	}
+
+	bool bMeshChanged = false;
+	USkeletalMeshComponent* MeshComp;
+
+	if (USkeletalMeshComponent** Existing = VariableMeshesMap.Find(Slot))
+	{
+		MeshComp = *Existing;
+		if (MeshComp->GetSkeletalMeshAsset() != Mesh)
+		{
+			MeshComp->SetSkeletalMesh(Mesh);
+			bMeshChanged = true;
+		}
+	}
+	else
+	{
+		MeshComp = CreateAndRegisterOverlayComponent(Slot, Mesh);
+		if (!MeshComp)
+			return;
+		bMeshChanged = true;
+	}
+
+	if (bMeshChanged)
+		ApplyMaterialOverrides(MeshComp, Overrides);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -670,9 +730,11 @@ void UEquipmentComponent::BeginPlay()
 	//Disable camera collision for EVERY piece of equipment
 	for (auto&& [MeshPointer, MeshComponent] : VariableMeshesMap)
 	{
-		FAttachmentTransformRules TransformRules2(EAttachmentRule::SnapToTarget, EAttachmentRule::KeepWorld,
-										  EAttachmentRule::SnapToTarget, true);
+		const FAttachmentTransformRules TransformRules2(EAttachmentRule::SnapToTarget,
+		                                                EAttachmentRule::SnapToTarget,
+		                                                EAttachmentRule::SnapToTarget, true);
 		MeshComponent->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
+		MeshComponent->SetCollisionResponseToChannel(ECC_Pawn,   ECR_Ignore);
 		MeshComponent->AttachToComponent(PlayerMesh, TransformRules2);
 		MeshComponent->SetLeaderPoseComponent(Cast<ACharacter>(GetOwner())->GetMesh());
 	}
@@ -723,6 +785,19 @@ void UEquipmentComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& 
 void UEquipmentComponent::OnRep_ItemList()
 {
 	EquipmentDispatcher.Broadcast();
+
+	// Plugin default: refresh all overlay meshes from the freshly replicated Equipment array
+	if (IInventoryModularCharacterInterface* ModularChar = Cast<IInventoryModularCharacterInterface>(GetOwner()))
+	{
+		for (int32 SlotIdx = 0; SlotIdx < static_cast<int32>(EEquipmentSlot::Last); ++SlotIdx)
+		{
+			const EEquipmentSlot Slot = static_cast<EEquipmentSlot>(SlotIdx);
+			const UInventoryItemEquipable* Item = Equipment[SlotIdx];
+			USkeletalMesh* OverlayMesh = ModularChar->GetEquipmentOverlayMesh(Slot, Item);
+			UpdateSingleOverlayMesh(Slot, OverlayMesh,
+				Item ? Item->EquipmentMeshMaterialOverride : TArray<FMaterialOverride>{});
+		}
+	}
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -753,6 +828,13 @@ void UEquipmentComponent::EquipItem(const UInventoryItemEquipable* Item, EEquipm
 		Equip(Item, InSlot);
 		EquipmentDispatcher_Server.Broadcast();
 		ItemEquipedDispatcher_Server.Broadcast(InSlot, Item);
+
+		// Plugin default: immediately update overlay for this slot
+		if (IInventoryModularCharacterInterface* ModularChar = Cast<IInventoryModularCharacterInterface>(GetOwner()))
+		{
+			if (USkeletalMesh* OverlayMesh = ModularChar->GetEquipmentOverlayMesh(InSlot, Item))
+				UpdateSingleOverlayMesh(InSlot, OverlayMesh, Item->EquipmentMeshMaterialOverride);
+		}
 	}
 }
 
@@ -776,6 +858,13 @@ void UEquipmentComponent::EquipItemWithDurability(const UInventoryItemEquipable*
 		Equip(Item, InSlot);
 		EquipmentDispatcher_Server.Broadcast();
 		ItemEquipedDispatcher_Server.Broadcast(InSlot, Item);
+
+		// Plugin default: immediately update overlay for this slot
+		if (IInventoryModularCharacterInterface* ModularChar = Cast<IInventoryModularCharacterInterface>(GetOwner()))
+		{
+			if (USkeletalMesh* OverlayMesh = ModularChar->GetEquipmentOverlayMesh(InSlot, Item))
+				UpdateSingleOverlayMesh(InSlot, OverlayMesh, Item->EquipmentMeshMaterialOverride);
+		}
 	}
 }
 
@@ -913,6 +1002,9 @@ bool UEquipmentComponent::RemoveItem(EEquipmentSlot InSlot)
 
 	Equipment[static_cast<int>(InSlot)] = nullptr;
 	EquipmentDispatcher_Server.Broadcast();
+
+	// Remove any overlay component for this slot (no-op if none existed)
+	UpdateSingleOverlayMesh(InSlot, nullptr, {});
 	return true;
 }
 

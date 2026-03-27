@@ -130,6 +130,17 @@ USkeletalMeshComponent* IInventoryModularCharacterInterface::GetEquipmentCompone
 	return nullptr;
 }
 
+USkeletalMesh* IInventoryModularCharacterInterface::GetEquipmentOverlayMesh(EEquipmentSlot Slot,
+	const UInventoryItemEquipable* Item) const
+{
+	if (!Item)
+		return nullptr;
+
+	return Item->EquipmentMesh;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 bool IInventoryModularCharacterInterface::IsBodyPart(EEquipmentSlot Slot)
 {
 	return Slot == EEquipmentSlot::Legs || Slot == EEquipmentSlot::Feet || Slot == EEquipmentSlot::Arms || Slot ==

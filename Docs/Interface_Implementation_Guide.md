@@ -125,11 +125,121 @@ The default implementations handle item lookup via `UInventoryUtilities`, equipm
 **Header**: `Interfaces/InventoryModularCharacterInterface.h`
 **Implement on**: Your `ACharacter` subclass (alongside `IEquipmentInterface`)
 
-Provides access to the character's master skeletal mesh for equipment visual attachment.
+Provides the `UEquipmentComponent` with two things:
+1. Named access to the character's individual skeletal mesh components (head, torso, arms, etc.) so the plugin can attach static slot-specific meshes.
+2. A resolver for **dynamic overlay meshes** — skeletal mesh components managed at runtime in `VariableMeshesMap` inside `UEquipmentComponent`.
 
-| Method | Purpose |
-|--------|---------|
-| `GetMasterMeshComponent()` | Returns the character's main `USkeletalMeshComponent` |
+---
+
+#### Body-Part Component Accessors
+
+These return the `USkeletalMeshComponent*` that represents each modular body part. All have default implementations that return `nullptr`. Override only the ones your character actually exposes.
+
+| Method | Slot it serves | Notes |
+|--------|---------------|-------|
+| `GetHeadComponent()` | Head (base mesh) | Used to attach the base head, not the helmet |
+| `GetHelmetComponent()` | `EEquipmentSlot::Head` | Static slot-based helmet attachment (see note below) |
+| `GetTorsoComponent()` | `EEquipmentSlot::Torso` | |
+| `GetArmsComponent()` | `EEquipmentSlot::Arms` | |
+| `GetHandsComponent()` | `EEquipmentSlot::Hands` | |
+| `GetLegsComponent()` | `EEquipmentSlot::Legs` | |
+| `GetFootComponent()` | `EEquipmentSlot::Feet` | |
+| `GetShoulderPadComponent()` | `EEquipmentSlot::Shoulders` | |
+| `GetNeckComponent()` | `EEquipmentSlot::Neck` | |
+| `GetRightBracerComponent()` | `EEquipmentSlot::WristR` | |
+| `GetLeftBracerComponent()` | `EEquipmentSlot::WristL` | |
+| `GetBackComponent()` | `EEquipmentSlot::Back` | |
+
+`GetEquipmentComponentFromSlot(EEquipmentSlot)` dispatches to the above methods automatically and is used by the plugin's default `SetEquipment` implementation.
+
+---
+
+#### Dynamic Overlay Mesh: `GetEquipmentOverlayMesh`
+
+```cpp
+virtual USkeletalMesh* GetEquipmentOverlayMesh(
+    EEquipmentSlot Slot,
+    const UInventoryItemEquipable* Item) const;
+```
+
+**This is the primary integration point for visual overlay equipment.**
+
+When `EquipItem`, `EquipItemWithDurability`, `RemoveItem`, or `OnRep_ItemList` runs, `UEquipmentComponent` calls this method for the affected slot. If it returns a non-null mesh, the component immediately creates or updates a dedicated `USkeletalMeshComponent` for that slot inside its internal `VariableMeshesMap` — the same mechanism used for cloth physics pieces. The component is attached to the character mesh and given `SetLeaderPoseComponent` so it follows the skeleton automatically. Returning `nullptr` suppresses the overlay for that slot; the game is then responsible for handling the visual through its own path (e.g., merged skeletal mesh).
+
+**Default implementation** (plugin fallback):
+```cpp
+// Returns Item->EquipmentMesh — raw asset, no race/gender correction.
+// Works generically for any character that has not overridden this method.
+```
+
+**Typical game-side override:**
+```cpp
+USkeletalMesh* AYourCharacter::GetEquipmentOverlayMesh(
+    EEquipmentSlot Slot, const UInventoryItemEquipable* Item) const
+{
+    if (!Item || !Item->EquipmentMesh)
+        return nullptr;
+
+    switch (Slot)
+    {
+    // Overlay slots: return race/gender-corrected mesh
+    case EEquipmentSlot::Shoulders:
+    case EEquipmentSlot::Neck:
+    case EEquipmentSlot::Back:
+    case EEquipmentSlot::Face:
+    case EEquipmentSlot::WristR:
+        return GameInstance->GetCorrectEquipmentMesh(
+            Item->EquipmentMesh, RaceId, bIsFemale);
+
+    case EEquipmentSlot::WristL:
+    {
+        USkeletalMesh* Corrected = GameInstance->GetCorrectEquipmentMesh(
+            Item->EquipmentMesh, RaceId, bIsFemale);
+        // Mirror via a separate pre-authored left-arm mesh asset.
+        // Do NOT use negative scale: SetLeaderPoseComponent binds bones by name,
+        // so a WristR mesh with negative scale would animate with the wrong arm
+        // in any non-symmetrical animation.
+        return GameInstance->GetMirrorEquipmentMesh(Corrected);
+    }
+
+    // Head is handled by the merged skeletal mesh path — suppress overlay.
+    // Body-part replacement slots (Torso, Legs, Arms, Hands, Feet) are also merged.
+    default:
+        return nullptr;
+    }
+}
+```
+
+---
+
+#### Overlay vs. Merged Mesh: When to Use Each
+
+| Approach | How it works | Use for |
+|----------|-------------|---------|
+| **Overlay** (`GetEquipmentOverlayMesh` returns non-null) | Plugin creates a separate `USkeletalMeshComponent` with `SetLeaderPoseComponent`. Supports cloth physics. Attaches on equip, detaches on unequip without a full mesh rebuild. | Shoulders, neck, back, face, bracers — pieces worn *on top* of the body |
+| **Merged** (`GetEquipmentOverlayMesh` returns `nullptr`) | Game gathers meshes for all equipped slots and calls `USkeletalMergingLibrary::MergeMeshes`. Full rebuild on any change. No cloth physics. | Head (helmet texture must match face mesh UVs), torso, legs, arms, hands, feet — pieces that *replace* a body segment |
+
+The full rebuild (`UpdateMeshFromInternal`) still calls `TryUpdateDynamicMeshes` at the end, so `VariableMeshesMap` is always consistent with the current equipment state whether the update came from the plugin's per-equip path or the game's full rebuild path.
+
+---
+
+#### Minimal Implementation Example
+
+```cpp
+// Header
+class YOURPROJECT_API AYourCharacter : public ACharacter,
+    public IEquipmentInterface,
+    public IInventoryModularCharacterInterface
+{
+    // ...
+    virtual USkeletalMesh* GetEquipmentOverlayMesh(
+        EEquipmentSlot Slot, const UInventoryItemEquipable* Item) const override;
+};
+
+// Source — only override GetEquipmentOverlayMesh if you need race/gender correction
+// or want specific slots to stay in the merged path.
+// If you do not override it, the default returns Item->EquipmentMesh for all slots.
+```
 
 ---
 
