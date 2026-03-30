@@ -136,6 +136,19 @@ USkeletalMesh* IInventoryModularCharacterInterface::GetEquipmentOverlayMesh(EEqu
 	if (!Item)
 		return nullptr;
 
+	// Weapon/ammo slots use dedicated USkeletalMeshComponents that are already attached to
+	// named bone sockets (PrimarySheath, SecondarySheath, BackSheath, RangedSheath,
+	// SOCKET_RightHandWeapon, etc.) via EquipmentComponent.  Returning a mesh here would
+	// cause CreateAndRegisterOverlayComponent to spawn a second component with no socket
+	// name, snapping it to the mesh root and producing a duplicate weapon between the legs.
+	if (Slot == EEquipmentSlot::Primary   ||
+		Slot == EEquipmentSlot::Secondary ||
+		Slot == EEquipmentSlot::Range     ||
+		Slot == EEquipmentSlot::Ammo)
+	{
+		return nullptr;
+	}
+
 	return Item->EquipmentMesh;
 }
 
