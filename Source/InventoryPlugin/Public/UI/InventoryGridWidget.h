@@ -49,7 +49,7 @@ protected:
 	UPROPERTY(BlueprintReadWrite, Category = "Inventory|UI")
 	int32 DraggedItemTopLeftID = INDEX_NONE;
 
-	UPROPERTY(BlueprintReadWrite, Category = "Inventory|Bag")
+	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, Category = "Inventory|Bag")
 	EBagSlot BagID = EBagSlot::Unknown;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Inventory|Bag")
@@ -89,6 +89,9 @@ protected:
 
 public:
 	UInventoryGridWidget(const FObjectInitializer& ObjectInitializer);
+
+	virtual void NativeConstruct() override;
+
 	void ResizeBagArea(int32 InputWidth, int32 InputHeight);
 
 	UFUNCTION()

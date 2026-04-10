@@ -1,8 +1,10 @@
 #include "UI/InventoryGridWidget.h"
 
+#include "BagStorage.h"
 #include "InventoryUtilities.h"
 #include "Components/BankComponent.h"
 #include "Components/CanvasPanelSlot.h"
+#include "Components/InventoryComponent.h"
 #include "Components/LootPoolComponent.h"
 #include "Interfaces/InventoryPlayerInterface.h"
 #include "Interfaces/LootableInterface.h"
@@ -269,6 +271,32 @@ UInventoryGridWidget::UInventoryGridWidget(const FObjectInitializer& ObjectIniti
 
 //----------------------------------------------------------------------------------------------------------------------
 
+void UInventoryGridWidget::NativeConstruct()
+{
+	Super::NativeConstruct();
+
+	// Auto-init when BagID is pre-configured in Blueprint (EditDefaultsOnly) for all player-owned
+	// bag slots. LootPool is excluded because it requires an explicit world-actor owner — call
+	// InitData(LootableActor, EBagSlot::LootPool) manually in that case.
+	if (BagID != EBagSlot::Unknown && BagID != EBagSlot::LootPool && ActorOwner == nullptr)
+	{
+		AActor* OwningPawn = GetOwningPlayerPawn();
+		if (OwningPawn)
+		{
+			InitData(OwningPawn, BagID);
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning,
+				TEXT("UInventoryGridWidget::NativeConstruct: BagID=%d is preset but GetOwningPlayerPawn() is null. "
+				     "Call InitData() explicitly once the player pawn is available."),
+				static_cast<int32>(BagID));
+		}
+	}
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 void UInventoryGridWidget::ResizeBagArea(int32 InputWidth, int32 InputHeight)
 {
 	Width = InputWidth;
@@ -300,7 +328,22 @@ void UInventoryGridWidget::InitData(AActor* Owner, EBagSlot InputBagSlot, int32 
 	//these are internal bags of the inventory
 	if (BagID == EBagSlot::Pocket1 || BagID == EBagSlot::Pocket2)
 	{
-		ResizeBagArea(InputWidth > 0 ? InputWidth : 3, InputHeight > 0 ? InputHeight : 2);
+		// Prefer explicit overrides, then read actual dimensions from the component so
+		// any BagSet() customisation is honored. Fall back to 3×2 only if the component
+		// hasn't been initialized yet (shouldn't happen in normal flow).
+		int32 ActualWidth = InputWidth > 0 ? InputWidth : 3;
+		int32 ActualHeight = InputHeight > 0 ? InputHeight : 2;
+
+		if (InputWidth <= 0 || InputHeight <= 0)
+		{
+			if (const UBagStorage* BagData = PC->GetInventoryComponent()->GetRelatedBagConst(BagID))
+			{
+				ActualWidth = BagData->GetWidth();
+				ActualHeight = BagData->GetHeight();
+			}
+		}
+
+		ResizeBagArea(ActualWidth, ActualHeight);
 		PC->GetInventoryComponent()->FullInventoryDispatcher.AddDynamic(this, &UInventoryGridWidget::Refresh);
 	}
 	else if (BagID == EBagSlot::LootPool)

@@ -732,7 +732,11 @@ const UEquipmentComponent* AYourCharacter::GetEquipmentComponentConst() const { 
 
 ## Inventory Initialization
 
-Initialize bags in `PlayerController::BeginPlay()`:
+### Component-Side: Initializing Bags in `BeginPlay()`
+
+Pockets (`Pocket1`, `Pocket2`) are **pre-initialized** at construction time (3×2 grid, `EItemSize::Medium`, validity = `true`) and require no explicit setup. Call `BagSet()` only when you want to override the defaults (e.g. a larger pocket size for a specific character class).
+
+All other bag slots start inactive and must be activated when the corresponding bag item is equipped.
 
 ```cpp
 void AYourPlayerController::BeginPlay()
@@ -741,11 +745,11 @@ void AYourPlayerController::BeginPlay()
 
     if (HasAuthority() && Inventory)
     {
-        // Default pockets (always available)
-        Inventory->BagSet(EBagSlot::Pocket1, true, 3, 2, EItemSize::Giant, 1.0f);
-        Inventory->BagSet(EBagSlot::Pocket2, true, 3, 2, EItemSize::Giant, 1.0f);
+        // Pockets are pre-initialized — only call BagSet if you want non-default dimensions.
+        // Example: larger pockets for a particular class:
+        // Inventory->BagSet(EBagSlot::Pocket1, true, 4, 3, EItemSize::Giant, 1.0f);
 
-        // Bag slots start inactive - activated when bag items are equipped
+        // Bag slots start inactive — activated when a bag item is equipped
         Inventory->BagSet(EBagSlot::WaistBag1, false, 0, 0, EItemSize::Tiny, 1.0f);
         Inventory->BagSet(EBagSlot::WaistBag2, false, 0, 0, EItemSize::Tiny, 1.0f);
         Inventory->BagSet(EBagSlot::BackPack1, false, 0, 0, EItemSize::Tiny, 1.0f);
@@ -766,6 +770,28 @@ if (BagItem && BagItem->IsBag())
                       BagItem->GetBagSize(), BagItem->GetWeightReduction());
 }
 ```
+
+### Widget-Side: Initializing `UInventoryGridWidget`
+
+#### Option A — Blueprint-configurable (no code required for player bags)
+
+Set the `Bag ID` property directly on the widget in the Blueprint editor (Details panel → **Inventory | Bag → Bag ID**). `UInventoryGridWidget` will call `InitData` automatically in `NativeConstruct` using `GetOwningPlayerPawn()` as the owner.
+
+This works for all player-owned slots: `Pocket1`, `Pocket2`, `WaistBag1`, `WaistBag2`, `BackPack1`, `BackPack2`, `BankPool`, `Quiver`.
+
+> **Note:** Auto-init is skipped for `LootPool` because its owner is a world actor, not the player pawn. Call `InitData` explicitly for loot grids (see Option B).
+
+#### Option B — Explicit `InitData` call (required for `LootPool`, optional for all others)
+
+```cpp
+// Player bags — called from parent widget's InitData (e.g. UInventoryBagWidget)
+PocketGrid1->InitData(GetOwningPlayerPawn(), EBagSlot::Pocket1);
+
+// Loot pool — must pass the specific lootable actor
+LootGrid->InitData(LootableActor, EBagSlot::LootPool);
+```
+
+`InitData` reads the actual grid dimensions from `UInventoryComponent` (respecting any `BagSet()` overrides), so pocket size stays consistent between the component and the widget.
 
 ---
 

@@ -21,7 +21,10 @@ UInventoryComponent::UInventoryComponent()
 		VariableBags.Add({BagSlotValue, Bag});
 
 		if (BagSlotValue == EBagSlot::Pocket1 || BagSlotValue == EBagSlot::Pocket2)
+		{
 			Bag->InitializeData(BagSlotValue, 3, 2, EItemSize::Medium);
+			Bag->SetBagValidity(true); // Pockets are always available — mark valid at construction
+		}
 
 		Bag->SetBagSlot(BagSlotValue);
 		Bag->SetNetAddressable();
@@ -176,12 +179,6 @@ void UInventoryComponent::AddItemAt_Implementation(EBagSlot ConsideredBag, int32
 void UInventoryComponent::BagSet(EBagSlot ConsideredBag, bool InputValidity, int32 InputWidth, int32 InputHeight,
                                  EItemSize InputMaxStoreSize, float WeightReduction)
 {
-	// CRITICAL FIX: Don't crash in shipping builds - log error and return
-	if (ConsideredBag == EBagSlot::Pocket1 || ConsideredBag == EBagSlot::Pocket2)
-	{
-		UE_LOG(LogTemp, Error, TEXT("Cannot modify pocket bags (Pocket1/Pocket2) - they are pre-initialized"));
-		return;
-	}
 
 	UBagStorage* Bag = GetRelatedBag(ConsideredBag);
 	if (!Bag)
