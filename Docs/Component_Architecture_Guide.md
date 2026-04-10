@@ -168,7 +168,6 @@ bool GetEquipmentLockState(EEquipmentSlot Slot) const;
 void UpdateMasterMeshComponent(USkeletalMeshComponent* Mesh);
 void TryUpdateDynamicMeshes(const TMap<EEquipmentSlot, USkeletalMesh*>& MeshArray,
                              const TMap<EEquipmentSlot, TArray<FMaterialOverride>>& OverrideArray);
-void UnsheathMelee();
 void SheathMelee();
 void UnsheathRanged();
 void SheathRanged();
@@ -184,8 +183,9 @@ void SheathRanged();
 | `ItemUnEquipedDispatcher_Server` | `EEquipmentSlot, const UInventoryItemEquipable*` | Item unequipped (server) |
 | `EquipmentDurabilityChangedDispatcher_Server` | `EEquipmentSlot, float` | Durability changed (server) |
 | `DurabilityWarningDispatcher` | `EEquipmentSlot, float, const UInventoryItemEquipable*` | Low durability warning |
+### UCoinComponent
 
----
+**Header**: `Components/CoinComponent.h`
 
 #### Dynamic Overlay Mesh System (`VariableMeshesMap`)
 
@@ -233,10 +233,6 @@ The component queries `GetEquipmentOverlayMesh(Slot, Item)` on every equip and u
 See the [Interface Implementation Guide](./Interface_Implementation_Guide.md#iinventorymodularcharacterinterface) for a full override example.
 
 ---
-
-### UCoinComponent
-
-**Header**: `Components/CoinComponent.h`
 
 Manages four-tier currency storage. Conversion ratio: **10x per tier** (10 Copper = 1 Silver, 10 Silver = 1 Gold, 10 Gold = 1 Platinum).
 
