@@ -2,7 +2,11 @@
 
 #include "BagStorage.h"
 #include "InventoryUtilities.h"
+#include "Blueprint/DragDropOperation.h"
+#include "Blueprint/SlateBlueprintLibrary.h"
+#include "Blueprint/WidgetBlueprintLibrary.h"
 #include "Components/BankComponent.h"
+#include "Components/Border.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Components/InventoryComponent.h"
 #include "Components/LootPoolComponent.h"
@@ -141,7 +145,7 @@ bool UInventoryGridWidget::UpdateDraggedItemTopLeft(UItemWidget* IncomingItem, f
 
 //----------------------------------------------------------------------------------------------------------------------
 
-void UInventoryGridWidget::AddItemWidgetToGrid(UCanvasPanel* GridCanvasPanel, UWidget* Content, int32 TopLeft)
+void UInventoryGridWidget::AddItemWidgetToGrid(UWidget* Content, int32 TopLeft)
 {
 	if (!GridCanvasPanel || !Content)
 	{
@@ -173,7 +177,7 @@ void UInventoryGridWidget::AddItemWidgetToGrid(UCanvasPanel* GridCanvasPanel, UW
 
 //----------------------------------------------------------------------------------------------------------------------
 
-void UInventoryGridWidget::CreateNewItem(UCanvasPanel* GridCanvasPanel, const FMinimalItemStorage& ItemStorage)
+void UInventoryGridWidget::CreateNewItem(const FMinimalItemStorage& ItemStorage)
 {
 	if (!GridCanvasPanel)
 	{
@@ -203,13 +207,13 @@ void UInventoryGridWidget::CreateNewItem(UCanvasPanel* GridCanvasPanel, const FM
 		ItemWidget->SetLocked(true);
 	}
 
-	AddItemWidgetToGrid(GridCanvasPanel, ItemWidget, ItemStorage.TopLeftID);
+	AddItemWidgetToGrid(ItemWidget, ItemStorage.TopLeftID);
 	RegisterNewItem(ItemStorage.TopLeftID, ItemWidget);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
 
-void UInventoryGridWidget::FullRefresh(UCanvasPanel* GridCanvasPanel)
+void UInventoryGridWidget::FullRefresh()
 {
 	if (!GridCanvasPanel)
 	{
@@ -227,7 +231,7 @@ void UInventoryGridWidget::FullRefresh(UCanvasPanel* GridCanvasPanel)
 	const TArray<FMinimalItemStorage>& ItemData = GetItemData();
 	for (const FMinimalItemStorage& NewItem : ItemData)
 	{
-		CreateNewItem(GridCanvasPanel, NewItem);
+		CreateNewItem(NewItem);
 	}
 }
 
@@ -788,5 +792,152 @@ const TArray<FMinimalItemStorage>& UInventoryGridWidget::GetItemData() const
 		return EmptyArray;
 	}
 	return PC->GetAllItemsInBag(BagID);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+// BlueprintNativeEvent implementations
+//----------------------------------------------------------------------------------------------------------------------
+
+void UInventoryGridWidget::Refresh_Implementation()
+{
+	FullRefresh();
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UInventoryGridWidget::SetUISize_Implementation(float InputWidth, float InputHeight)
+{
+	if (!GridBorder)
+		return;
+
+	if (UCanvasPanelSlot* CanvasSlot = Cast<UCanvasPanelSlot>(GridBorder->Slot))
+	{
+		CanvasSlot->SetSize(FVector2D(InputWidth, InputHeight));
+	}
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+// Native drag-drop overrides
+//----------------------------------------------------------------------------------------------------------------------
+
+void UInventoryGridWidget::NativeOnDragEnter(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent,
+	UDragDropOperation* InOperation)
+{
+	Super::NativeOnDragEnter(InGeometry, InDragDropEvent, InOperation);
+
+	if (InOperation && Cast<UItemWidget>(InOperation->Payload))
+	{
+		DrawDropLocation = true;
+	}
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UInventoryGridWidget::NativeOnDragLeave(const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
+{
+	Super::NativeOnDragLeave(InDragDropEvent, InOperation);
+	DrawDropLocation = false;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+bool UInventoryGridWidget::NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent,
+	UDragDropOperation* InOperation)
+{
+	if (!CanAcceptDrop)
+	{
+		DrawDropLocation = false;
+		return false;
+	}
+
+	if (InOperation)
+	{
+		if (UItemWidget* Item = Cast<UItemWidget>(InOperation->Payload))
+		{
+			return HandleItemDrop(Item);
+		}
+	}
+
+	return false;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+bool UInventoryGridWidget::NativeOnDragOver(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent,
+	UDragDropOperation* InOperation)
+{
+	if (InOperation)
+	{
+		if (UItemWidget* Item = Cast<UItemWidget>(InOperation->Payload))
+		{
+			const FVector2D LocalPos = InGeometry.AbsoluteToLocal(InDragDropEvent.GetScreenSpacePosition());
+			return UpdateDraggedItemTopLeft(Item, static_cast<float>(LocalPos.X), static_cast<float>(LocalPos.Y));
+		}
+	}
+
+	return false;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+// NativePaint — draws grid lines and drop-highlight overlay
+//----------------------------------------------------------------------------------------------------------------------
+
+int32 UInventoryGridWidget::NativePaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry,
+	const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements,
+	int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
+{
+	const int32 MaxLayerId = Super::NativePaint(Args, AllottedGeometry, MyCullingRect, OutDrawElements, LayerId,
+	                                            InWidgetStyle, bParentEnabled);
+
+	if (!GridBorder)
+		return MaxLayerId;
+
+	FPaintContext Context(AllottedGeometry, MyCullingRect, OutDrawElements, MaxLayerId, InWidgetStyle, bParentEnabled);
+
+	// GridBorder sits inside the widget; get its top-left offset in the widget's local space.
+	const FVector2D LocalTopLeft = USlateBlueprintLibrary::GetLocalTopLeft(GridBorder->GetCachedGeometry());
+
+	for (const FInventoryLine& Line : Lines)
+	{
+		UWidgetBlueprintLibrary::DrawLine(Context,
+			LocalTopLeft + Line.Begin,
+			LocalTopLeft + Line.End,
+			GridLineColor,
+			/*bAntiAlias=*/false,
+			/*Thickness=*/1.0f);
+	}
+
+	DrawBackground(Context, LocalTopLeft);
+
+	return FMath::Max(MaxLayerId, Context.MaxLayer);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UInventoryGridWidget::DrawBackground(FPaintContext& Context, const FVector2D& LocalTopLeft) const
+{
+	if (!DropHighlightBrush || !DrawDropLocation || DraggedItemTopLeftID < 0)
+		return;
+
+	if (!UWidgetBlueprintLibrary::IsDragDropping())
+		return;
+
+	UDragDropOperation* DragOp = UWidgetBlueprintLibrary::GetDragDroppingContent();
+	if (!DragOp)
+		return;
+
+	UItemWidget* Item = Cast<UItemWidget>(DragOp->Payload);
+	if (!Item || !Item->GetReferencedItem())
+		return;
+
+	const float ColX = static_cast<float>(DraggedItemTopLeftID % Width) * TileSize;
+	const float RowY = static_cast<float>(DraggedItemTopLeftID / Width) * TileSize;
+	const FVector2D DrawPosition = LocalTopLeft + FVector2D(ColX, RowY);
+	const FVector2D DrawSize = GetItemScreenFootprint(Item);
+
+	const bool bCanPlace = CanAcceptDrop && IsRoomAvailable(Item->GetReferencedItem(), DraggedItemTopLeftID);
+	const FLinearColor& Tint = bCanPlace ? DropColorValid : DropColorInvalid;
+
+	UWidgetBlueprintLibrary::DrawBox(Context, DrawPosition, DrawSize, DropHighlightBrush, Tint);
 }
 

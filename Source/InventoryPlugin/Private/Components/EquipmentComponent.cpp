@@ -784,9 +784,18 @@ void UEquipmentComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& 
 
 void UEquipmentComponent::OnRep_ItemList()
 {
+	// UpdateMeshFromInternal (via EquipmentDispatcher) handles the full rebuild including
+	// TryUpdateDynamicMeshes, which creates cloth overlays for body-part slots and removes
+	// stale overlays via its SlotsToRemove path.  It must run first so the overlay map is
+	// in its final state before the per-slot refresh below.
 	EquipmentDispatcher.Broadcast();
 
-	// Plugin default: refresh all overlay meshes from the freshly replicated Equipment array
+	// Refresh only overlay-eligible slots (those for which GetEquipmentOverlayMesh returns a
+	// non-null mesh, e.g. Shoulders, Neck, Back, Face, Wrists).
+	// Body-part slots (Torso, Legs, etc.) return nullptr here and are managed exclusively by
+	// TryUpdateDynamicMeshes inside UpdateMeshFromInternal above.
+	// Calling UpdateSingleOverlayMesh(nullptr) for those slots would immediately destroy any
+	// cloth overlay just created by that path.
 	if (IInventoryModularCharacterInterface* ModularChar = Cast<IInventoryModularCharacterInterface>(GetOwner()))
 	{
 		for (int32 SlotIdx = 0; SlotIdx < static_cast<int32>(EEquipmentSlot::Last); ++SlotIdx)
@@ -794,8 +803,11 @@ void UEquipmentComponent::OnRep_ItemList()
 			const EEquipmentSlot Slot = static_cast<EEquipmentSlot>(SlotIdx);
 			const UInventoryItemEquipable* Item = Equipment[SlotIdx];
 			USkeletalMesh* OverlayMesh = ModularChar->GetEquipmentOverlayMesh(Slot, Item);
-			UpdateSingleOverlayMesh(Slot, OverlayMesh,
-				Item ? Item->EquipmentMeshMaterialOverride : TArray<FMaterialOverride>{});
+			if (OverlayMesh)
+			{
+				UpdateSingleOverlayMesh(Slot, OverlayMesh,
+					Item ? Item->EquipmentMeshMaterialOverride : TArray<FMaterialOverride>{});
+			}
 		}
 	}
 }

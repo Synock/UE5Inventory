@@ -3,11 +3,14 @@
 #include <CoreMinimal.h>
 #include <Blueprint/UserWidget.h>
 #include "ItemWidget.h"
+#include "Components/Border.h"
 #include "Components/CanvasPanel.h"
+#include "Slate/SlateBrushAsset.h"
 #include "Items/InventoryItemBase.h"
 #include "InventoryGridWidget.generated.h"
 
 class IInventoryPlayerInterface;
+class UDragDropOperation;
 
 USTRUCT(BlueprintType)
 struct FInventoryLine
@@ -50,9 +53,41 @@ protected:
 	UPROPERTY(BlueprintReadWrite, Category = "Inventory|UI")
 	int32 DraggedItemTopLeftID = INDEX_NONE;
 
+	// ============================================================================
+	// BindWidget — must match widget names in the Blueprint hierarchy exactly.
+	// ============================================================================
+
+	/** Border widget framing the grid — automatically bound from Blueprint. */
+	UPROPERTY(BlueprintReadWrite, Category = "Inventory|UI", Meta = (BindWidget))
+	TObjectPtr<UBorder> GridBorder = nullptr;
+
+	/** Canvas panel that holds item widgets — automatically bound from Blueprint. */
+	UPROPERTY(BlueprintReadWrite, Category = "Inventory|UI", Meta = (BindWidget))
+	TObjectPtr<UCanvasPanel> GridCanvasPanel = nullptr;
+
+	// ============================================================================
+	// Designer-tunable paint properties
+	// ============================================================================
+
+	/** Color of the grid lines drawn over the bag area. */
+	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, Category = "Inventory|UI")
+	FLinearColor GridLineColor = FLinearColor(0.5f, 0.5f, 0.5f, 0.5f);
+
+	/** Tint used for the drop-highlight box when the drop position is valid. */
+	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, Category = "Inventory|UI")
+	FLinearColor DropColorValid = FLinearColor(0.f, 1.f, 0.f, 0.02f);
+
+	/** Tint used for the drop-highlight box when the drop position is invalid. */
+	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, Category = "Inventory|UI")
+	FLinearColor DropColorInvalid = FLinearColor(1.f, 0.f, 0.f, 0.02f);
+
+	/** Solid-color brush used to draw the drop-highlight box. Assign SB_Color in Blueprint class defaults. */
+	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, Category = "Inventory|UI")
+	TObjectPtr<USlateBrushAsset> DropHighlightBrush = nullptr;
+
 	/**
 	 * The bag slot this grid represents. Set in Blueprint class defaults so the widget
-	 * auto-initialises when added to the viewport (no manual InitData call needed for player bags).
+	 * auto-initializes when added to the viewport (no manual InitData call needed for player bags).
 	 * LootPool bags must still call InitData() explicitly with the lootable actor as owner.
 	 */
 	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, Category = "Inventory|Bag")
@@ -60,7 +95,7 @@ protected:
 
 	/**
 	 * Default number of columns shown in the designer preview and used as a fallback
-	 * when the runtime bag has not been initialised yet. InitData() will override this
+	 * when the runtime bag has not been initialized yet. InitData() will override this
 	 * with the actual bag dimensions at runtime.
 	 */
 	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, Category = "Inventory|Bag")
@@ -68,7 +103,7 @@ protected:
 
 	/**
 	 * Default number of rows shown in the designer preview and used as a fallback
-	 * when the runtime bag has not been initialised yet. InitData() will override this
+	 * when the runtime bag has not been initialized yet. InitData() will override this
 	 * with the actual bag dimensions at runtime.
 	 */
 	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, Category = "Inventory|Bag")
@@ -103,27 +138,29 @@ protected:
 	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, Category = "Inventory|Data")
 	TSubclassOf<UItemWidget> ItemWidgetClass = UItemWidget::StaticClass();
 
-	/**
-	 * Called by the UMG Designer whenever a property changes, and also once at runtime
-	 * before NativeConstruct. Builds the grid line data and resizes the widget canvas so
-	 * the designer preview reflects the configured BagID / Width / Height / TileSize.
-	 *
-	 * At runtime InitData() will overwrite Width/Height with the actual bag dimensions
-	 * and call SetUISize / CreateLineSegments / Refresh again.
-	 */
 	virtual void NativePreConstruct() override;
-
 	virtual void NativeConstruct() override;
+
+	// ============================================================================
+	// Native drag-drop and paint overrides (replace Blueprint event graph)
+	// ============================================================================
+
+	virtual void NativeOnDragEnter(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
+	virtual void NativeOnDragLeave(const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
+	virtual bool NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
+	virtual bool NativeOnDragOver(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
+	virtual int32 NativePaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
+
+	/** Draws the drag-drop highlight box. Called from NativePaint. */
+	void DrawBackground(FPaintContext& Context, const FVector2D& LocalTopLeft) const;
 
 public:
 	UInventoryGridWidget(const FObjectInitializer& ObjectInitializer);
-
 
 	void ResizeBagArea(int32 InputWidth, int32 InputHeight);
 
 	UFUNCTION()
 	void ResetTransaction();
-
 
 	/**
 	 * @brief Init the grid data for the inventory.
@@ -133,7 +170,7 @@ public:
 	 * @param InputHeight if the bag is not an item, the grid height may be overriden by this value
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Inventory|Data")
-	void InitData(AActor* Owner, EBagSlot InputBagSlot, int32 InputWidth  = -1, int32 InputHeight = -1);
+	void InitData(AActor* Owner, EBagSlot InputBagSlot, int32 InputWidth = -1, int32 InputHeight = -1);
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Data")
 	EBagSlot GetBagID() const { return BagID; }
@@ -144,11 +181,21 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Inventory|Data")
 	int32 GetHeight() const { return Height; }
 
-	UFUNCTION(BlueprintImplementableEvent, BlueprintCosmetic, BlueprintCallable, Category = "Inventory|UI")
+	/**
+	 * Rebuilds the widget from the authoritative item data. C++ default calls FullRefresh();
+	 * Blueprint subclasses may override for custom behavior.
+	 */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCosmetic, BlueprintCallable, Category = "Inventory|UI")
 	void Refresh();
+	virtual void Refresh_Implementation();
 
-	UFUNCTION(BlueprintImplementableEvent, BlueprintCosmetic, BlueprintCallable, Category = "Inventory|UI")
+	/**
+	 * Resizes the GridBorder canvas slot. C++ default resizes via UCanvasPanelSlot;
+	 * Blueprint subclasses may override for custom layout.
+	 */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCosmetic, BlueprintCallable, Category = "Inventory|UI")
 	void SetUISize(float InputWidth, float InputHeight);
+	virtual void SetUISize_Implementation(float InputWidth, float InputHeight);
 
 	UFUNCTION(BlueprintCosmetic, BlueprintCallable, Category = "Inventory|UI")
 	void GetPositionFromTopLeft(int32 TopLeft, float& PositionX, float& PositionY);
@@ -213,14 +260,17 @@ protected:
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Inventory|UI|Helper")
 	bool UpdateDraggedItemTopLeft(UItemWidget* IncomingItem, float X, float Y);
 
+	/** Adds Content to the bound GridCanvasPanel at the grid position for TopLeft. */
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Inventory|UI")
-	void AddItemWidgetToGrid(UCanvasPanel* GridCanvasPanel, UWidget* Content, int32 TopLeft);
+	void AddItemWidgetToGrid(UWidget* Content, int32 TopLeft);
 
+	/** Creates and registers a new item widget inside the bound GridCanvasPanel. */
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Inventory|UI")
-	void CreateNewItem(UCanvasPanel* GridCanvasPanel, const FMinimalItemStorage& ItemStorage);
+	void CreateNewItem(const FMinimalItemStorage& ItemStorage);
 
+	/** Clears and repopulates the bound GridCanvasPanel from authoritative item data. */
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Inventory|UI")
-	void FullRefresh(UCanvasPanel* GridCanvasPanel);
+	void FullRefresh();
 
 private:
 	// Helper methods for validation and safety
