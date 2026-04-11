@@ -37,7 +37,8 @@ class INVENTORYPLUGIN_API UInventoryGridWidget : public UUserWidget
 	GENERATED_BODY()
 
 protected:
-	UPROPERTY(BlueprintReadWrite, Category = "Inventory|UI")
+	/** Size of each inventory tile in pixels. Set this in Blueprint class defaults to control the grid cell size. */
+	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, Category = "Inventory|UI")
 	float TileSize = 40.0f;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Inventory|UI")
@@ -49,14 +50,29 @@ protected:
 	UPROPERTY(BlueprintReadWrite, Category = "Inventory|UI")
 	int32 DraggedItemTopLeftID = INDEX_NONE;
 
+	/**
+	 * The bag slot this grid represents. Set in Blueprint class defaults so the widget
+	 * auto-initialises when added to the viewport (no manual InitData call needed for player bags).
+	 * LootPool bags must still call InitData() explicitly with the lootable actor as owner.
+	 */
 	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, Category = "Inventory|Bag")
 	EBagSlot BagID = EBagSlot::Unknown;
 
-	UPROPERTY(BlueprintReadWrite, Category = "Inventory|Bag")
-	int32 Width = 1;
+	/**
+	 * Default number of columns shown in the designer preview and used as a fallback
+	 * when the runtime bag has not been initialised yet. InitData() will override this
+	 * with the actual bag dimensions at runtime.
+	 */
+	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, Category = "Inventory|Bag")
+	int32 Width = 4;
 
-	UPROPERTY(BlueprintReadWrite, Category = "Inventory|Bag")
-	int32 Height = 1;
+	/**
+	 * Default number of rows shown in the designer preview and used as a fallback
+	 * when the runtime bag has not been initialised yet. InitData() will override this
+	 * with the actual bag dimensions at runtime.
+	 */
+	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, Category = "Inventory|Bag")
+	int32 Height = 4;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Inventory|Bag")
 	EItemSize MaximumBagSize = EItemSize::Giant;
@@ -87,10 +103,21 @@ protected:
 	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, Category = "Inventory|Data")
 	TSubclassOf<UItemWidget> ItemWidgetClass = UItemWidget::StaticClass();
 
+	/**
+	 * Called by the UMG Designer whenever a property changes, and also once at runtime
+	 * before NativeConstruct. Builds the grid line data and resizes the widget canvas so
+	 * the designer preview reflects the configured BagID / Width / Height / TileSize.
+	 *
+	 * At runtime InitData() will overwrite Width/Height with the actual bag dimensions
+	 * and call SetUISize / CreateLineSegments / Refresh again.
+	 */
+	virtual void NativePreConstruct() override;
+
+	virtual void NativeConstruct() override;
+
 public:
 	UInventoryGridWidget(const FObjectInitializer& ObjectInitializer);
 
-	virtual void NativeConstruct() override;
 
 	void ResizeBagArea(int32 InputWidth, int32 InputHeight);
 

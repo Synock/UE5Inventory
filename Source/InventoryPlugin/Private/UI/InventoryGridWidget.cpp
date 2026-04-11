@@ -271,6 +271,34 @@ UInventoryGridWidget::UInventoryGridWidget(const FObjectInitializer& ObjectIniti
 
 //----------------------------------------------------------------------------------------------------------------------
 
+void UInventoryGridWidget::NativePreConstruct()
+{
+	Super::NativePreConstruct();
+
+	// Sanitize values set in Blueprint class defaults before using them.
+	Width    = FMath::Max(1, Width);
+	Height   = FMath::Max(1, Height);
+	TileSize = FMath::Max(1.0f, TileSize);
+
+	// Rebuild grid line segments based on the current (possibly designer-edited) dimensions.
+	Lines.Empty();
+	CreateLineSegments();
+
+	// Resize the widget canvas so the designer canvas matches the tile grid.
+	SetUISize(Width * TileSize, Height * TileSize);
+
+	// In the UMG Designer trigger a full visual refresh so the Blueprint OnPaint /
+	// grid-draw event can render the preview immediately when any property changes.
+	// We skip this at runtime because NativeConstruct → InitData will issue its own
+	// Refresh() with authoritative data from the inventory component.
+	if (IsDesignTime())
+	{
+		Refresh();
+	}
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 void UInventoryGridWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
@@ -283,7 +311,10 @@ void UInventoryGridWidget::NativeConstruct()
 		AActor* OwningPawn = GetOwningPlayerPawn();
 		if (OwningPawn)
 		{
-			InitData(OwningPawn, BagID);
+			// Pass the Blueprint-configured Width/Height as the desired defaults.
+			// InitData will still prefer BagStorage (server-authoritative) when available,
+			// but will fall back to these values instead of the hardcoded 3x2 literal.
+			InitData(OwningPawn, BagID, Width, Height);
 		}
 		else
 		{
@@ -328,19 +359,19 @@ void UInventoryGridWidget::InitData(AActor* Owner, EBagSlot InputBagSlot, int32 
 	//these are internal bags of the inventory
 	if (BagID == EBagSlot::Pocket1 || BagID == EBagSlot::Pocket2)
 	{
-		// Prefer explicit overrides, then read actual dimensions from the component so
-		// any BagSet() customisation is honored. Fall back to 3×2 only if the component
-		// hasn't been initialized yet (shouldn't happen in normal flow).
-		int32 ActualWidth = InputWidth > 0 ? InputWidth : 3;
-		int32 ActualHeight = InputHeight > 0 ? InputHeight : 2;
+		// Priority 1 (lowest)  – hardcoded safe fallback
+		int32 ActualWidth  = 3;
+		int32 ActualHeight = 2;
 
-		if (InputWidth <= 0 || InputHeight <= 0)
+		// Priority 2 – caller / Blueprint-widget defaults (Width/Height set in the designer)
+		if (InputWidth  > 0) ActualWidth  = InputWidth;
+		if (InputHeight > 0) ActualHeight = InputHeight;
+
+		// Priority 3 (highest) – BagStorage set by the server via BagSet(); always authoritative
+		if (const UBagStorage* BagData = PC->GetInventoryComponent()->GetRelatedBagConst(BagID))
 		{
-			if (const UBagStorage* BagData = PC->GetInventoryComponent()->GetRelatedBagConst(BagID))
-			{
-				ActualWidth = BagData->GetWidth();
-				ActualHeight = BagData->GetHeight();
-			}
+			ActualWidth  = BagData->GetWidth();
+			ActualHeight = BagData->GetHeight();
 		}
 
 		ResizeBagArea(ActualWidth, ActualHeight);
