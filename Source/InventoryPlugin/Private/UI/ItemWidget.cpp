@@ -213,6 +213,11 @@ void UItemWidget::StopDrag()
 	if (OriginalSlotID != EEquipmentSlot::Unknown)
 	{
 		IInventoryPlayerInterface* PC = GetInventoryPlayerInterface();
+		if (!PC)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("StopDrag: Could not get InventoryPlayerInterface — skipping HUD refresh"));
+			return;
+		}
 		PC->GetInventoryHUDInterface()->Execute_ForceRefreshInventory(PC->GetInventoryHUDObject());
 	}
 	else if (BagID != EBagSlot::Unknown)

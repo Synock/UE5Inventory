@@ -56,21 +56,6 @@ void UInventoryGridWidget::ClearItemLookupMap()
 }
 
 //----------------------------------------------------------------------------------------------------------------------
-
-void UInventoryGridWidget::RebuildItemLookupMap()
-{
-	ItemLookupMap.Empty(ItemList.Num());
-	for (UItemWidget* Item : ItemList)
-	{
-		if (Item && Item->GetReferencedItem())
-		{
-			const int32 Key = Item->GetTopLeftID() * 100000 + Item->GetReferencedItem()->ItemID;
-			ItemLookupMap.Add(Key, Item);
-		}
-	}
-}
-
-//----------------------------------------------------------------------------------------------------------------------
 // Main Implementation
 //----------------------------------------------------------------------------------------------------------------------
 
@@ -87,6 +72,9 @@ FVector2D UInventoryGridWidget::GetItemScreenFootprint(UItemWidget* Item) const
 
 bool UInventoryGridWidget::CanProcessItemDrop(UItemWidget* IncomingItem) const
 {
+	if (!CanAcceptDrop)
+		return false;
+
 	return !IsItself(IncomingItem, DraggedItemTopLeftID) && IsRoomAvailable(
 		IncomingItem->GetReferencedItem(), DraggedItemTopLeftID);
 }
@@ -194,8 +182,9 @@ void UInventoryGridWidget::CreateNewItem(UCanvasPanel* GridCanvasPanel, const FM
 	}
 
 	const UInventoryItemBase* Item = UInventoryUtilities::GetItemFromID(ItemStorage.ItemID, GetWorld());
-	if (!ensureMsgf(Item, TEXT("CreateNewItem: Failed to get item with ID %d"), ItemStorage.ItemID))
+	if (!Item)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("CreateNewItem: Failed to resolve item with ID %d — skipping widget creation"), ItemStorage.ItemID);
 		return;
 	}
 
@@ -228,19 +217,13 @@ void UInventoryGridWidget::FullRefresh(UCanvasPanel* GridCanvasPanel)
 		return;
 	}
 
-	// Unregister all items (iterating backwards for safe removal)
-	for (int32 Id = ItemList.Num() - 1; Id >= 0; --Id)
-	{
-		if (ItemList.IsValidIndex(Id))
-		{
-			UnRegisterItem(ItemList[Id]);
-		}
-	}
-
-	GridCanvasPanel->ClearChildren();
+	// O(n) reset: clear all three data structures directly without per-item teardown.
+	ItemList.Reset();
+	ItemGrid.Init(nullptr, Width * Height);
 	ClearItemLookupMap();
+	GridCanvasPanel->ClearChildren();
 
-	// Create new items
+	// Repopulate from authoritative data source.
 	const TArray<FMinimalItemStorage>& ItemData = GetItemData();
 	for (const FMinimalItemStorage& NewItem : ItemData)
 	{
@@ -275,29 +258,14 @@ void UInventoryGridWidget::NativePreConstruct()
 {
 	Super::NativePreConstruct();
 
-	// Sanitize values set in Blueprint class defaults before using them.
-	Width    = FMath::Max(1, Width);
-	Height   = FMath::Max(1, Height);
-	TileSize = FMath::Max(1.0f, TileSize);
-
-	// Rebuild grid line segments based on the current (possibly designer-edited) dimensions.
+	// Build grid preview in the UMG Designer so the canvas reflects
+	// the configured Width / Height / TileSize before any runtime data arrives.
+	// InitData() will overwrite these with actual bag dimensions at runtime.
+	ItemGrid.Init(nullptr, Width * Height);
 	Lines.Empty();
 	CreateLineSegments();
-
-	// Resize the widget canvas so the designer canvas matches the tile grid.
 	SetUISize(Width * TileSize, Height * TileSize);
-
-	// In the UMG Designer trigger a full visual refresh so the Blueprint OnPaint /
-	// grid-draw event can render the preview immediately when any property changes.
-	// We skip this at runtime because NativeConstruct → InitData will issue its own
-	// Refresh() with authoritative data from the inventory component.
-	if (IsDesignTime())
-	{
-		Refresh();
-	}
 }
-
-//----------------------------------------------------------------------------------------------------------------------
 
 void UInventoryGridWidget::NativeConstruct()
 {
@@ -311,10 +279,7 @@ void UInventoryGridWidget::NativeConstruct()
 		AActor* OwningPawn = GetOwningPlayerPawn();
 		if (OwningPawn)
 		{
-			// Pass the Blueprint-configured Width/Height as the desired defaults.
-			// InitData will still prefer BagStorage (server-authoritative) when available,
-			// but will fall back to these values instead of the hardcoded 3x2 literal.
-			InitData(OwningPawn, BagID, Width, Height);
+			InitData(OwningPawn, BagID);
 		}
 		else
 		{
@@ -348,8 +313,9 @@ void UInventoryGridWidget::InitData(AActor* Owner, EBagSlot InputBagSlot, int32 
 
 	IInventoryPlayerInterface* PC = GetInventoryPlayerInterface();
 
-	if (!ensureMsgf(PC, TEXT("InitData: Failed to get InventoryPlayerInterface from player controller")))
+	if (!PC)
 	{
+		UE_LOG(LogTemp, Error, TEXT("InitData: Failed to get InventoryPlayerInterface from player controller — bag %d will not respond to inventory changes"), static_cast<int32>(InputBagSlot));
 		return;
 	}
 
@@ -359,19 +325,19 @@ void UInventoryGridWidget::InitData(AActor* Owner, EBagSlot InputBagSlot, int32 
 	//these are internal bags of the inventory
 	if (BagID == EBagSlot::Pocket1 || BagID == EBagSlot::Pocket2)
 	{
-		// Priority 1 (lowest)  – hardcoded safe fallback
-		int32 ActualWidth  = 3;
-		int32 ActualHeight = 2;
+		// Prefer explicit overrides, then read actual dimensions from the component so
+		// any BagSet() customisation is honored. Fall back to 3×2 only if the component
+		// hasn't been initialized yet (shouldn't happen in normal flow).
+		int32 ActualWidth = InputWidth > 0 ? InputWidth : 3;
+		int32 ActualHeight = InputHeight > 0 ? InputHeight : 2;
 
-		// Priority 2 – caller / Blueprint-widget defaults (Width/Height set in the designer)
-		if (InputWidth  > 0) ActualWidth  = InputWidth;
-		if (InputHeight > 0) ActualHeight = InputHeight;
-
-		// Priority 3 (highest) – BagStorage set by the server via BagSet(); always authoritative
-		if (const UBagStorage* BagData = PC->GetInventoryComponent()->GetRelatedBagConst(BagID))
+		if (InputWidth <= 0 || InputHeight <= 0)
 		{
-			ActualWidth  = BagData->GetWidth();
-			ActualHeight = BagData->GetHeight();
+			if (const UBagStorage* BagData = PC->GetInventoryComponent()->GetRelatedBagConst(BagID))
+			{
+				ActualWidth = BagData->GetWidth();
+				ActualHeight = BagData->GetHeight();
+			}
 		}
 
 		ResizeBagArea(ActualWidth, ActualHeight);
@@ -404,9 +370,10 @@ void UInventoryGridWidget::InitData(AActor* Owner, EBagSlot InputBagSlot, int32 
 		const IInventoryItemBagInterface* BagItem = Cast<IInventoryItemBagInterface>(
 			PC->GetEquipmentForInventory()->GetEquippedItem(RelatedSlot));
 
-		if (!ensureMsgf(BagItem, TEXT("InitData: Failed to get bag item for slot %d"), static_cast<int32>(RelatedSlot)))
+		if (!BagItem)
 		{
-			ResizeBagArea(4, 4); // Fallback to reasonable default
+			UE_LOG(LogTemp, Warning, TEXT("InitData: No bag item found for equipment slot %d — grid defaults to 4x4"), static_cast<int32>(RelatedSlot));
+			ResizeBagArea(4, 4);
 		}
 		else
 		{
@@ -526,25 +493,11 @@ int32 UInventoryGridWidget::GetActualTopLeftCorner(float XPosition, float YPosit
 
 bool UInventoryGridWidget::HasItemLocally(const FMinimalItemStorage& ItemData) const
 {
-	// Use lookup map for O(1) search if available
-	const int32 Key = ItemData.TopLeftID * 100000 + ItemData.ItemID;
-	if (const TObjectPtr<UItemWidget>* FoundItem = ItemLookupMap.Find(Key))
-	{
-		return *FoundItem != nullptr;
-	}
-
-	// Fallback to linear search if map is not built
-	for (const TObjectPtr<UItemWidget>& Elm : ItemList)
-	{
-		if (Elm && Elm->GetReferencedItem() &&
-			Elm->GetTopLeftID() == ItemData.TopLeftID &&
-			Elm->GetReferencedItem()->ItemID == ItemData.ItemID)
-		{
-			return true;
-		}
-	}
-
-	return false;
+	// ItemLookupMap is the single source of truth (incrementally maintained by
+	// RegisterNewItem / UnRegisterItem). Find returning nullptr IS the not-found answer.
+	const int64 Key = MakeItemKey(ItemData.TopLeftID, ItemData.ItemID);
+	const TObjectPtr<UItemWidget>* FoundItem = ItemLookupMap.Find(Key);
+	return FoundItem != nullptr && *FoundItem != nullptr;
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -553,8 +506,9 @@ UItemWidget* UInventoryGridWidget::GetLocalItem(const FMinimalItemStorage& ItemD
 {
 	Found = false;
 
-	// Use lookup map for O(1) search if available
-	const int32 Key = ItemData.TopLeftID * 100000 + ItemData.ItemID;
+	// ItemLookupMap is the single source of truth (incrementally maintained by
+	// RegisterNewItem / UnRegisterItem). Find returning nullptr IS the not-found answer.
+	const int64 Key = MakeItemKey(ItemData.TopLeftID, ItemData.ItemID);
 	if (const TObjectPtr<UItemWidget>* FoundItem = ItemLookupMap.Find(Key))
 	{
 		if (*FoundItem != nullptr)
@@ -564,17 +518,6 @@ UItemWidget* UInventoryGridWidget::GetLocalItem(const FMinimalItemStorage& ItemD
 		}
 	}
 
-	// Fallback to linear search if map is not built
-	for (const TObjectPtr<UItemWidget>& Elm : ItemList)
-	{
-		if (Elm && Elm->GetReferencedItem() &&
-			Elm->GetTopLeftID() == ItemData.TopLeftID &&
-			Elm->GetReferencedItem()->ItemID == ItemData.ItemID)
-		{
-			Found = true;
-			return Elm;
-		}
-	}
 
 	return nullptr;
 }
@@ -583,16 +526,12 @@ UItemWidget* UInventoryGridWidget::GetLocalItem(const FMinimalItemStorage& ItemD
 
 UItemWidget* UInventoryGridWidget::GetItemWidgetAtPosition(int32 TopLeft) const
 {
-	// Linear search through ItemList to find widget at TopLeft position
-	for (const TObjectPtr<UItemWidget>& Item : ItemList)
-	{
-		if (Item && Item->GetTopLeftID() == TopLeft)
-		{
-			return Item;
-		}
-	}
+	// O(1): ItemGrid is indexed by cell position and populated for every cell an item occupies,
+	// so this correctly returns the widget for any occupied cell — not just anchor (top-left) cells.
+	if (!IsValidGridIndex(TopLeft))
+		return nullptr;
 
-	return nullptr;
+	return ItemGrid[TopLeft];
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -612,12 +551,19 @@ void UInventoryGridWidget::DeInitData()
 		{
 			LootableActor->GetLootPoolDelegate().RemoveAll(this);
 		}
+		// ResetTransaction was bound to FullInventoryDispatcher for all bag types in InitData;
+		// clean it up here too to avoid a dangling delegate after the widget is destroyed.
+		if (IInventoryPlayerInterface* PC = GetInventoryPlayerInterface())
+		{
+			if (UInventoryComponent* IC = PC->GetInventoryComponent())
+				IC->FullInventoryDispatcher.RemoveAll(this);
+		}
 	}
 	else
 	{
 		if (IInventoryPlayerInterface* PC = GetInventoryPlayerInterface())
 		{
-			if (auto IC =  PC->GetInventoryComponent())
+			if (UInventoryComponent* IC = PC->GetInventoryComponent())
 				IC->FullInventoryDispatcher.RemoveAll(this);
 		}
 	}
@@ -627,7 +573,7 @@ void UInventoryGridWidget::DeInitData()
 
 //----------------------------------------------------------------------------------------------------------------------
 
-bool UInventoryGridWidget::IsRoomAvailable(const UInventoryItemBase* ItemObject, int TopLeftIndex) const
+bool UInventoryGridWidget::IsRoomAvailable(const UInventoryItemBase* ItemObject, int32 TopLeftIndex) const
 {
 	if (!ItemObject)
 	{
@@ -709,7 +655,7 @@ bool UInventoryGridWidget::IsRoomAvailable(const UInventoryItemBase* ItemObject,
 
 //----------------------------------------------------------------------------------------------------------------------
 
-bool UInventoryGridWidget::IsItself(UItemWidget* IncomingItem, int TopLeftIndex) const
+bool UInventoryGridWidget::IsItself(UItemWidget* IncomingItem, int32 TopLeftIndex) const
 {
 	return IncomingItem->GetTopLeftID() == TopLeftIndex && IncomingItem->GetBagID() == BagID;
 }
@@ -761,8 +707,8 @@ void UInventoryGridWidget::RegisterNewItem(int32 TopLeft, UItemWidget* NewItem)
 
 	NewItem->SetParentGrid(this);
 
-	// Update lookup map for fast retrieval
-	const int32 Key = TopLeft * 100000 + ItemBase->ItemID;
+	// Collision-safe int64 key.
+	const int64 Key = MakeItemKey(TopLeft, ItemBase->ItemID);
 	ItemLookupMap.Add(Key, NewItem);
 }
 
@@ -771,25 +717,31 @@ void UInventoryGridWidget::RegisterNewItem(int32 TopLeft, UItemWidget* NewItem)
 void UInventoryGridWidget::UnRegisterItem(UItemWidget* NewItem)
 {
 	if (!NewItem)
-	{
 		return;
-	}
 
 	ItemList.Remove(NewItem);
 
-	// Clear from grid
-	for (TObjectPtr<UItemWidget>& Elm : ItemGrid)
+	// Clear only the cells this item occupies using its stored position and dimensions.
+	// This is O(ItemWidth * ItemHeight) instead of the previous O(Width * Height) full scan.
+	if (const UInventoryItemBase* ItemBase = NewItem->GetReferencedItem())
 	{
-		if (Elm == NewItem)
+		const int32 TopLeft = NewItem->GetTopLeftID();
+		if (IsWithinGridBounds(TopLeft, ItemBase->Width, ItemBase->Height))
 		{
-			Elm = nullptr;
+			const int32 Sx = TopLeft % Width;
+			const int32 Sy = TopLeft / Width;
+			for (int32 y = Sy; y < Sy + ItemBase->Height; ++y)
+			{
+				for (int32 x = Sx; x < Sx + ItemBase->Width; ++x)
+				{
+					const int32 ID = x + y * Width;
+					if (ItemGrid.IsValidIndex(ID) && ItemGrid[ID] == NewItem)
+						ItemGrid[ID] = nullptr;
+				}
+			}
 		}
-	}
 
-	// Remove from lookup map
-	if (NewItem->GetReferencedItem())
-	{
-		const int32 Key = NewItem->GetTopLeftID() * 100000 + NewItem->GetReferencedItem()->ItemID;
+		const int64 Key = MakeItemKey(TopLeft, ItemBase->ItemID);
 		ItemLookupMap.Remove(Key);
 	}
 }

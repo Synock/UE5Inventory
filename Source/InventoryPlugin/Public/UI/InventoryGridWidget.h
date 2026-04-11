@@ -96,7 +96,7 @@ protected:
 
 	// Fast lookup map for item retrieval (optimization)
 	UPROPERTY(Transient)
-	TMap<int32, TObjectPtr<UItemWidget>> ItemLookupMap;
+	TMap<int64, TObjectPtr<UItemWidget>> ItemLookupMap;
 
 	IInventoryPlayerInterface* GetInventoryPlayerInterface() const;
 
@@ -139,10 +139,10 @@ public:
 	EBagSlot GetBagID() const { return BagID; }
 
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Inventory|Data")
-	int GetWidth() const { return Width; }
+	int32 GetWidth() const { return Width; }
 
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Inventory|Data")
-	int GetHeight() const { return Height; }
+	int32 GetHeight() const { return Height; }
 
 	UFUNCTION(BlueprintImplementableEvent, BlueprintCosmetic, BlueprintCallable, Category = "Inventory|UI")
 	void Refresh();
@@ -185,10 +185,10 @@ public:
 
 protected:
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Inventory|UI")
-	bool IsRoomAvailable(const UInventoryItemBase* ItemObject, int TopLeftIndex) const;
+	bool IsRoomAvailable(const UInventoryItemBase* ItemObject, int32 TopLeftIndex) const;
 
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Inventory|UI")
-	bool IsItself(UItemWidget* IncomingItem, int TopLeftIndex) const;
+	bool IsItself(UItemWidget* IncomingItem, int32 TopLeftIndex) const;
 
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Inventory|UI")
 	void RegisterNewItem(int32 TopLeft, UItemWidget* NewItem);
@@ -228,5 +228,12 @@ private:
 	bool IsValidCoordinate(int32 X, int32 Y) const;
 	bool IsWithinGridBounds(int32 TopLeftIndex, int32 ItemWidth, int32 ItemHeight) const;
 	void ClearItemLookupMap();
-	void RebuildItemLookupMap();
+
+	/**
+	 * Collision-safe 64-bit composite key: upper 32 bits = TopLeft, lower 32 bits = ItemID.
+	 */
+	static int64 MakeItemKey(int32 TopLeft, int32 ItemID)
+	{
+		return (static_cast<int64>(TopLeft) << 32) | static_cast<uint32>(ItemID);
+	}
 };
