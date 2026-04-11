@@ -345,7 +345,7 @@ void UInventoryGridWidget::InitData(AActor* Owner, EBagSlot InputBagSlot, int32 
 		}
 
 		ResizeBagArea(ActualWidth, ActualHeight);
-		PC->GetInventoryComponent()->FullInventoryDispatcher.AddDynamic(this, &UInventoryGridWidget::Refresh);
+		PC->GetInventoryComponent()->FullInventoryDispatcher.AddUniqueDynamic(this, &UInventoryGridWidget::Refresh);
 	}
 	else if (BagID == EBagSlot::LootPool)
 	{
@@ -353,8 +353,8 @@ void UInventoryGridWidget::InitData(AActor* Owner, EBagSlot InputBagSlot, int32 
 
 		if (ILootableInterface* LootableActor = Cast<ILootableInterface>(ActorOwner))
 		{
-			LootableActor->GetLootPoolDelegate().AddDynamic(this, &UInventoryGridWidget::Refresh);
-			LootableActor->GetLootPoolDelegate().AddDynamic(this, &UInventoryGridWidget::ResetTransaction);
+			LootableActor->GetLootPoolDelegate().AddUniqueDynamic(this, &UInventoryGridWidget::Refresh);
+			LootableActor->GetLootPoolDelegate().AddUniqueDynamic(this, &UInventoryGridWidget::ResetTransaction);
 		}
 		else
 		{
@@ -364,8 +364,8 @@ void UInventoryGridWidget::InitData(AActor* Owner, EBagSlot InputBagSlot, int32 
 	else if (BagID == EBagSlot::BankPool)
 	{
 		ResizeBagArea(InputWidth > 0 ? InputWidth : 8, InputHeight > 0 ? InputHeight : 16);
-		PC->GetBankComponent()->BankPoolDispatcher.AddDynamic(this, &UInventoryGridWidget::Refresh);
-		PC->GetBankComponent()->BankPoolDispatcher.AddDynamic(this, &UInventoryGridWidget::ResetTransaction);
+		PC->GetBankComponent()->BankPoolDispatcher.AddUniqueDynamic(this, &UInventoryGridWidget::Refresh);
+		PC->GetBankComponent()->BankPoolDispatcher.AddUniqueDynamic(this, &UInventoryGridWidget::ResetTransaction);
 	}
 	else
 	{

@@ -1,6 +1,7 @@
 
 #include "UI/WeightWidget.h"
 
+#include "Components/TextBlock.h"
 #include "Interfaces/InventoryPlayerInterface.h"
 
 void UWeightWidget::QueryTotalWeight()
@@ -28,3 +29,15 @@ void UWeightWidget::InitWidget()
 	}
 	Refresh();
 }
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UWeightWidget::Refresh_Implementation()
+{
+	QueryTotalWeight();
+	if (WeightText)
+	{
+		WeightText->SetText(FText::AsNumber(TotalWeight));
+	}
+}
+

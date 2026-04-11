@@ -1,4 +1,3 @@
-
 #include "UI/Keyring/KeyringWidget.h"
 
 #include "InventoryUtilities.h"
@@ -20,6 +19,26 @@ void UKeyringWidget::InternalSetup()
 
 	if(PlayerInterface->GetKeyring())
 		PlayerInterface->GetKeyring()->KeyringChangedDelegate.AddUniqueDynamic(this, &UKeyringWidget::RefreshList);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UKeyringWidget::ClearList_Implementation()
+{
+	if (KeyDataList)
+		KeyDataList->ClearListItems();
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UKeyringWidget::AddKey_Implementation(const FkeyLineDataStruct& KeyLineData)
+{
+	if (!KeyDataList)
+		return;
+
+	UKeyLineData* DataObj = NewObject<UKeyLineData>(this);
+	DataObj->Data = KeyLineData;
+	KeyDataList->AddItem(DataObj);
 }
 
 //----------------------------------------------------------------------------------------------------------------------

@@ -181,6 +181,9 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Inventory|Data")
 	int32 GetHeight() const { return Height; }
 
+	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Inventory|UI")
+	float GetTileSize() const { return TileSize; }
+
 	/**
 	 * Rebuilds the widget from the authoritative item data. C++ default calls FullRefresh();
 	 * Blueprint subclasses may override for custom behavior.

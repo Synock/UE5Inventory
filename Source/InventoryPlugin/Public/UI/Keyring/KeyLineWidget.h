@@ -46,10 +46,12 @@ protected:
 	UPROPERTY(BlueprintReadWrite)
 	FkeyLineDataStruct LocalData;
 
-	UPROPERTY(BlueprintReadWrite)
+	/** Bind an UImage named "KeyIconPointer" in the Blueprint for automatic icon updates. */
+	UPROPERTY(BlueprintReadWrite, meta = (BindWidgetOptional), Category = "Inventory|Keyring|UI")
 	UImage* KeyIconPointer = nullptr;
 
-	UPROPERTY(BlueprintReadWrite)
+	/** Bind a UTextBlock named "KeyNamePointer" in the Blueprint for automatic name updates. */
+	UPROPERTY(BlueprintReadWrite, meta = (BindWidgetOptional), Category = "Inventory|Keyring|UI")
 	UTextBlock* KeyNamePointer = nullptr;
 
 public:

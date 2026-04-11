@@ -1,7 +1,6 @@
 
 #include "UI/BagWidget.h"
 #include "UI/InventoryGridWidget.h"
-#include "UI/ItemWidget.h"
 #include "Components/InventoryComponent.h"
 #include "Interfaces/InventoryPlayerInterface.h"
 
@@ -38,6 +37,36 @@ void UBagWidget::InitBagData(const FString& InBagName, int32 InBagWidth, int32 I
 	BagSize = InBagSize;
 	CurrentBagSlot = InBagSlot;
 	InitUI();
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UBagWidget::InitUI_Implementation()
+{
+	if (BagNameText)
+		BagNameText->SetText(FText::FromString(BagName));
+
+	if (!InventoryGrid)
+		return;
+
+	if (AActor* OwnerActor = GetOwningPlayerPawn())
+		InventoryGrid->InitData(OwnerActor, CurrentBagSlot, BagWidth, BagHeight);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UBagWidget::Refresh_Implementation()
+{
+	if (InventoryGrid)
+		InventoryGrid->Refresh();
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UBagWidget::DeInitBagData_Implementation()
+{
+	if (InventoryGrid)
+		InventoryGrid->DeInitData();
 }
 
 //----------------------------------------------------------------------------------------------------------------------
