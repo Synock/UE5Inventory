@@ -1,4 +1,5 @@
 #include "UI/EquipmentSlotWidget.h"
+#include "InventoryPlugin.h"
 #include "UI/ItemWidget.h"
 #include "InventoryUtilities.h"
 #include "Components/EquipmentComponent.h"
@@ -8,18 +9,118 @@
 #include "Items/InventoryItemBase.h"
 #include "UI/InventoryEquipmentWidget.h"
 
+//----------------------------------------------------------------------------------------------------------------------
+
+void UEquipmentSlotWidget::NativeConstruct()
+{
+	Super::NativeConstruct();
+	SetupUI();
+	InitData();
+	UpdateTextSlots();
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UEquipmentSlotWidget::NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
+{
+	Super::NativeOnMouseEnter(InGeometry, InMouseEvent);
+	if (BackgroundImage)
+		BackgroundImage->SetColorAndOpacity(HoverColor);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UEquipmentSlotWidget::NativeOnMouseLeave(const FPointerEvent& InMouseEvent)
+{
+	Super::NativeOnMouseLeave(InMouseEvent);
+	if (BackgroundImage)
+		BackgroundImage->SetColorAndOpacity(DefaultColor);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UEquipmentSlotWidget::NativeOnDragCancelled(const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
+{
+	Super::NativeOnDragCancelled(InDragDropEvent, InOperation);
+	StopDrag();
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UEquipmentSlotWidget::Refresh_Implementation()
+{
+	// Apply enabled/disabled tint to the item image before the base refresh runs.
+	if (ItemImage)
+	{
+		const FLinearColor Tint = EnabledSlot
+			? FLinearColor::White
+			: ItemDisabledTint;
+		ItemImage->SetBrushTintColor(FSlateColor(Tint));
+	}
+
+	InnerRefresh();
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 void UEquipmentSlotWidget::InitData()
 {
 	IInventoryPlayerInterface* PC = GetInventoryPlayerInterface();
+	if (!PC)
+	{
+		UE_LOG(LogInventoryPlugin, Error,
+		       TEXT("UEquipmentSlotWidget::InitData — no player interface on '%s'. Slot will not update."),
+		       *GetName());
+		return;
+	}
+
 	IEquipmentInterface* EquipmentInterface = PC->GetEquipmentForInventory();
+	if (!EquipmentInterface)
+	{
+		UE_LOG(LogInventoryPlugin, Error,
+		       TEXT("UEquipmentSlotWidget::InitData — no equipment interface on '%s'. Slot will not update."),
+		       *GetName());
+		return;
+	}
+
 	UEquipmentComponent* EquipmentComponent = EquipmentInterface->GetEquipmentComponent();
+	if (!EquipmentComponent)
+	{
+		UE_LOG(LogInventoryPlugin, Error,
+		       TEXT("UEquipmentSlotWidget::InitData — no equipment component on '%s'. Slot will not update."),
+		       *GetName());
+		return;
+	}
 
-	check(EquipmentInterface);
-	check(EquipmentComponent);
-
+	// Perform an initial sync before binding so the slot shows the correct state immediately.
 	Refresh();
-	EquipmentComponent->EquipmentDispatcher.AddDynamic(this, &UEquipmentSlotWidget::Refresh);
+
+	// Both bindings are unique so hot-reload / re-entrance cannot register duplicates.
+	EquipmentComponent->EquipmentDispatcher.AddUniqueDynamic(this, &UEquipmentSlotWidget::Refresh);
 	EquipmentComponent->EquipmentDispatcher.AddUniqueDynamic(this, &UEquipmentSlotWidget::ResetTransaction);
+}
+
+void UEquipmentSlotWidget::ForEachSecondarySlot(const UInventoryItemEquipable* InItem,
+                                               TFunctionRef<void(UEquipmentSlotWidget&)> Func) const
+{
+	if (!InItem || !InItem->MultiSlotItem || !ParentComponent)
+		return;
+
+	for (int32 i = static_cast<int32>(EEquipmentSlot::Unknown);
+	     i < static_cast<int32>(EEquipmentSlot::Last); ++i)
+	{
+		const int32 LocalBit = static_cast<int32>(1u << static_cast<uint32>(i));
+		if (!(LocalBit & InItem->EquipableSlotBitMask))
+			continue;
+
+		const EEquipmentSlot LocalSlot = static_cast<EEquipmentSlot>(i);
+		if (LocalSlot == SlotID)
+			continue;
+
+		UEquipmentSlotWidget* OtherSlot = ParentComponent->GetSlotWidget(LocalSlot);
+		if (OtherSlot)
+			Func(*OtherSlot);
+	}
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -119,103 +220,74 @@ bool UEquipmentSlotWidget::IsBag() const
 
 void UEquipmentSlotWidget::InnerRefresh()
 {
-	if (IInventoryPlayerInterface* PC = GetInventoryPlayerInterface())
+	IInventoryPlayerInterface* PC = GetInventoryPlayerInterface();
+	if (!PC)
+		return;
+
+	IEquipmentInterface* EquipmentInterface = PC->GetEquipmentForInventory();
+	if (!EquipmentInterface)
+		return;
+
+	UEquipmentComponent* EquipmentComponent = EquipmentInterface->GetEquipmentComponent();
+
+	const UInventoryItemEquipable* Equipment = EquipmentInterface->GetEquippedItem(SlotID);
+	Item = Equipment;
+
+	if (Equipment)
 	{
-		IEquipmentInterface* EquipmentInterface = PC->GetEquipmentForInventory();
-		if (!EquipmentInterface)
-			return;
+		MaxDurability = FMath::Max(1.0f, Equipment->GetTotalDurability());
 
-		const UInventoryItemEquipable* Equipment = EquipmentInterface->GetEquippedItem(SlotID);
-		Item = Equipment;
-
-		// Fetch durability and max durability from equipment
-		if (Equipment)
+		float EquipmentDurability = MaxDurability;
+		if (EquipmentComponent &&
+		    EquipmentComponent->GetEquipmentDurability(SlotID, EquipmentDurability))
 		{
-			// Get max durability from item definition
-			MaxDurability = FMath::Max(1.0f, Equipment->GetTotalDurability());
+			Durability = EquipmentDurability;
+		}
+		else
+		{
+			Durability = MaxDurability;
+		}
 
-			// Get current durability from equipment component
-			float EquipmentDurability = MaxDurability; // Default to max
-			if (EquipmentInterface->GetEquipmentComponent()->GetEquipmentDurability(SlotID, EquipmentDurability))
+		if (EquipmentComponent)
+		{
+			const bool bNewLockState = EquipmentComponent->GetEquipmentLockState(SlotID);
+			if (bIsLocked != bNewLockState)
 			{
-				Durability = EquipmentDurability;
-			}
-			else
-			{
-				Durability = MaxDurability; // Fallback to max if not found
-			}
-
-			// Apply lock state from equipment component
-			bool bIsLockedState = EquipmentInterface->GetEquipmentComponent()->GetEquipmentLockState(SlotID);
-			if (bIsLocked != bIsLockedState)
-			{
-				bIsLocked = bIsLockedState;
-				// Trigger visual update for lock state change
+				bIsLocked = bNewLockState;
 				OnLockStateChanged(bIsLocked);
 			}
 		}
-
-		UGenericSlotWidget::InnerRefresh();
-
-		// Update tooltip to show item name or clear it
-		UpdateTooltip();
-
-		if (Equipment && Equipment->MultiSlotItem && ParentComponent)
-		{
-			for (int32 i = static_cast<int32>(EEquipmentSlot::Unknown); i < static_cast<int32>(EEquipmentSlot::Last); ++
-			     i)
-			{
-				if (const int32 LocalValue = 1 << i; LocalValue & Equipment->EquipableSlotBitMask)
-				{
-					EEquipmentSlot localSlot = static_cast<EEquipmentSlot>(i);
-					if (localSlot != SlotID)
-					{
-						UEquipmentSlotWidget* OtherSlot = ParentComponent->GetSlotWidget(localSlot);
-
-						if (!OtherSlot)
-							continue;
-
-						OtherSlot->DisableAndRefresh(Equipment);
-					}
-				}
-			}
-		}
 	}
+
+	UGenericSlotWidget::InnerRefresh();
+	UpdateTooltip();
+
+	// Disable all secondary slots occupied by this multi-slot item.
+	ForEachSecondarySlot(Equipment, [Equipment](UEquipmentSlotWidget& LocalSlot)
+	{
+		LocalSlot.DisableAndRefresh(Equipment);
+	});
 }
 
 //----------------------------------------------------------------------------------------------------------------------
 
 void UEquipmentSlotWidget::HideItem()
 {
-	if (const UInventoryItemEquipable* Equipable = Cast<UInventoryItemEquipable>(Item); Equipable && Equipable->
-		MultiSlotItem && ParentComponent)
+	// Cache before Super clears Item so ForEachSecondarySlot still has the item reference.
+	const UInventoryItemEquipable* EquipableItem = Cast<UInventoryItemEquipable>(Item);
+
+	// Re-enable every secondary slot that was mirroring this multi-slot item.
+	ForEachSecondarySlot(EquipableItem, [](UEquipmentSlotWidget& LocalSlot)
 	{
-		for (int32 i = static_cast<int32>(EEquipmentSlot::Unknown); i < static_cast<int32>(EEquipmentSlot::Last); ++i)
-		{
-			const int32 localValue = 1 << i;
-			if (localValue & Equipable->EquipableSlotBitMask)
-			{
-				EEquipmentSlot localSlot = static_cast<EEquipmentSlot>(i);
-				if (localSlot != SlotID)
-				{
-					UEquipmentSlotWidget* OtherSlot = ParentComponent->GetSlotWidget(localSlot);
+		LocalSlot.EnabledSlot = true;
+		LocalSlot.SetIsEnabled(true);
+		LocalSlot.HideItem();
+	});
 
-					if (!OtherSlot)
-						continue;
+	// P2: call Super::HideItem() (sets Item = nullptr and refreshes base visuals via virtual chain)
+	// instead of hard-coding UGenericSlotWidget::InnerRefresh() directly.
+	Super::HideItem();
 
-					OtherSlot->EnabledSlot = true;
-					OtherSlot->HideItem();
-					OtherSlot->SetIsEnabled(true);
-				}
-			}
-		}
-	}
-
-	Item = nullptr;
-
-	UGenericSlotWidget::InnerRefresh();
-
-	// Clear tooltip when item is removed
 	UpdateTooltip();
 }
 
@@ -223,6 +295,9 @@ void UEquipmentSlotWidget::HideItem()
 
 void UEquipmentSlotWidget::DisableAndRefresh(const UInventoryItemEquipable* InputItem)
 {
+	if (!InputItem)
+		return;
+
 	SetIsEnabled(false);
 	EnabledSlot = false;
 	if (InputItem->Icon)
@@ -270,74 +345,72 @@ bool UEquipmentSlotWidget::CanEquipItemAtSlot(const UInventoryItemBase* InputIte
 {
 	if (!InputItem)
 	{
-		UE_LOG(LogTemp, Log, TEXT("item is not equippable as it is not a valid item"));
+		UE_LOG(LogInventoryPlugin, Verbose, TEXT("CanEquipItemAtSlot: null item"));
 		return false;
 	}
 
 	const UInventoryItemEquipable* Equipable = Cast<UInventoryItemEquipable>(InputItem);
 	if (!Equipable)
 	{
-		UE_LOG(LogTemp, Log, TEXT("%s cannot be equipped"), *(InputItem->Name));
+		UE_LOG(LogInventoryPlugin, Verbose, TEXT("CanEquipItemAtSlot: '%s' is not equippable"), *InputItem->Name);
 		return false;
 	}
 
-	const int32 LocalAcceptableBitMask = 1 << static_cast<uint32>(InputSlot);
 
+	const int32 LocalAcceptableBitMask = static_cast<int32>(1u << static_cast<uint32>(InputSlot));
+
+	// Multi-slot items occupy their primary slot and all bits in EquipableSlotBitMask simultaneously.
+	// The *2 slots (WaistBag2, BackPack2) are secondary positions reserved for the item's
+	// visual overflow — they must never be the drop target for a multi-slot item.
 	if (Equipable->MultiSlotItem)
 	{
 		if (InputSlot == EEquipmentSlot::WaistBag2 || InputSlot == EEquipmentSlot::BackPack2)
-		{
 			return false;
-		}
 	}
 
-	if (Equipable->EquipableSlotBitMask & LocalAcceptableBitMask)
-	{
-		return true;
-	}
-	return false;
+	return (Equipable->EquipableSlotBitMask & LocalAcceptableBitMask) != 0;
 }
 
 //----------------------------------------------------------------------------------------------------------------------
 
-bool UEquipmentSlotWidget::TryEquipItem(UItemWidget* InputItem)
+bool UEquipmentSlotWidget::CanEquipItemWidget(UItemWidget* InputItem) const
 {
-	if (CanEquipItem(InputItem->GetReferencedItem()))
-	{
-		return true;
-	}
-	return false;
+	if (!InputItem)
+		return false;
+
+	return CanEquipItem(InputItem->GetReferencedItem());
 }
 
 //----------------------------------------------------------------------------------------------------------------------
 
 void UEquipmentSlotWidget::UpdateTextSlots()
 {
-	if (!TextSlot1 || !TextSlot2)
+	// LowerTextBox = first word, UpperTextBox = second word (preserves original BP assignment order)
+	if (!LowerTextBox || !UpperTextBox)
 		return;
 
-	FString SlotName = UInventoryUtilities::GetSlotName(SlotID);
+	const FString SlotName = UInventoryUtilities::GetSlotName(SlotID);
 
 	if (SlotName.IsEmpty())
 	{
-		TextSlot1->SetVisibility(ESlateVisibility::Hidden);
-		TextSlot2->SetVisibility(ESlateVisibility::Hidden);
+		LowerTextBox->SetVisibility(ESlateVisibility::Hidden);
+		UpperTextBox->SetVisibility(ESlateVisibility::Hidden);
 		return;
 	}
 
 	FString LeftPart;
 	FString RightPart;
-	SlotName.Split(" ", &LeftPart, &RightPart, ESearchCase::CaseSensitive, ESearchDir::FromStart);
+	SlotName.Split(TEXT(" "), &LeftPart, &RightPart, ESearchCase::CaseSensitive, ESearchDir::FromStart);
 
 	if (!LeftPart.IsEmpty() && !RightPart.IsEmpty())
 	{
-		TextSlot1->SetText(FText::FromString(LeftPart));
-		TextSlot2->SetText(FText::FromString(RightPart));
+		LowerTextBox->SetText(FText::FromString(LeftPart));
+		UpperTextBox->SetText(FText::FromString(RightPart));
 	}
 	else
 	{
-		TextSlot1->SetText(FText::FromString(SlotName));
-		TextSlot2->SetVisibility(ESlateVisibility::Collapsed);
+		LowerTextBox->SetText(FText::FromString(SlotName));
+		UpperTextBox->SetVisibility(ESlateVisibility::Collapsed);
 	}
 }
 
@@ -345,14 +418,13 @@ void UEquipmentSlotWidget::UpdateTextSlots()
 
 void UEquipmentSlotWidget::UpdateTooltip()
 {
+	if (Item == CachedTooltipItem)
+		return;
+
+	CachedTooltipItem = Item;
+
 	if (Item && !Item->Name.IsEmpty())
-	{
-		// Set tooltip to item name when equipped
 		SetToolTipText(FText::FromString(Item->Name));
-	}
 	else
-	{
-		// Clear tooltip when no item equipped
 		SetToolTipText(FText::GetEmpty());
-	}
 }

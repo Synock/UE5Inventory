@@ -24,9 +24,9 @@ protected:
 	// UI Elements (BindWidget)
 	//------------------------------------------------------------------------------------------------------------------
 
-	/** Background image for the slot (optional) */
+	/** Background image for the slot — bound automatically by UMG when widget is named "BackgroundImage" */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "Inventory|Slot|UI")
-	UImage* BackgroundImagePointer = nullptr;
+	TObjectPtr<UImage> BackgroundImage = nullptr;
 
 	//------------------------------------------------------------------------------------------------------------------
 	// State
