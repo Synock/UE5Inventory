@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "InventoryItem.h"
 #include "UObject/Interface.h"
+#include "Blueprint/UserWidget.h"
 #include "InventoryHUDInterface.generated.h"
 
 class UInventoryItemBase;
@@ -332,20 +333,28 @@ public:
 	void DisplayItemDescriptionWithDurability(const UInventoryItemBase* Item, float X, float Y, float Durability, float MaxDurability);
 
 	/**
-	 * \brief Displays the text of a book item at the specified location.
-	 *
-	 * This method is used to display the text content of a book item on the screen
-	 * at the specified location. The text will be rendered at the given position (X, Y)
-	 * on the screen. The book item to be displayed is specified by the Item parameter.
-	 *
-	 * \param Item The book item to display.
-	 * \param X The X coordinate of the screen position to display the text.
-	 * \param Y The Y coordinate of the screen position to display the text.
-	 *
-	 * \see UInventoryItemBase
+	 * Returns the widget class to instantiate when displaying book text.
+	 * The returned class must implement IInventoryBookWidgetInterface.
+	 * Override to supply a custom class; the default loads the plugin's built-in UI_BookWidget.
 	 */
-	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, BlueprintCosmetic, Category = "Inventory")
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Inventory|Book")
+	TSubclassOf<UUserWidget> GetBookWidgetClass() const;
+	virtual TSubclassOf<UUserWidget> GetBookWidgetClass_Implementation() const;
+
+	/**
+	 * Displays the text of a book item at the specified viewport location.
+	 *
+	 * The default C++ implementation creates a widget via GetBookWidgetClass(), populates it
+	 * with the item's content (IInventoryItemBookInterface::GetSimpleContent), and places it
+	 * at (X, Y) in the viewport. Override in Blueprint or C++ for custom presentation.
+	 *
+	 * @param Item The book item to display.
+	 * @param X    Viewport X position (DPI-independent).
+	 * @param Y    Viewport Y position (DPI-independent).
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, BlueprintCosmetic, Category = "Inventory")
 	void DisplayBookText(const UInventoryItemBase* Item, float X, float Y);
+	virtual void DisplayBookText_Implementation(const UInventoryItemBase* Item, float X, float Y);
 
 	/**
 	 * @brief Forces a refresh of the staging area possibilities.
