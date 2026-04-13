@@ -1,12 +1,20 @@
 #include "Components/FieldRepairComponent.h"
+#include "InventoryPlugin.h"
 
 #include "InventoryUtilities.h"
+#include "InventoryPlugin.h"
 #include "Components/EquipmentComponent.h"
+#include "InventoryPlugin.h"
 #include "Interfaces/FieldRepairInterface.h"
+#include "InventoryPlugin.h"
 #include "Interfaces/InventoryPlayerInterface.h"
+#include "InventoryPlugin.h"
 #include "Items/InventoryItemFieldRepair.h"
+#include "InventoryPlugin.h"
 #include "Items/Interfaces/InventoryItemFieldRepairInterface.h"
+#include "InventoryPlugin.h"
 #include "Net/UnrealNetwork.h"
+#include "InventoryPlugin.h"
 
 UFieldRepairComponent::UFieldRepairComponent()
 {
@@ -399,7 +407,7 @@ void UFieldRepairComponent::ServerCheckFieldRepairInterrupts()
 
 	if (bShouldInterrupt)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Server interrupting field repair"));
+		UE_LOG(LogInventoryPlugin, Warning, TEXT("Server interrupting field repair"));
 
 		// Clear server timer
 		if (UWorld* World = GetWorld())

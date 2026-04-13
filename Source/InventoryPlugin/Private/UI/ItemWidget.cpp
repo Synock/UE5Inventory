@@ -1,13 +1,22 @@
 #include "UI/ItemWidget.h"
+#include "InventoryPlugin.h"
 
 #include "Blueprint/WidgetLayoutLibrary.h"
+#include "InventoryPlugin.h"
 #include "Components/CanvasPanelSlot.h"
+#include "InventoryPlugin.h"
 #include "Interfaces/InventoryPlayerInterface.h"
+#include "InventoryPlugin.h"
 #include "Items/InventoryItemBase.h"
+#include "InventoryPlugin.h"
 #include "Items/Interfaces/InventoryItemActivatableInterface.h"
+#include "InventoryPlugin.h"
 #include "Items/Interfaces/InventoryItemBookInterface.h"
+#include "InventoryPlugin.h"
 #include "Items/InventoryItemEquipable.h"
+#include "InventoryPlugin.h"
 #include "UI/InventoryGridWidget.h"
+#include "InventoryPlugin.h"
 
 void UItemWidget::HandleAutoEquip()
 {
@@ -208,26 +217,26 @@ void UItemWidget::InitData(const UInventoryItemBase* InputItem, AActor* InputOwn
 void UItemWidget::StopDrag()
 {
 	Super::StopDrag();
-	UE_LOG(LogTemp, Log, TEXT("Drag and dropping was interrupted"));
+	UE_LOG(LogInventoryPlugin, Verbose, TEXT("Drag and dropping was interrupted"));
 	//item was originally equipped
 	if (OriginalSlotID != EEquipmentSlot::Unknown)
 	{
 		IInventoryPlayerInterface* PC = GetInventoryPlayerInterface();
 		if (!PC)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("StopDrag: Could not get InventoryPlayerInterface — skipping HUD refresh"));
+			UE_LOG(LogInventoryPlugin, Warning, TEXT("StopDrag: Could not get InventoryPlayerInterface — skipping HUD refresh"));
 			return;
 		}
 		PC->GetInventoryHUDInterface()->Execute_ForceRefreshInventory(PC->GetInventoryHUDObject());
 	}
 	else if (BagID != EBagSlot::Unknown)
 	{
-		UE_LOG(LogTemp, Log, TEXT("Doing nothing"));
+		UE_LOG(LogInventoryPlugin, Verbose, TEXT("Doing nothing"));
 		ParentGrid->Refresh();
 	}
 	else
 	{
-		UE_LOG(LogTemp, Error, TEXT("Impossible to stop dragging an item"));
+		UE_LOG(LogInventoryPlugin, Error, TEXT("Impossible to stop dragging an item"));
 	}
 }
 

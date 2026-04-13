@@ -1,6 +1,7 @@
 
 #include "UI/ItemBaseWidget.h"
 
+#include "InventoryPlugin.h"
 #include "InventoryUtilities.h"
 #include "Blueprint/WidgetBlueprintLibrary.h"
 #include "Interfaces/InventoryPlayerInterface.h"
@@ -53,7 +54,7 @@ FReply UItemBaseWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, con
 	ClickEvent = InMouseEvent;
 
 	const FString ButtonName = UKismetInputLibrary::PointerEvent_GetEffectingButton(InMouseEvent).ToString();
-	UE_LOG(LogTemp, Verbose, TEXT("NativeOnMouseButtonDown: Button=%s, Widget=%s, Item=%s"),
+	UE_LOG(LogInventoryPlugin, Verbose, TEXT("NativeOnMouseButtonDown: Button=%s, Widget=%s, Item=%s"),
 	       *ButtonName, *GetName(), Item ? *Item->Name : TEXT("None"));
 
 	if (UKismetInputLibrary::PointerEvent_GetEffectingButton(InMouseEvent) != FKey("RightMouseButton"))
@@ -65,7 +66,7 @@ FReply UItemBaseWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, con
 	}
 
 	IsRightClicking = true;
-	UE_LOG(LogTemp, Log, TEXT("Right-click started on widget %s, starting timer..."), *GetName());
+	UE_LOG(LogInventoryPlugin, Verbose, TEXT("Right-click started on widget %s, starting timer..."), *GetName());
 
 	GetWorld()->GetTimerManager().SetTimer(RightClickTimerHandle, this, &UItemBaseWidget::RightClickTimerFunction,
 	                                       RightClickMaxDuration,
@@ -142,7 +143,7 @@ void UItemBaseWidget::UpdateItemImage()
 	UImage* ImageWidget = ItemImage;
 	if (!ImageWidget)
 	{
-		UE_LOG(LogTemp, Warning,
+		UE_LOG(LogInventoryPlugin, Warning,
 			   TEXT("ItemBaseWidget::UpdateItemImage - No image widget found (ItemImage or ItemImagePointer)"));
 		return;
 	}
@@ -183,7 +184,7 @@ void UItemBaseWidget::RightClickTimerFunction()
 	}
 
 	IsRightClicking = false;
-	UE_LOG(LogTemp, Log, TEXT("Right-click timer completed on widget %s, displaying description..."), *GetName());
+	UE_LOG(LogInventoryPlugin, Verbose, TEXT("Right-click timer completed on widget %s, displaying description..."), *GetName());
 	//RightClickLongEffect();
 	DisplayDescription(ClickEvent);
 }

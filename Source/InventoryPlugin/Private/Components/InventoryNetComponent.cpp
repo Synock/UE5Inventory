@@ -1,22 +1,38 @@
 // Copyright 2023 Maximilien (Synock) Guislain
 
 #include "Components/InventoryNetComponent.h"
+#include "InventoryPlugin.h"
 
 #include "InventoryUtilities.h"
+#include "InventoryPlugin.h"
 #include "Components/CoinComponent.h"
+#include "InventoryPlugin.h"
 #include "Components/EquipmentComponent.h"
+#include "InventoryPlugin.h"
 #include "Components/InventoryComponent.h"
+#include "InventoryPlugin.h"
 #include "Components/LootPoolComponent.h"
+#include "InventoryPlugin.h"
 #include "Components/StagingAreaComponent.h"
+#include "InventoryPlugin.h"
 #include "Components/TradeComponent.h"
+#include "InventoryPlugin.h"
 #include "Interfaces/EquipmentInterface.h"
+#include "InventoryPlugin.h"
 #include "Interfaces/InventoryPlayerInterface.h"
+#include "InventoryPlugin.h"
 #include "Interfaces/LootableInterface.h"
+#include "InventoryPlugin.h"
 #include "Interfaces/MerchantInterface.h"
+#include "InventoryPlugin.h"
 #include "Items/InventoryItemBase.h"
+#include "InventoryPlugin.h"
 #include "Items/InventoryItemEquipable.h"
+#include "InventoryPlugin.h"
 #include "Items/Interfaces/InventoryItemBagInterface.h"
+#include "InventoryPlugin.h"
 #include "Net/UnrealNetwork.h"
+#include "InventoryPlugin.h"
 
 UInventoryNetComponent::UInventoryNetComponent()
 {
@@ -35,7 +51,7 @@ void UInventoryNetComponent::BeginPlay()
 		PlayerInterface = Cast<IInventoryPlayerInterface>(Owner);
 		if (!PlayerInterface)
 		{
-			UE_LOG(LogTemp, Error, TEXT("UInventoryNetComponent: Owner %s does not implement IInventoryPlayerInterface"),
+			UE_LOG(LogInventoryPlugin, Error, TEXT("UInventoryNetComponent: Owner %s does not implement IInventoryPlayerInterface"),
 			       *Owner->GetName());
 		}
 	}
@@ -571,7 +587,7 @@ void UInventoryNetComponent::HandleTransferCoinTo(UCoinComponent* GivingComponen
 void UInventoryNetComponent::HandleDropItemFromInventory(int32 TopLeft, EBagSlot Slot, FVector DropLocation)
 {
 	// No sensible generic default - game subclass must override to spawn a world actor.
-	UE_LOG(LogTemp, Warning,
+	UE_LOG(LogInventoryPlugin, Warning,
 	       TEXT(
 		       "UInventoryNetComponent::HandleDropItemFromInventory: No override provided. Item removed but not spawned in world."
 	       ));
@@ -584,7 +600,7 @@ void UInventoryNetComponent::HandleDropItemFromInventory(int32 TopLeft, EBagSlot
 void UInventoryNetComponent::HandleDropItemFromEquipment(EEquipmentSlot Slot, FVector DropLocation)
 {
 	// No sensible generic default - game subclass must override to spawn a world actor.
-	UE_LOG(LogTemp, Warning,
+	UE_LOG(LogInventoryPlugin, Warning,
 	       TEXT(
 		       "UInventoryNetComponent::HandleDropItemFromEquipment: No override provided. Item unequipped but not spawned in world."
 	       ));
@@ -908,7 +924,7 @@ void UInventoryNetComponent::HandleCancelStagingArea()
 
 			if (!PlayerInterface->PlayerTryAutoLootFunction(ItemStorage.ItemID, TriedSlot, InTopLeft, TriedBag))
 			{
-				UE_LOG(LogTemp, Error, TEXT("UInventoryNetComponent: Cannot put item %d back from staging"),
+				UE_LOG(LogInventoryPlugin, Error, TEXT("UInventoryNetComponent: Cannot put item %d back from staging"),
 				       ItemStorage.ItemID);
 				continue;
 			}
@@ -934,7 +950,7 @@ void UInventoryNetComponent::HandleTransferStagingToActor(AActor* TargetActor)
 {
 	// No sensible generic default for transferring to an NPC/actor.
 	// Game subclass should override this to handle NPC-specific logic (e.g. HandlePlayerGive).
-	UE_LOG(LogTemp, Warning,
+	UE_LOG(LogInventoryPlugin, Warning,
 	       TEXT(
 		       "UInventoryNetComponent::HandleTransferStagingToActor: No override provided. Staging area not transferred."
 	       ));

@@ -1,15 +1,27 @@
 #include "UI/FieldRepairWidget.h"
+#include "InventoryPlugin.h"
 #include "UI/FieldRepairWidgetInterface.h"
+#include "InventoryPlugin.h"
 #include "Items/Interfaces/InventoryItemFieldRepairInterface.h"
+#include "InventoryPlugin.h"
 #include "Items/InventoryItemEquipable.h"
+#include "InventoryPlugin.h"
 #include "UI/FieldRepairSlotWidget.h"
+#include "InventoryPlugin.h"
 #include "Interfaces/InventoryPlayerInterface.h"
+#include "InventoryPlugin.h"
 #include "Components/Button.h"
+#include "InventoryPlugin.h"
 #include "Components/ProgressBar.h"
+#include "InventoryPlugin.h"
 #include "Components/TextBlock.h"
+#include "InventoryPlugin.h"
 #include "Components/Image.h"
+#include "InventoryPlugin.h"
 #include "TimerManager.h"
+#include "InventoryPlugin.h"
 #include "Kismet/GameplayStatics.h"
+#include "InventoryPlugin.h"
 
 void UFieldRepairWidget::NativeConstruct()
 {
@@ -371,27 +383,27 @@ void UFieldRepairWidget::CompleteRepair()
 					}
 					else
 					{
-						UE_LOG(LogTemp, Warning, TEXT("FieldRepairWidget: PlayerController does not expose Server_CompleteFieldRepair UFunction"));
+						UE_LOG(LogInventoryPlugin, Warning, TEXT("FieldRepairWidget: PlayerController does not expose Server_CompleteFieldRepair UFunction"));
 					}
 				}
 				else
 				{
-					UE_LOG(LogTemp, Warning, TEXT("FieldRepairWidget: No owning player controller to execute server RPC"));
+					UE_LOG(LogInventoryPlugin, Warning, TEXT("FieldRepairWidget: No owning player controller to execute server RPC"));
 				}
 			}
 			else
 			{
-				UE_LOG(LogTemp, Warning, TEXT("FieldRepairWidget: Could not auto-notify server of repair - missing slot or kit ID"));
+				UE_LOG(LogInventoryPlugin, Warning, TEXT("FieldRepairWidget: Could not auto-notify server of repair - missing slot or kit ID"));
 			}
 		}
 		else
 		{
-			UE_LOG(LogTemp, Warning, TEXT("FieldRepairWidget: No equipment interface or no target item to resolve slot"));
+			UE_LOG(LogInventoryPlugin, Warning, TEXT("FieldRepairWidget: No equipment interface or no target item to resolve slot"));
 		}
 	}
 	else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("FieldRepairWidget: No IInventoryPlayerInterface available to notify server of repair"));
+		UE_LOG(LogInventoryPlugin, Warning, TEXT("FieldRepairWidget: No IInventoryPlayerInterface available to notify server of repair"));
 	}
 
 }

@@ -1,4 +1,5 @@
 #include "Components/EquipmentComponent.h"
+#include "InventoryPlugin.h"
 #include <Net/UnrealNetwork.h>
 
 #include "Actors/InventoryLightSourceActor.h"
@@ -374,14 +375,14 @@ void UEquipmentComponent::Sheath()
 
 		if (!ReturnSocket)
 		{
-			UE_LOG(LogTemp, Error, TEXT("Invalid return socket for primary weapon sheathing"));
+			UE_LOG(LogInventoryPlugin, Error, TEXT("Invalid return socket for primary weapon sheathing"));
 			return;
 		}
 
 		// CRITICAL FIX: Don't overwrite if sheath already occupied - return early to prevent mesh loss
 		if (ReturnSocket->GetSkeletalMeshAsset())
 		{
-			UE_LOG(LogTemp, Error, TEXT("Primary sheath socket already occupied - cannot sheath (would lose mesh reference)"));
+			UE_LOG(LogInventoryPlugin, Error, TEXT("Primary sheath socket already occupied - cannot sheath (would lose mesh reference)"));
 			return;
 		}
 
@@ -397,14 +398,14 @@ void UEquipmentComponent::Sheath()
 
 		if (!ReturnSocket)
 		{
-			UE_LOG(LogTemp, Error, TEXT("Invalid return socket for secondary weapon sheathing"));
+			UE_LOG(LogInventoryPlugin, Error, TEXT("Invalid return socket for secondary weapon sheathing"));
 			return;
 		}
 
 		// CRITICAL FIX: Don't overwrite if sheath already occupied - return early to prevent mesh loss
 		if (ReturnSocket->GetSkeletalMeshAsset())
 		{
-			UE_LOG(LogTemp, Error, TEXT("Secondary sheath socket already occupied - cannot sheath (would lose mesh reference)"));
+			UE_LOG(LogInventoryPlugin, Error, TEXT("Secondary sheath socket already occupied - cannot sheath (would lose mesh reference)"));
 			return;
 		}
 
@@ -440,7 +441,7 @@ void UEquipmentComponent::UpdateEquipment_Implementation(USkeletalMeshComponent*
 		}
 		else if (MaterialOverride.Num() > 0)
 		{
-			UE_LOG(LogTemp, Verbose, TEXT("UpdateEquipment: Skipping %d material overrides because mesh is null"), MaterialOverride.Num());
+			UE_LOG(LogInventoryPlugin, Verbose, TEXT("UpdateEquipment: Skipping %d material overrides because mesh is null"), MaterialOverride.Num());
 		}
 	}
 }
@@ -1295,7 +1296,7 @@ void UEquipmentComponent::UpdateBagUsage(EBagSlot BagSlot, float BagUsage)
 {
 	if (GetOwnerRole() == ROLE_Authority)
 	{
-		UE_LOG(LogTemp, Log, TEXT("Bag update is server side"));
+		UE_LOG(LogInventoryPlugin, Verbose, TEXT("UpdateBagUsage: server-side, slot %d"), static_cast<int32>(BagSlot));
 	}
 	if (BagSlot == EBagSlot::Quiver)
 	{
@@ -1310,12 +1311,12 @@ void UEquipmentComponent::UpdateBagUsage(EBagSlot BagSlot, float BagUsage)
 			const IInventoryItemAmmoBagInterface* QuiverInterface = Cast<IInventoryItemAmmoBagInterface>(Bag);
 			if (!QuiverInterface)
 			{
-				UE_LOG(LogTemp, Warning, TEXT("No quiver within %d"), BagSlot);
+				UE_LOG(LogInventoryPlugin, Warning, TEXT("UpdateBagUsage: no quiver interface on item at Ammo slot (BagSlot=%d)"), static_cast<int32>(BagSlot));
 				return;
 			}
 			if (QuiverInterface)
 			{
-				UE_LOG(LogTemp, Log, TEXT("Bag usage %f"), BagUsage);
+				UE_LOG(LogInventoryPlugin, Verbose, TEXT("UpdateBagUsage: usage=%.3f for slot %d"), BagUsage, static_cast<int32>(BagSlot));
 				if (BagUsage == 0.f)
 				{
 					// hide the ammo of the quiver

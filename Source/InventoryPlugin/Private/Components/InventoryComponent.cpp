@@ -1,4 +1,5 @@
 #include "Components/InventoryComponent.h"
+#include "InventoryPlugin.h"
 #include "BagStorage.h"
 #include <Net/UnrealNetwork.h>
 
@@ -49,7 +50,7 @@ void UInventoryComponent::BeginPlay()
 
 		if (GetOwnerRole() == ROLE_Authority)
 		{
-			//UE_LOG(LogTemp, Error, TEXT("Adding bag slot %d"), BagData.Slot);
+			//UE_LOG(LogInventoryPlugin, Error, TEXT("Adding bag slot %d"), BagData.Slot);
 			BagLUT.Emplace(BagData.Slot, BagData.Bag);
 			BagData.Bag->SetIsReplicated(true);
 			BagData.Bag->SetNetAddressable();
@@ -94,12 +95,12 @@ void UInventoryComponent::OnRep_ReplicatedBags()
 		// Validate bag pointer before adding to LUT
 		if (!BagData.Bag)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("OnRep_ReplicatedBags: Null bag encountered for slot %d, skipping"),
-				static_cast<int32>(BagData.Slot));
+			UE_LOG(LogInventoryPlugin, Warning, TEXT("OnRep_ReplicatedBags: Null bag encountered for slot %d, skipping"),
+			       static_cast<int32>(BagData.Slot));
 			continue;
 		}
 
-		//UE_LOG(LogTemp, Error, TEXT("Repping bag slot %d"), BagData.Slot);
+		//UE_LOG(LogInventoryPlugin, Error, TEXT("Repping bag slot %d"), BagData.Slot);
 		BagLUT.Emplace(BagData.Slot, BagData.Bag);
 		//BagData.Bag->BagUsageStorageChanged.AddUniqueDynamic(this, &UInventoryComponent::InventoryBagUsageChange);
 	}
@@ -144,14 +145,14 @@ bool UInventoryComponent::UpdateItemDurability(EBagSlot BagSlot, int32 TopLeft, 
 	// SECURITY: Authority check to prevent client manipulation
 	if (GetOwnerRole() != ROLE_Authority)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("UpdateItemDurability called on client - ignoring (potential cheat attempt)"));
+		UE_LOG(LogInventoryPlugin, Warning, TEXT("UpdateItemDurability called on client - ignoring (potential cheat attempt)"));
 		return false;
 	}
 
 	UBagStorage* Bag = GetRelatedBag(BagSlot);
 	if (!Bag)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("UpdateItemDurability: Invalid bag slot %d"), static_cast<int32>(BagSlot));
+		UE_LOG(LogInventoryPlugin, Warning, TEXT("UpdateItemDurability: Invalid bag slot %d"), static_cast<int32>(BagSlot));
 		return false;
 	}
 
@@ -183,7 +184,7 @@ void UInventoryComponent::BagSet(EBagSlot ConsideredBag, bool InputValidity, int
 	UBagStorage* Bag = GetRelatedBag(ConsideredBag);
 	if (!Bag)
 	{
-		UE_LOG(LogTemp, Error, TEXT("BagSet: Failed to get bag for slot %d"), static_cast<int32>(ConsideredBag));
+		UE_LOG(LogInventoryPlugin, Error, TEXT("BagSet: Failed to get bag for slot %d"), static_cast<int32>(ConsideredBag));
 		return;
 	}
 
@@ -198,14 +199,15 @@ void UInventoryComponent::QuiverSpecificSetup(EBagSlot ConsideredBag, EAmmoType 
 	// Validate this is actually a quiver slot
 	if (ConsideredBag != EBagSlot::Quiver)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("QuiverSpecificSetup called on non-quiver bag slot %d - this may cause unexpected behavior"),
-			static_cast<int32>(ConsideredBag));
+		UE_LOG(LogInventoryPlugin, Warning,
+		       TEXT("QuiverSpecificSetup called on non-quiver bag slot %d - this may cause unexpected behavior"),
+		       static_cast<int32>(ConsideredBag));
 	}
 
 	UBagStorage* Bag = GetRelatedBag(ConsideredBag);
 	if (!Bag)
 	{
-		UE_LOG(LogTemp, Error, TEXT("QuiverSpecificSetup: Failed to get bag for slot %d"), static_cast<int32>(ConsideredBag));
+		UE_LOG(LogInventoryPlugin, Error, TEXT("QuiverSpecificSetup: Failed to get bag for slot %d"), static_cast<int32>(ConsideredBag));
 		return;
 	}
 
@@ -302,7 +304,7 @@ EBagSlot UInventoryComponent::FindSuitableSlot(const UInventoryItemBase* Item, i
 		// CRITICAL FIX: Validate bag pointer before using
 		if (!Bag.Bag)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("FindSuitableSlot: Bag is null for slot %d"), static_cast<int32>(Bag.Slot));
+			UE_LOG(LogInventoryPlugin, Warning, TEXT("FindSuitableSlot: Bag is null for slot %d"), static_cast<int32>(Bag.Slot));
 			continue;
 		}
 
@@ -422,8 +424,8 @@ UBagStorage* UInventoryComponent::GetRelatedBag(EBagSlot InputSlot) const
 		return BagLUT.FindRef(InputSlot);
 
 	// CRITICAL FIX: Don't crash in shipping builds - return nullptr and log error
-	UE_LOG(LogTemp, Error, TEXT("Cannot find related bag for slot %d - bag may not be initialized or was removed"),
-		static_cast<int32>(InputSlot));
+	UE_LOG(LogInventoryPlugin, Error, TEXT("Cannot find related bag for slot %d - bag may not be initialized or was removed"),
+	       static_cast<int32>(InputSlot));
 	return nullptr;
 }
 

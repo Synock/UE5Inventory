@@ -1,16 +1,28 @@
 #include "Components/TradeComponent.h"
+#include "InventoryPlugin.h"
 
 #include "InventoryUtilities.h"
+#include "InventoryPlugin.h"
 #include "Interfaces/InventoryPlayerInterface.h"
+#include "InventoryPlugin.h"
 #include "Interfaces/InventoryInterface.h"
+#include "InventoryPlugin.h"
 #include "Interfaces/InventoryHUDInterface.h"
+#include "InventoryPlugin.h"
 #include "Interfaces/TradeInterface.h"
+#include "InventoryPlugin.h"
 #include "Components/CoinComponent.h"
+#include "InventoryPlugin.h"
 #include "Components/SphereComponent.h"
+#include "InventoryPlugin.h"
 #include "GameFramework/Character.h"
+#include "InventoryPlugin.h"
 #include "Net/UnrealNetwork.h"
+#include "InventoryPlugin.h"
 #include "GameFramework/PlayerController.h"
+#include "InventoryPlugin.h"
 #include "GameFramework/PlayerState.h"
+#include "InventoryPlugin.h"
 
 UTradeComponent::UTradeComponent()
 {
@@ -48,7 +60,7 @@ void UTradeComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	// If player disconnects while trading, safely cancel the trade and return items
 	if (GetOwner()->HasAuthority() && bIsTrading)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("TradeComponent: Player disconnected during trade, cancelling and returning items"));
+		UE_LOG(LogInventoryPlugin, Warning, TEXT("TradeComponent: Player disconnected during trade, cancelling and returning items"));
 		CancelTrade();
 	}
 
@@ -355,7 +367,7 @@ bool UTradeComponent::AddItemToOffer(int32 ItemID, EBagSlot BagSlot, int32 TopLe
 	// Cannot trade items from equipment slots (bags attached to equipment are OK)
 	if (BagSlot == EBagSlot::Unknown)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("TradeComponent: Cannot add item from equipment slot to trade"));
+		UE_LOG(LogInventoryPlugin, Warning, TEXT("TradeComponent: Cannot add item from equipment slot to trade"));
 		return false;
 	}
 
@@ -439,7 +451,7 @@ bool UTradeComponent::RemoveItemFromOffer(int32 SlotIndex)
 			}
 			else
 			{
-				UE_LOG(LogTemp, Warning, TEXT("TradeComponent: Could not find space to return item %d when removing from trade"), ItemSlot.ItemID);
+				UE_LOG(LogInventoryPlugin, Warning, TEXT("TradeComponent: Could not find space to return item %d when removing from trade"), ItemSlot.ItemID);
 				// Item is stuck in limbo - consider dropping it or keeping it in trade
 				// For now, we'll still remove it from offer but log the warning
 			}
@@ -875,7 +887,7 @@ void UTradeComponent::ResetTradeState(bool bReturnItems)
 					}
 					else
 					{
-						UE_LOG(LogTemp, Warning, TEXT("TradeComponent: Could not find space to return item %d when canceling trade"), ItemSlot.ItemID);
+						UE_LOG(LogInventoryPlugin, Warning, TEXT("TradeComponent: Could not find space to return item %d when canceling trade"), ItemSlot.ItemID);
 						// Item lost - this is a critical error but should be very rare
 						// In production, might want to queue this for later or drop on ground
 					}

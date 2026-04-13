@@ -1,6 +1,6 @@
-﻿
-#include "BagStorage.h"
+﻿#include "BagStorage.h"
 
+#include "InventoryPlugin.h"
 #include "InventoryUtilities.h"
 #include <Net/UnrealNetwork.h>
 
@@ -19,13 +19,13 @@ void GridBagSolver::RecordData(const UInventoryItemBase* Item, int32 TopLeft)
 
 	if (TopLeft < 0 || TopLeft >= Width * Height)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("GridBagSolver::RecordData - TopLeft %d out of bounds"), TopLeft);
+		UE_LOG(LogInventoryPlugin, Warning, TEXT("GridBagSolver::RecordData - TopLeft %d out of bounds"), TopLeft);
 		return;
 	}
 
 	if (!Item)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("GridBagSolver::RecordData - Item is null"));
+		UE_LOG(LogInventoryPlugin, Warning, TEXT("GridBagSolver::RecordData - Item is null"));
 		return;
 	}
 
@@ -38,8 +38,9 @@ void GridBagSolver::RecordData(const UInventoryItemBase* Item, int32 TopLeft)
 
 	if (MaxX > Width || MaxY > Height)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("GridBagSolver::RecordData - Item of size %dx%d at position (%d,%d) extends beyond bag bounds %dx%d"),
-			Item->Width, Item->Height, SX, SY, Width, Height);
+		UE_LOG(LogInventoryPlugin, Warning,
+		       TEXT("GridBagSolver::RecordData - Item of size %dx%d at position (%d,%d) extends beyond bag bounds %dx%d"),
+		       Item->Width, Item->Height, SX, SY, Width, Height);
 		return;
 	}
 
@@ -56,7 +57,8 @@ void GridBagSolver::RecordData(const UInventoryItemBase* Item, int32 TopLeft)
 			else
 			{
 				// This should never happen after pre-validation, but log if it does
-				UE_LOG(LogTemp, Error, TEXT("GridBagSolver::RecordData - Grid index %d out of bounds (should have been caught in pre-validation)"), ID);
+				UE_LOG(LogInventoryPlugin, Error,
+				       TEXT("GridBagSolver::RecordData - Grid index %d out of bounds (should have been caught in pre-validation)"), ID);
 			}
 		}
 	}
@@ -131,8 +133,9 @@ bool UBagStorage::InitializeData(EBagSlot InputBagSlot, int32 InputWidth, int32 
 	// CRITICAL FIX: Prevent reinitialization if ANY items exist, regardless of validity state
 	if (Items.Num() > 0)
 	{
-		UE_LOG(LogTemp, Error, TEXT("Cannot re-initialize bag slot %d with %d existing items - potential data loss prevented"),
-			static_cast<int32>(InputBagSlot), Items.Num());
+		UE_LOG(LogInventoryPlugin, Error,
+		       TEXT("Cannot re-initialize bag slot %d with %d existing items - potential data loss prevented"),
+		       static_cast<int32>(InputBagSlot), Items.Num());
 		return false;
 	}
 
@@ -251,7 +254,7 @@ void UBagStorage::RemoveItem_Implementation(int32 TopLeftIndex)
 
 	if (!GetOwner() || !GetOwner()->HasAuthority())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("RemoveItem called without authority"));
+		UE_LOG(LogInventoryPlugin, Warning, TEXT("RemoveItem called without authority"));
 		return;
 	}
 
@@ -277,7 +280,7 @@ void UBagStorage::RemoveItem_Implementation(int32 TopLeftIndex)
 	// Validate weight is finite before subtracting
 	if (!FMath::IsFinite(Item->Weight) || Item->Weight < 0.0f)
 	{
-		UE_LOG(LogTemp, Error, TEXT("Item %d has invalid weight during removal, not adjusting bag weight"), ItemID);
+		UE_LOG(LogInventoryPlugin, Error, TEXT("Item %d has invalid weight during removal, not adjusting bag weight"), ItemID);
 	}
 	else
 	{
@@ -300,14 +303,14 @@ void UBagStorage::AddItemAt_Implementation(int32 ItemID, int32 TopLeftIndex, flo
 	// Validate authority
 	if (!GetOwner() || !GetOwner()->HasAuthority())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("AddItemAt called without authority"));
+		UE_LOG(LogInventoryPlugin, Warning, TEXT("AddItemAt called without authority"));
 		return;
 	}
 
 	// Validate bag is initialized and valid
 	if (!BagValidity)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Attempted to add item to invalid bag slot %d"), LocalBagSlot);
+		UE_LOG(LogInventoryPlugin, Warning, TEXT("Attempted to add item to invalid bag slot %d"), LocalBagSlot);
 		return;
 	}
 
@@ -315,23 +318,23 @@ void UBagStorage::AddItemAt_Implementation(int32 ItemID, int32 TopLeftIndex, flo
 	const UInventoryItemBase* Item = UInventoryUtilities::GetItemFromID(ItemID, GetWorld());
 	if (!Item)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Attempted to add invalid item ID: %d"), ItemID);
+		UE_LOG(LogInventoryPlugin, Warning, TEXT("Attempted to add invalid item ID: %d"), ItemID);
 		return;
 	}
 
 	// Validate item size doesn't exceed bag capacity
 	if (Item->ItemSize > MaxStoreSize)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Item size %d exceeds bag max size %d"),
-			static_cast<int32>(Item->ItemSize), static_cast<int32>(MaxStoreSize));
+		UE_LOG(LogInventoryPlugin, Warning, TEXT("Item size %d exceeds bag max size %d"),
+		       static_cast<int32>(Item->ItemSize), static_cast<int32>(MaxStoreSize));
 		return;
 	}
 
 	// Validate position is within bag bounds
 	if (TopLeftIndex < 0 || TopLeftIndex >= Width * Height)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("TopLeftIndex %d out of bounds for bag %dx%d"),
-			TopLeftIndex, Width, Height);
+		UE_LOG(LogInventoryPlugin, Warning, TEXT("TopLeftIndex %d out of bounds for bag %dx%d"),
+		       TopLeftIndex, Width, Height);
 		return;
 	}
 
@@ -339,15 +342,15 @@ void UBagStorage::AddItemAt_Implementation(int32 ItemID, int32 TopLeftIndex, flo
 	GridBagSolver Solver = GetSolver();
 	if (!Solver.IsRoomAvailable(Item, TopLeftIndex))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("No room at position %d for item %d (size %dx%d)"),
-			TopLeftIndex, ItemID, Item->Width, Item->Height);
+		UE_LOG(LogInventoryPlugin, Warning, TEXT("No room at position %d for item %d (size %dx%d)"),
+		       TopLeftIndex, ItemID, Item->Width, Item->Height);
 		return;
 	}
 
 	// CRITICAL FIX 1.5: Validate durability range
 	if (!FMath::IsFinite(Durability))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Invalid durability value (NaN/Inf), defaulting to 100"));
+		UE_LOG(LogInventoryPlugin, Warning, TEXT("Invalid durability value (NaN/Inf), defaulting to 100"));
 		Durability = 100.0f;
 	}
 	Durability = FMath::Clamp(Durability, 0.0f, 100.0f);
@@ -364,7 +367,7 @@ void UBagStorage::AddItemAt_Implementation(int32 ItemID, int32 TopLeftIndex, flo
 	// CRITICAL FIX: Validate weight is finite before adding
 	if (!FMath::IsFinite(Item->Weight) || Item->Weight < 0.0f)
 	{
-		UE_LOG(LogTemp, Error, TEXT("Item %d has invalid weight (NaN/Inf/negative), treating as 0"), ItemID);
+		UE_LOG(LogInventoryPlugin, Error, TEXT("Item %d has invalid weight (NaN/Inf/negative), treating as 0"), ItemID);
 		// Don't add invalid weight to bag
 	}
 	else
@@ -401,14 +404,14 @@ bool UBagStorage::UpdateItemDurability(int32 TopLeft, int32 ItemID, float NewDur
 	// Validate authority
 	if (!GetOwner() || !GetOwner()->HasAuthority())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("UpdateItemDurability called without authority"));
+		UE_LOG(LogInventoryPlugin, Warning, TEXT("UpdateItemDurability called without authority"));
 		return false;
 	}
 
 	// Validate and clamp durability value
 	if (!FMath::IsFinite(NewDurability))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Invalid durability value (NaN/Inf) for UpdateItemDurability"));
+		UE_LOG(LogInventoryPlugin, Warning, TEXT("Invalid durability value (NaN/Inf) for UpdateItemDurability"));
 		return false;
 	}
 	NewDurability = FMath::Clamp(NewDurability, 0.0f, 100.0f);
@@ -423,13 +426,13 @@ bool UBagStorage::UpdateItemDurability(int32 TopLeft, int32 ItemID, float NewDur
 			// Trigger replication update
 			BagStorageDispatcher_Server.Broadcast();
 
-			UE_LOG(LogTemp, Verbose, TEXT("Updated item %d durability at TopLeft %d to %.2f"),
-				ItemID, TopLeft, NewDurability);
+			UE_LOG(LogInventoryPlugin, Verbose, TEXT("Updated item %d durability at TopLeft %d to %.2f"),
+			       ItemID, TopLeft, NewDurability);
 			return true;
 		}
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("Item %d not found at TopLeft %d for durability update"), ItemID, TopLeft);
+	UE_LOG(LogInventoryPlugin, Warning, TEXT("Item %d not found at TopLeft %d for durability update"), ItemID, TopLeft);
 	return false;
 }
 

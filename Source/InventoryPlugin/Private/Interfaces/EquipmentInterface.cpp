@@ -1,14 +1,25 @@
 #include "Interfaces/EquipmentInterface.h"
+#include "InventoryPlugin.h"
 #include "InventoryUtilities.h"
+#include "InventoryPlugin.h"
 #include "Components/EquipmentComponent.h"
+#include "InventoryPlugin.h"
 #include "Components/InventoryComponent.h"
+#include "InventoryPlugin.h"
 #include "GameFramework/Character.h"
+#include "InventoryPlugin.h"
 #include "Interfaces/InventoryPlayerInterface.h"
+#include "InventoryPlugin.h"
 #include "Items/InventoryItemAmmoBag.h"
+#include "InventoryPlugin.h"
 #include "Items/Interfaces/InventoryItemBagInterface.h"
+#include "InventoryPlugin.h"
 #include "Items/InventoryItemBase.h"
+#include "InventoryPlugin.h"
 #include "Items/InventoryItemEquipable.h"
+#include "InventoryPlugin.h"
 #include "Items/Interfaces/InventoryItemAmmoInterface.h"
+#include "InventoryPlugin.h"
 
 
 bool IEquipmentInterface::EquipmentHasAuthority()
@@ -16,14 +27,14 @@ bool IEquipmentInterface::EquipmentHasAuthority()
 	UEquipmentComponent* EquipComp = GetEquipmentComponent();
 	if (!EquipComp)
 	{
-		UE_LOG(LogTemp, Error, TEXT("EquipmentHasAuthority: Equipment component is null"));
+		UE_LOG(LogInventoryPlugin, Error, TEXT("EquipmentHasAuthority: Equipment component is null"));
 		return false;
 	}
 
 	AActor* Owner = EquipComp->GetOwner();
 	if (!Owner)
 	{
-		UE_LOG(LogTemp, Error, TEXT("EquipmentHasAuthority: Equipment component owner is null"));
+		UE_LOG(LogInventoryPlugin, Error, TEXT("EquipmentHasAuthority: Equipment component owner is null"));
 		return false;
 	}
 
@@ -37,14 +48,14 @@ UWorld* IEquipmentInterface::EquipmentGetWorldContext() const
 	const UEquipmentComponent* EquipComp = GetEquipmentComponentConst();
 	if (!EquipComp)
 	{
-		UE_LOG(LogTemp, Error, TEXT("EquipmentGetWorldContext: Equipment component is null"));
+		UE_LOG(LogInventoryPlugin, Error, TEXT("EquipmentGetWorldContext: Equipment component is null"));
 		return nullptr;
 	}
 
 	AActor* Owner = EquipComp->GetOwner();
 	if (!Owner)
 	{
-		UE_LOG(LogTemp, Error, TEXT("EquipmentGetWorldContext: Equipment component owner is null"));
+		UE_LOG(LogInventoryPlugin, Error, TEXT("EquipmentGetWorldContext: Equipment component owner is null"));
 		return nullptr;
 	}
 
@@ -66,7 +77,7 @@ const UInventoryItemEquipable* IEquipmentInterface::GetEquippedItem(EEquipmentSl
 	const UEquipmentComponent* EquipComp = GetEquipmentComponentConst();
 	if (!EquipComp)
 	{
-		UE_LOG(LogTemp, Error, TEXT("GetEquippedItem: Equipment component is null for slot %d"), static_cast<int32>(Slot));
+		UE_LOG(LogInventoryPlugin, Error, TEXT("GetEquippedItem: Equipment component is null for slot %d"), static_cast<int32>(Slot));
 		return nullptr;
 	}
 	return EquipComp->GetItemAtSlot(Slot);
@@ -79,7 +90,7 @@ bool IEquipmentInterface::GetEquipmentDurability(EEquipmentSlot Slot, float& Out
 	const UEquipmentComponent* EquipComp = GetEquipmentComponentConst();
 	if (!EquipComp)
 	{
-		UE_LOG(LogTemp, Error, TEXT("GetEquipmentDurability: Equipment component is null for slot %d"), static_cast<int32>(Slot));
+		UE_LOG(LogInventoryPlugin, Error, TEXT("GetEquipmentDurability: Equipment component is null for slot %d"), static_cast<int32>(Slot));
 		OutDurability = 0.f;
 		return false;
 	}
@@ -303,7 +314,7 @@ void IEquipmentInterface::HandleTwoSlotItemUnequip(const UInventoryItemEquipable
 		for (EEquipmentSlot OtherSlot : OtherSlots)
 		{
 			GetEquipmentComponent()->RemoveItem(OtherSlot);
-			UE_LOG(LogTemp, Verbose, TEXT("Cleared secondary slot %d for multi-slot item"), static_cast<int32>(OtherSlot));
+			UE_LOG(LogInventoryPlugin, Verbose, TEXT("Cleared secondary slot %d for multi-slot item"), static_cast<int32>(OtherSlot));
 		}
 	}
 }

@@ -1,24 +1,29 @@
 
 #include "UI/StagingAreaWidget.h"
+#include "InventoryPlugin.h"
 
 #include "InventoryUtilities.h"
+#include "InventoryPlugin.h"
 #include "Interfaces/InventoryPlayerInterface.h"
+#include "InventoryPlugin.h"
 #include "Items/InventoryItemBase.h"
+#include "InventoryPlugin.h"
 #include "UI/StagingAreaSlotWidget.h"
+#include "InventoryPlugin.h"
 
 void UStagingAreaWidget::InitData()
 {
 	IInventoryPlayerInterface* PC = GetInventoryPlayerInterface();
 	if (!PC)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("StagingAreaWidget::InitData - No inventory player interface found"));
+		UE_LOG(LogInventoryPlugin, Warning, TEXT("StagingAreaWidget::InitData - No inventory player interface found"));
 		return;
 	}
 
 	StagingComponent = PC->GetStagingAreaItems();
 	if (!StagingComponent)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("StagingAreaWidget::InitData - No staging component found"));
+		UE_LOG(LogInventoryPlugin, Warning, TEXT("StagingAreaWidget::InitData - No staging component found"));
 		return;
 	}
 
@@ -37,7 +42,7 @@ void UStagingAreaWidget::Refresh()
 
 	if (!StagingComponent)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("StagingAreaWidget::Refresh - Staging component is null"));
+		UE_LOG(LogInventoryPlugin, Warning, TEXT("StagingAreaWidget::Refresh - Staging component is null"));
 		return;
 	}
 
@@ -53,7 +58,7 @@ void UStagingAreaWidget::Refresh()
 		UStagingAreaSlotWidget* SlotWidget = GetItemSlotFromID(SlotIndex);
 		if (!SlotWidget)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("StagingAreaWidget::Refresh - Slot %d is null"), SlotIndex);
+			UE_LOG(LogInventoryPlugin, Warning, TEXT("StagingAreaWidget::Refresh - Slot %d is null"), SlotIndex);
 			SlotIndex++;
 			continue;
 		}
@@ -106,7 +111,7 @@ UStagingAreaSlotWidget* UStagingAreaWidget::GetItemSlotFromID(int32 ID) const
 	case 6: return Slot6;
 	case 7: return Slot7;
 	default:
-		UE_LOG(LogTemp, Warning, TEXT("StagingAreaWidget::GetItemSlotFromID - Invalid slot ID: %d"), ID);
+		UE_LOG(LogInventoryPlugin, Warning, TEXT("StagingAreaWidget::GetItemSlotFromID - Invalid slot ID: %d"), ID);
 		return nullptr;
 	}
 }

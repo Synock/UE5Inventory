@@ -1,6 +1,6 @@
-
 #include "Actors/DroppedItemSpawner.h"
 
+#include "InventoryPlugin.h"
 #include "Actors/DroppedItem.h"
 #include "Components/BoxComponent.h"
 #include "Interfaces/InventoryGameModeInterface.h"
@@ -57,7 +57,7 @@ void ADroppedItemSpawner::SpawnDroppedItem()
 
 	if (!GMI)
 	{
-		UE_LOG(LogTemp, Warning,
+		UE_LOG(LogInventoryPlugin, Warning,
 		       TEXT("DroppedItemSpawner: No GameMode implementing IInventoryGameModeInterface found!"));
 		return;
 	}
@@ -92,7 +92,7 @@ void ADroppedItemSpawner::RegisterItemPickup(AActor* DestroyedActor)
 {
 	if (SpawnedItem != DestroyedActor)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("DroppedItemSpawner: RegisterItemPickup: SpawnedItem != DestroyedActor!"));
+		UE_LOG(LogInventoryPlugin, Warning, TEXT("DroppedItemSpawner: RegisterItemPickup: SpawnedItem != DestroyedActor!"));
 	}
 	SpawnedItem = nullptr;
 	StartRespawnTimer();

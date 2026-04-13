@@ -1,5 +1,6 @@
 #include "UI/InventoryGridWidget.h"
 
+#include "InventoryPlugin.h"
 #include "BagStorage.h"
 #include "InventoryUtilities.h"
 #include "Blueprint/DragDropOperation.h"
@@ -89,7 +90,7 @@ bool UInventoryGridWidget::HandleItemDrop(UItemWidget* IncomingItem)
 {
 	if (!IncomingItem || !IncomingItem->GetReferencedItem())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("HandleItemDrop: Invalid incoming item"));
+		UE_LOG(LogInventoryPlugin, Warning, TEXT("HandleItemDrop: Invalid incoming item"));
 		return false;
 	}
 
@@ -103,7 +104,7 @@ bool UInventoryGridWidget::HandleItemDrop(UItemWidget* IncomingItem)
 	IInventoryPlayerInterface* PC = GetInventoryPlayerInterface();
 	if (!PC)
 	{
-		UE_LOG(LogTemp, Error, TEXT("HandleItemDrop: Failed to get InventoryPlayerInterface"));
+		UE_LOG(LogInventoryPlugin, Error, TEXT("HandleItemDrop: Failed to get InventoryPlayerInterface"));
 		DraggedItemTopLeftID = INDEX_NONE;
 		DrawDropLocation = false;
 		return false;
@@ -149,7 +150,7 @@ void UInventoryGridWidget::AddItemWidgetToGrid(UWidget* Content, int32 TopLeft)
 {
 	if (!GridCanvasPanel || !Content)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("AddItemWidgetToGrid: Null parameter - GridCanvasPanel=%s, Content=%s"),
+		UE_LOG(LogInventoryPlugin, Warning, TEXT("AddItemWidgetToGrid: Null parameter - GridCanvasPanel=%s, Content=%s"),
 			GridCanvasPanel ? TEXT("Valid") : TEXT("Null"),
 			Content ? TEXT("Valid") : TEXT("Null"));
 		return;
@@ -158,14 +159,14 @@ void UInventoryGridWidget::AddItemWidgetToGrid(UWidget* Content, int32 TopLeft)
 	// Validate TopLeft index
 	if (!IsValidGridIndex(TopLeft))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("AddItemWidgetToGrid: Invalid TopLeft index %d"), TopLeft);
+		UE_LOG(LogInventoryPlugin, Warning, TEXT("AddItemWidgetToGrid: Invalid TopLeft index %d"), TopLeft);
 		return;
 	}
 
 	UCanvasPanelSlot* PanelSlot = GridCanvasPanel->AddChildToCanvas(Content);
 	if (!PanelSlot)
 	{
-		UE_LOG(LogTemp, Error, TEXT("AddItemWidgetToGrid: Failed to create canvas panel slot"));
+		UE_LOG(LogInventoryPlugin, Error, TEXT("AddItemWidgetToGrid: Failed to create canvas panel slot"));
 		return;
 	}
 
@@ -181,21 +182,21 @@ void UInventoryGridWidget::CreateNewItem(const FMinimalItemStorage& ItemStorage)
 {
 	if (!GridCanvasPanel)
 	{
-		UE_LOG(LogTemp, Error, TEXT("CreateNewItem: GridCanvasPanel is null"));
+		UE_LOG(LogInventoryPlugin, Error, TEXT("CreateNewItem: GridCanvasPanel is null"));
 		return;
 	}
 
 	const UInventoryItemBase* Item = UInventoryUtilities::GetItemFromID(ItemStorage.ItemID, GetWorld());
 	if (!Item)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("CreateNewItem: Failed to resolve item with ID %d — skipping widget creation"), ItemStorage.ItemID);
+		UE_LOG(LogInventoryPlugin, Warning, TEXT("CreateNewItem: Failed to resolve item with ID %d — skipping widget creation"), ItemStorage.ItemID);
 		return;
 	}
 
 	UItemWidget* ItemWidget = CreateWidget<UItemWidget>(GetOwningPlayer(), ItemWidgetClass);
 	if (!ItemWidget)
 	{
-		UE_LOG(LogTemp, Error, TEXT("CreateNewItem: Failed to create ItemWidget"));
+		UE_LOG(LogInventoryPlugin, Error, TEXT("CreateNewItem: Failed to create ItemWidget"));
 		return;
 	}
 
@@ -217,7 +218,7 @@ void UInventoryGridWidget::FullRefresh()
 {
 	if (!GridCanvasPanel)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("FullRefresh: GridCanvasPanel is null"));
+		UE_LOG(LogInventoryPlugin, Warning, TEXT("FullRefresh: GridCanvasPanel is null"));
 		return;
 	}
 
@@ -287,7 +288,7 @@ void UInventoryGridWidget::NativeConstruct()
 		}
 		else
 		{
-			UE_LOG(LogTemp, Warning,
+			UE_LOG(LogInventoryPlugin, Warning,
 				TEXT("UInventoryGridWidget::NativeConstruct: BagID=%d is preset but GetOwningPlayerPawn() is null. "
 				     "Call InitData() explicitly once the player pawn is available."),
 				static_cast<int32>(BagID));
@@ -319,7 +320,7 @@ void UInventoryGridWidget::InitData(AActor* Owner, EBagSlot InputBagSlot, int32 
 
 	if (!PC)
 	{
-		UE_LOG(LogTemp, Error, TEXT("InitData: Failed to get InventoryPlayerInterface from player controller — bag %d will not respond to inventory changes"), static_cast<int32>(InputBagSlot));
+		UE_LOG(LogInventoryPlugin, Error, TEXT("InitData: Failed to get InventoryPlayerInterface from player controller — bag %d will not respond to inventory changes"), static_cast<int32>(InputBagSlot));
 		return;
 	}
 
@@ -358,7 +359,7 @@ void UInventoryGridWidget::InitData(AActor* Owner, EBagSlot InputBagSlot, int32 
 		}
 		else
 		{
-			UE_LOG(LogTemp, Warning, TEXT("InitData: ActorOwner does not implement ILootableInterface for LootPool"));
+			UE_LOG(LogInventoryPlugin, Warning, TEXT("InitData: ActorOwner does not implement ILootableInterface for LootPool"));
 		}
 	}
 	else if (BagID == EBagSlot::BankPool)
@@ -376,7 +377,7 @@ void UInventoryGridWidget::InitData(AActor* Owner, EBagSlot InputBagSlot, int32 
 
 		if (!BagItem)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("InitData: No bag item found for equipment slot %d — grid defaults to 4x4"), static_cast<int32>(RelatedSlot));
+			UE_LOG(LogInventoryPlugin, Warning, TEXT("InitData: No bag item found for equipment slot %d — grid defaults to 4x4"), static_cast<int32>(RelatedSlot));
 			ResizeBagArea(4, 4);
 		}
 		else
@@ -581,7 +582,7 @@ bool UInventoryGridWidget::IsRoomAvailable(const UInventoryItemBase* ItemObject,
 {
 	if (!ItemObject)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("IsRoomAvailable: ItemObject is null"));
+		UE_LOG(LogInventoryPlugin, Warning, TEXT("IsRoomAvailable: ItemObject is null"));
 		return false;
 	}
 
@@ -613,7 +614,7 @@ bool UInventoryGridWidget::IsRoomAvailable(const UInventoryItemBase* ItemObject,
 	// Validate item dimensions are positive
 	if (ItemWidth <= 0 || ItemHeight <= 0)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("IsRoomAvailable: Invalid item dimensions %dx%d"), ItemWidth, ItemHeight);
+		UE_LOG(LogInventoryPlugin, Warning, TEXT("IsRoomAvailable: Invalid item dimensions %dx%d"), ItemWidth, ItemHeight);
 		return false;
 	}
 
@@ -642,7 +643,7 @@ bool UInventoryGridWidget::IsRoomAvailable(const UInventoryItemBase* ItemObject,
 			// Bounds check for ItemGrid array access
 			if (!ItemGrid.IsValidIndex(ID))
 			{
-				UE_LOG(LogTemp, Error, TEXT("IsRoomAvailable: Invalid grid index %d (Grid size: %d)"), ID, ItemGrid.Num());
+				UE_LOG(LogInventoryPlugin, Error, TEXT("IsRoomAvailable: Invalid grid index %d (Grid size: %d)"), ID, ItemGrid.Num());
 				return false;
 			}
 
@@ -670,7 +671,7 @@ void UInventoryGridWidget::RegisterNewItem(int32 TopLeft, UItemWidget* NewItem)
 {
 	if (!NewItem || !NewItem->GetReferencedItem())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("RegisterNewItem: Invalid item widget"));
+		UE_LOG(LogInventoryPlugin, Warning, TEXT("RegisterNewItem: Invalid item widget"));
 		return;
 	}
 
@@ -681,7 +682,7 @@ void UInventoryGridWidget::RegisterNewItem(int32 TopLeft, UItemWidget* NewItem)
 	// Validate bounds before registration
 	if (!IsWithinGridBounds(TopLeft, ItemWidth, ItemHeight))
 	{
-		UE_LOG(LogTemp, Error, TEXT("RegisterNewItem: Item at %d with size %dx%d exceeds grid bounds"),
+		UE_LOG(LogInventoryPlugin, Error, TEXT("RegisterNewItem: Item at %d with size %dx%d exceeds grid bounds"),
 			TopLeft, ItemWidth, ItemHeight);
 		return;
 	}
@@ -704,7 +705,7 @@ void UInventoryGridWidget::RegisterNewItem(int32 TopLeft, UItemWidget* NewItem)
 			}
 			else
 			{
-				UE_LOG(LogTemp, Error, TEXT("RegisterNewItem: Invalid grid index %d during registration"), ID);
+				UE_LOG(LogInventoryPlugin, Error, TEXT("RegisterNewItem: Invalid grid index %d during registration"), ID);
 			}
 		}
 	}
@@ -761,7 +762,7 @@ void UInventoryGridWidget::GetXYCellFromFloatingPoint(float XPosition, float YPo
 	{
 		CellX = 0;
 		CellY = 0;
-		UE_LOG(LogTemp, Warning, TEXT("GetXYCellFromFloatingPoint: Invalid TileSize %.2f"), TileSize);
+		UE_LOG(LogInventoryPlugin, Warning, TEXT("GetXYCellFromFloatingPoint: Invalid TileSize %.2f"), TileSize);
 		return;
 	}
 

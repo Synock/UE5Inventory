@@ -1,4 +1,5 @@
 #include "Components/CoinComponent.h"
+#include "InventoryPlugin.h"
 #include <Net/UnrealNetwork.h>
 
 UCoinComponent::UCoinComponent()
@@ -34,7 +35,7 @@ void UCoinComponent::EditCoinContent(int32 InputCP, int32 InputSP, int32 InputGP
 {
 	if (GetOwnerRole() != ROLE_Authority)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Client attempted to edit purse directly - blocked"));
+		UE_LOG(LogInventoryPlugin, Warning, TEXT("Client attempted to edit purse directly - blocked"));
 		return;
 	}
 
@@ -70,7 +71,7 @@ void UCoinComponent::PayAndAdjust(const FCoinValue& Cost)
 		CurrentCoinValue.PlatinumPieces - PaidCost.PlatinumPieces
 	};
 
-	UE_LOG(LogTemp, Log, TEXT("Paying and adjusting %s"), *GetName());
+	UE_LOG(LogInventoryPlugin, Verbose, TEXT("PayAndAdjust: %s"), *GetName());
 	PurseDispatcher_Server.Broadcast();
 }
 
@@ -84,7 +85,7 @@ void UCoinComponent::PayAndAdjustSimple(const FCoinValue& Cost)
 	float NewValue = FMath::Max(PurseContent.ToFloat() - Cost.ToFloat(), 0.f);
 	PurseContent = FCoinValue(NewValue);
 
-	UE_LOG(LogTemp, Log, TEXT("Paying and adjusting %s"), *GetName());
+	UE_LOG(LogInventoryPlugin, Verbose, TEXT("PayAndAdjustSimple: %s"), *GetName());
 	PurseDispatcher_Server.Broadcast();
 }
 
@@ -117,21 +118,21 @@ void UCoinComponent::LootPurse(UCoinComponent* OtherPurse)
 
 	if (GetOwnerRole() != ROLE_Authority)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Client attempted to loot purse - blocked"));
+		UE_LOG(LogInventoryPlugin, Warning, TEXT("Client attempted to loot purse - blocked"));
 		return;
 	}
 
 	// Validate other purse exists and is not self
 	if (!OtherPurse || OtherPurse == this)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Invalid purse loot attempt"));
+		UE_LOG(LogInventoryPlugin, Warning, TEXT("Invalid purse loot attempt"));
 		return;
 	}
 
 	AActor* OtherOwner = OtherPurse->GetOwner();
 	if (!OtherOwner)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Other purse has no owner"));
+		UE_LOG(LogInventoryPlugin, Warning, TEXT("Other purse has no owner"));
 		return;
 	}
 

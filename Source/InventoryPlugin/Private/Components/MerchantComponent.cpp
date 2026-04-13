@@ -1,4 +1,5 @@
 #include "Components/MerchantComponent.h"
+#include "InventoryPlugin.h"
 #include <Net/UnrealNetwork.h>
 
 // Sets default values for this component's properties
@@ -20,7 +21,7 @@ void UMerchantComponent::BeginPlay()
 void UMerchantComponent::OnRep_DynamicPool()
 {
 	MerchantPoolDispatcher.Broadcast();
-	UE_LOG(LogTemp, Log, TEXT("OnRep_DynamicPool %s"), *GetName());
+	UE_LOG(LogInventoryPlugin, Verbose, TEXT("OnRep_DynamicPool %s"), *GetName());
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -29,20 +30,18 @@ void UMerchantComponent::RemoveItemID_Implementation(int32 ItemID)
 {
 	if (!GetOwner() || !GetOwner()->HasAuthority())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("RemoveItemID called without authority"));
+		UE_LOG(LogInventoryPlugin, Warning, TEXT("RemoveItemID called without authority"));
 		return;
 	}
 
-	//This method is retarded, please find something else T___T
-
-	UE_LOG(LogTemp, Log, TEXT("Removing Item %d "), ItemID);
+	UE_LOG(LogInventoryPlugin, Verbose, TEXT("RemoveItemID: %d"), ItemID);
 	int32 IDToRemove = -1;
 	int32 LocalID = 0;
 	for (auto& DynamicItem : DynamicMerchantPool)
 	{
 		if (DynamicItem.ItemID == ItemID)
 		{
-			UE_LOG(LogTemp, Log, TEXT("Found Item to remove %d quantity %d"), DynamicItem.ItemID, DynamicItem.Quantity);
+			UE_LOG(LogInventoryPlugin, Verbose, TEXT("RemoveItemID: found item %d, quantity %d"), DynamicItem.ItemID, DynamicItem.Quantity);
 			DynamicItem.Quantity--;
 
 			if (DynamicItem.Quantity <= 0)
@@ -55,7 +54,7 @@ void UMerchantComponent::RemoveItemID_Implementation(int32 ItemID)
 
 	if (IDToRemove >= 0)
 	{
-		UE_LOG(LogTemp, Log, TEXT("Removing Item %d (%d) because available quantity hit 0"), ItemID, IDToRemove);
+		UE_LOG(LogInventoryPlugin, Verbose, TEXT("RemoveItemID: removing item %d (index %d) — quantity hit 0"), ItemID, IDToRemove);
 		DynamicMerchantPool.RemoveAt(IDToRemove);
 	}
 
@@ -136,7 +135,7 @@ void UMerchantComponent::AddItem_Implementation(int32 ItemID)
 
 	if (!GetOwner() || !GetOwner()->HasAuthority())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("AddItem called without authority"));
+		UE_LOG(LogInventoryPlugin, Warning, TEXT("AddItem called without authority"));
 		return;
 	}
 

@@ -1,4 +1,5 @@
 #include "Components/LootPoolComponent.h"
+#include "InventoryPlugin.h"
 #include <Net/UnrealNetwork.h>
 
 #include "InventoryUtilities.h"
@@ -118,7 +119,7 @@ void ULootPoolComponent::AddItem_Implementation(int32 ItemID, int32 TopLeftIndex
 
 	if (!GetOwner() || !GetOwner()->HasAuthority())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("AddItem called without authority"));
+		UE_LOG(LogInventoryPlugin, Warning, TEXT("AddItem called without authority"));
 		return;
 	}
 
@@ -175,7 +176,7 @@ void ULootPoolComponent::RemoveItem_Implementation(int32 TopLeftIndex)
 
 	if (!GetOwner() || !GetOwner()->HasAuthority())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("RemoveItem called without authority"));
+		UE_LOG(LogInventoryPlugin, Warning, TEXT("RemoveItem called without authority"));
 		return;
 	}
 

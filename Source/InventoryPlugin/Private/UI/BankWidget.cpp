@@ -1,11 +1,17 @@
 
 #include "UI/BankWidget.h"
+#include "InventoryPlugin.h"
 
 #include "Components/BankComponent.h"
+#include "InventoryPlugin.h"
 #include "Components/Button.h"
+#include "InventoryPlugin.h"
 #include "Interfaces/InventoryPlayerInterface.h"
+#include "InventoryPlugin.h"
 #include "UI/InventoryGridWidget.h"
+#include "InventoryPlugin.h"
 #include "UI/Currency/DynamicPurseWidget.h"
+#include "InventoryPlugin.h"
 
 //----------------------------------------------------------------------------------------------------------------------
 
@@ -17,7 +23,7 @@ void UBankWidget::NativeConstruct()
 	IInventoryPlayerInterface* PlayerInterface = Cast<IInventoryPlayerInterface>(GetOwningPlayer());
 	if (!PlayerInterface)
 	{
-		UE_LOG(LogTemp, Error, TEXT("BankWidget::NativeConstruct - Failed to get InventoryPlayerInterface"));
+		UE_LOG(LogInventoryPlugin, Error, TEXT("BankWidget::NativeConstruct - Failed to get InventoryPlayerInterface"));
 		return;
 	}
 
@@ -28,17 +34,17 @@ void UBankWidget::NativeConstruct()
 		AActor* OwnerActor = GetOwningPlayerPawn();
 		if (!OwnerActor)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("BankWidget::NativeConstruct - No owning player pawn, using controller"));
+			UE_LOG(LogInventoryPlugin, Warning, TEXT("BankWidget::NativeConstruct - No owning player pawn, using controller"));
 			OwnerActor = GetOwningPlayer();
 		}
 
 		// Initialize with BankPool slot
 		InventoryGrid->InitData(OwnerActor, EBagSlot::BankPool);
-		UE_LOG(LogTemp, Log, TEXT("BankWidget::NativeConstruct - Initialized InventoryGrid with BankPool"));
+		UE_LOG(LogInventoryPlugin, Verbose, TEXT("BankWidget::NativeConstruct - Initialized InventoryGrid with BankPool"));
 	}
 	else
 	{
-		UE_LOG(LogTemp, Error, TEXT("BankWidget::NativeConstruct - InventoryGrid is null (check BindWidget)"));
+		UE_LOG(LogInventoryPlugin, Error, TEXT("BankWidget::NativeConstruct - InventoryGrid is null (check BindWidget)"));
 	}
 
 	// Initialize DynamicPurse with bank coin component
@@ -48,16 +54,16 @@ void UBankWidget::NativeConstruct()
 		if (BankCoin)
 		{
 			DynamicPurse->InitWidget(BankCoin);
-			UE_LOG(LogTemp, Log, TEXT("BankWidget::NativeConstruct - Initialized DynamicPurse with BankCoin"));
+			UE_LOG(LogInventoryPlugin, Verbose, TEXT("BankWidget::NativeConstruct - Initialized DynamicPurse with BankCoin"));
 		}
 		else
 		{
-			UE_LOG(LogTemp, Warning, TEXT("BankWidget::NativeConstruct - GetBankCoin returned null"));
+			UE_LOG(LogInventoryPlugin, Warning, TEXT("BankWidget::NativeConstruct - GetBankCoin returned null"));
 		}
 	}
 	else
 	{
-		UE_LOG(LogTemp, Error, TEXT("BankWidget::NativeConstruct - DynamicPurse is null (check BindWidget)"));
+		UE_LOG(LogInventoryPlugin, Error, TEXT("BankWidget::NativeConstruct - DynamicPurse is null (check BindWidget)"));
 	}
 
 	// Bind button click events (optional buttons)
@@ -109,12 +115,12 @@ void UBankWidget::ReorganizeContent()
 		}
 		else
 		{
-			UE_LOG(LogTemp, Warning, TEXT("BankWidget::ReorganizeContent - Failed to get BankComponent"));
+			UE_LOG(LogInventoryPlugin, Warning, TEXT("BankWidget::ReorganizeContent - Failed to get BankComponent"));
 		}
 	}
 	else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("BankWidget::ReorganizeContent - Failed to get InventoryPlayerInterface"));
+		UE_LOG(LogInventoryPlugin, Warning, TEXT("BankWidget::ReorganizeContent - Failed to get InventoryPlayerInterface"));
 	}
 }
 
