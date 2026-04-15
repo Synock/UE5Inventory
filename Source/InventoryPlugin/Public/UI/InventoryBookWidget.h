@@ -5,6 +5,7 @@
 #include "Components/Button.h"
 #include "Components/RichTextBlock.h"
 #include "Components/TextBlock.h"
+#include "Components/Widget.h"
 #include "UI/InventoryBookWidgetInterface.h"
 #include "InventoryBookWidget.generated.h"
 
@@ -14,21 +15,25 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnCloseEvent);
  * Plugin book widget. Supports both single-page and two-page spread display.
  *
  * Behavior driven by SetPages():
- *   - 1 page  → single-page view: right side hidden, navigation disabled.
+ *   - 1 page  → single-page view: right side collapsed, navigation collapsed.
  *   - > 1 pages → two-page spread: left + right shown (if RightTextBlock is bound),
  *                 navigation jumps by two pages per click.
  *
  * Required Blueprint binding:
- *   - "TextBlock"          (URichTextBlock) — left / only page content
+ *   - "TextBlock"           (URichTextBlock) — left / only page content
  * Optional Blueprint bindings:
- *   - "RightTextBlock"     (URichTextBlock) — right page content; hidden on single/last odd page
- *   - "TitleBlock"         (UTextBlock)     — book-level title (SetTitle)
- *   - "PageTitleBlock"     (UTextBlock)     — left page FBookPage::Title
- *   - "RightPageTitleBlock"(UTextBlock)     — right page FBookPage::Title
- *   - "PageCountBlock"     (UTextBlock)     — e.g. "1-2 / 6" or "Page 1 / 1"
- *   - "CloseButton"        (UButton)        — broadcasts OnCloseEvent
- *   - "PrevButton"         (UButton)        — previous spread; disabled on first spread
- *   - "NextButton"         (UButton)        — next spread; disabled on last spread
+ *   - "RightTextBlock"      (URichTextBlock) — right page content; hidden on single/last odd page
+ *   - "TitleTextBlock"      (UTextBlock)     — book-level title (SetTitle)
+ *   - "PageTitleBlock"      (UTextBlock)     — left page FBookPage::Title
+ *   - "RightPageTitleBlock" (UTextBlock)     — right page FBookPage::Title
+ *   - "LeftPageCountBlock"  (UTextBlock)     — left page number, e.g. "1"
+ *   - "RightPageCountBlock" (UTextBlock)     — right page number, e.g. "2"; hidden on single/last odd page
+ *   - "RightPage"           (UWidget)        — right column container; collapsed in single-page mode
+ *   - "PageDivider"         (UWidget)        — vertical rule between pages; collapsed in single-page mode
+ *   - "NavBar"              (UWidget)        — prev/next bar; collapsed in single-page mode
+ *   - "CloseButton"         (UButton)        — broadcasts OnCloseEvent
+ *   - "PrevButton"          (UButton)        — previous spread; disabled on first spread
+ *   - "NextButton"          (UButton)        — next spread; disabled on last spread
  */
 UCLASS()
 class INVENTORYPLUGIN_API UInventoryBookWidget : public UUserWidget, public IInventoryBookWidgetInterface
@@ -48,7 +53,7 @@ protected:
 
 	/** Book-level title (SetTitle). */
 	UPROPERTY(BlueprintReadWrite, meta = (BindWidgetOptional), Category = "Inventory|Book|UI")
-	UTextBlock* TitleBlock = nullptr;
+	UTextBlock* TitleTextBlock = nullptr;
 
 	/** Left page per-page title from FBookPage::Title. */
 	UPROPERTY(BlueprintReadWrite, meta = (BindWidgetOptional), Category = "Inventory|Book|UI")
@@ -58,9 +63,25 @@ protected:
 	UPROPERTY(BlueprintReadWrite, meta = (BindWidgetOptional), Category = "Inventory|Book|UI")
 	UTextBlock* RightPageTitleBlock = nullptr;
 
-	/** Page range indicator, e.g. "1-2 / 6" or "Page 1 / 1". */
+	/** Left page number indicator, e.g. "1". */
 	UPROPERTY(BlueprintReadWrite, meta = (BindWidgetOptional), Category = "Inventory|Book|UI")
-	UTextBlock* PageCountBlock = nullptr;
+	UTextBlock* LeftPageCountBlock = nullptr;
+
+	/** Right page number indicator, e.g. "2". Hidden on a single/last odd page. */
+	UPROPERTY(BlueprintReadWrite, meta = (BindWidgetOptional), Category = "Inventory|Book|UI")
+	UTextBlock* RightPageCountBlock = nullptr;
+
+	/** Right column container — collapsed (not just hidden) in single-page mode. */
+	UPROPERTY(BlueprintReadWrite, meta = (BindWidgetOptional), Category = "Inventory|Book|UI")
+	UWidget* RightPage = nullptr;
+
+	/** Vertical divider between pages — collapsed in single-page mode. */
+	UPROPERTY(BlueprintReadWrite, meta = (BindWidgetOptional), Category = "Inventory|Book|UI")
+	UWidget* PageDivider = nullptr;
+
+	/** Prev/Next navigation bar — collapsed in single-page mode. */
+	UPROPERTY(BlueprintReadWrite, meta = (BindWidgetOptional), Category = "Inventory|Book|UI")
+	UWidget* NavBar = nullptr;
 
 	UPROPERTY(BlueprintReadWrite, meta = (BindWidgetOptional), Category = "Inventory|Book|UI")
 	UButton* CloseButton = nullptr;
@@ -88,6 +109,8 @@ private:
 
 	void ShowSpread(int32 LeftIndex);
 	void UpdateNavigationState();
+	/** Collapse or restore the right panel, divider, and nav bar as a unit. */
+	void ApplySpreadLayout(bool bSinglePageMode);
 
 public:
 	// IInventoryBookWidgetInterface
@@ -98,5 +121,4 @@ public:
 
 	UPROPERTY(BlueprintAssignable)
 	FOnCloseEvent OnCloseEvent;
-
 };

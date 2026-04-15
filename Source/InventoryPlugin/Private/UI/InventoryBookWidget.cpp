@@ -1,6 +1,7 @@
 #include "UI/InventoryBookWidget.h"
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
+#include "Components/Widget.h"
 #include "InventoryPlugin.h"
 
 void UInventoryBookWidget::NativeConstruct()
@@ -21,31 +22,28 @@ void UInventoryBookWidget::CloseButtonCalled()
 
 void UInventoryBookWidget::SetText_Implementation(const FText& Content)
 {
-	// Single-text path: fill left side, hide right side
+	// Single-text path: fill left side, collapse all right-side chrome
 	if (TextBlock)
 		TextBlock->SetText(Content);
 	else
 		UE_LOG(LogInventoryPlugin, Warning, TEXT("UInventoryBookWidget::SetText — TextBlock is null. Ensure a URichTextBlock named 'TextBlock' exists in the Blueprint."));
 
-	if (RightTextBlock)
-	{
-		RightTextBlock->SetText(FText::GetEmpty());
-		RightTextBlock->SetVisibility(ESlateVisibility::Hidden);
-	}
 	if (RightPageTitleBlock)
 		RightPageTitleBlock->SetVisibility(ESlateVisibility::Hidden);
+	ApplySpreadLayout(/*bSinglePageMode=*/true);
 }
 
 void UInventoryBookWidget::SetTitle_Implementation(const FText& Title)
 {
-	if (TitleBlock)
-		TitleBlock->SetText(Title);
+	if (TitleTextBlock)
+		TitleTextBlock->SetText(Title);
 }
 
 void UInventoryBookWidget::SetPages_Implementation(const TArray<FBookPage>& Pages)
 {
 	CachedPages = Pages;
 	CurrentLeftIndex = 0;
+	ApplySpreadLayout(CachedPages.Num() <= 1);
 	ShowSpread(0);
 }
 
@@ -78,15 +76,13 @@ void UInventoryBookWidget::ShowSpread(int32 LeftIndex)
 		RightPageTitleBlock->SetVisibility(bHasRight ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Hidden);
 	}
 
-	// Page count
-	if (PageCountBlock)
+	// Per-side page numbers
+	if (LeftPageCountBlock)
+		LeftPageCountBlock->SetText(FText::AsNumber(LeftIndex + 1));
+	if (RightPageCountBlock)
 	{
-		const int32 Total = CachedPages.Num();
-		PageCountBlock->SetText(bHasRight
-			? FText::Format(NSLOCTEXT("InventoryBookWidget", "SpreadCount", "{0}-{1} / {2}"),
-				FText::AsNumber(LeftIndex + 1), FText::AsNumber(LeftIndex + 2), FText::AsNumber(Total))
-			: FText::Format(NSLOCTEXT("InventoryBookWidget", "SingleCount", "Page {0} / {1}"),
-				FText::AsNumber(LeftIndex + 1), FText::AsNumber(Total)));
+		RightPageCountBlock->SetText(bHasRight ? FText::AsNumber(LeftIndex + 2) : FText::GetEmpty());
+		RightPageCountBlock->SetVisibility(bHasRight ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Hidden);
 	}
 
 	UpdateNavigationState();
@@ -110,4 +106,15 @@ void UInventoryBookWidget::OnNextSpreadClicked()
 {
 	if (CachedPages.IsValidIndex(CurrentLeftIndex + 2))
 		ShowSpread(CurrentLeftIndex + 2);
+}
+
+void UInventoryBookWidget::ApplySpreadLayout(bool bSinglePageMode)
+{
+	const ESlateVisibility SpreadVis = bSinglePageMode ? ESlateVisibility::Collapsed : ESlateVisibility::SelfHitTestInvisible;
+	if (RightPage)           RightPage->SetVisibility(SpreadVis);
+	if (PageDivider)         PageDivider->SetVisibility(SpreadVis);
+	if (NavBar)              NavBar->SetVisibility(SpreadVis);
+	// Page numbers: both hidden for single-page; ShowSpread restores them for multi-page
+	if (LeftPageCountBlock)  LeftPageCountBlock->SetVisibility(SpreadVis);
+	if (RightPageCountBlock) RightPageCountBlock->SetVisibility(ESlateVisibility::Collapsed);
 }

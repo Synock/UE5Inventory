@@ -64,8 +64,15 @@ void IInventoryHUDInterface::DisplayBookText_Implementation(const UInventoryItem
 		IInventoryBookWidgetInterface::Execute_SetPages(Widget, IInventoryItemBookInterface::Execute_GetBookPages(Item));
 	}
 
+	// Re-fetch mouse position directly from the PC — viewport-relative, monitor-agnostic.
+	// The X, Y params from the caller may be in desktop-absolute coordinates on multi-monitor setups.
+	float MouseX = X, MouseY = Y;
+	if (PC)
+		PC->GetMousePosition(MouseX, MouseY);
+
 	Widget->AddToViewport(5);
-	Widget->SetPositionInViewport(FVector2D(X, Y), true);
+	Widget->SetAlignmentInViewport(FVector2D(0.5f, 0.5f));
+	Widget->SetPositionInViewport(FVector2D(MouseX, MouseY), true);
 }
 
 

@@ -4,6 +4,7 @@
 #include "InventoryPlugin.h"
 #include "InventoryUtilities.h"
 #include "Blueprint/WidgetBlueprintLibrary.h"
+#include "GameFramework/PlayerController.h"
 #include "Interfaces/InventoryPlayerInterface.h"
 #include "Kismet/KismetInputLibrary.h"
 #include "TimerManager.h"
@@ -118,9 +119,12 @@ void UItemBaseWidget::DisplayBookText(const FPointerEvent& InMouseEvent)
 
 	if (IInventoryPlayerInterface* PC = Cast<IInventoryPlayerInterface>(GetOwningPlayer()))
 	{
-		PC->GetInventoryHUDInterface()->Execute_DisplayBookText(PC->GetInventoryHUDObject(), Item,
-		                                                        InMouseEvent.GetScreenSpacePosition().X,
-		                                                        InMouseEvent.GetScreenSpacePosition().Y);
+		float MouseX = 0.f, MouseY = 0.f;
+		if (APlayerController* PlayerController = GetOwningPlayer())
+			PlayerController->GetMousePosition(MouseX, MouseY);
+
+		PC->GetInventoryHUDInterface()->Execute_DisplayBookText(
+			PC->GetInventoryHUDObject(), Item, MouseX, MouseY);
 	}
 }
 
