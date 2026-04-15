@@ -390,7 +390,7 @@ void UInventoryGridWidget::InitData(AActor* Owner, EBagSlot InputBagSlot, int32 
 			}
 		}
 
-		PC->GetInventoryComponent()->FullInventoryDispatcher.AddDynamic(this, &UInventoryGridWidget::Refresh);
+		PC->GetInventoryComponent()->FullInventoryDispatcher.AddUniqueDynamic(this, &UInventoryGridWidget::Refresh);
 	}
 
 	//next block is UI size

@@ -4,6 +4,81 @@
 #include "Components/InventoryComponent.h"
 #include "Interfaces/InventoryPlayerInterface.h"
 
+//----------------------------------------------------------------------------------------------------------------------
+// IInventoryBagWindowInterface implementations
+//----------------------------------------------------------------------------------------------------------------------
+
+void UBagWidget::InitBagData_Implementation(const FString& InBagName, int32 InBagWidth,
+                                              int32 InBagHeight, EItemSize InBagSize, EBagSlot InBagSlot)
+{
+	BagName = InBagName;
+	BagWidth = InBagWidth;
+	BagHeight = InBagHeight;
+	BagSize = InBagSize;
+	CurrentBagSlot = InBagSlot;
+	IInventoryBagWindowInterface::Execute_InitUI(this);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UBagWidget::InitUI_Implementation()
+{
+	if (BagNameText)
+		BagNameText->SetText(FText::FromString(BagName));
+
+	if (!InventoryGrid)
+		return;
+
+	if (AActor* OwnerActor = GetOwningPlayerPawn())
+		InventoryGrid->InitData(OwnerActor, CurrentBagSlot, BagWidth, BagHeight);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UBagWidget::RefreshBagWindow_Implementation()
+{
+	Refresh();
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UBagWidget::ShowBagWindow_Implementation()
+{
+	Show();
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UBagWidget::HideBagWindow_Implementation()
+{
+	Hide();
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UBagWidget::ToggleBagWindow_Implementation()
+{
+	ToggleDisplay();
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UBagWidget::DeInitBagWindow_Implementation()
+{
+	DeInitBagData();
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UBagWidget::LockBagItemSlot_Implementation(int32 TopLeft, bool bLocked)
+{
+	LockItemSlot(TopLeft, bLocked);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+// Legacy direct API
+//----------------------------------------------------------------------------------------------------------------------
+
 void UBagWidget::Hide()
 {
 	SetVisibility(ESlateVisibility::Hidden);
@@ -24,33 +99,6 @@ void UBagWidget::ToggleDisplay()
 		Hide();
 	else
 		Show();
-}
-
-//----------------------------------------------------------------------------------------------------------------------
-
-void UBagWidget::InitBagData(const FString& InBagName, int32 InBagWidth, int32 InBagHeight, EItemSize InBagSize,
-                             EBagSlot InBagSlot)
-{
-	BagName = InBagName;
-	BagWidth = InBagWidth;
-	BagHeight = InBagHeight;
-	BagSize = InBagSize;
-	CurrentBagSlot = InBagSlot;
-	InitUI();
-}
-
-//----------------------------------------------------------------------------------------------------------------------
-
-void UBagWidget::InitUI_Implementation()
-{
-	if (BagNameText)
-		BagNameText->SetText(FText::FromString(BagName));
-
-	if (!InventoryGrid)
-		return;
-
-	if (AActor* OwnerActor = GetOwningPlayerPawn())
-		InventoryGrid->InitData(OwnerActor, CurrentBagSlot, BagWidth, BagHeight);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -76,18 +124,11 @@ void UBagWidget::LockItemSlot_Implementation(int32 TopLeft, bool bLocked)
 	if (!InventoryGrid)
 		return;
 
-	// First, update the lock state in the underlying data storage
-	// This ensures the lock state persists across refreshes
 	if (IInventoryPlayerInterface* PC = Cast<IInventoryPlayerInterface>(GetOwningPlayer()))
 	{
-		// Get the inventory component and update the lock state
-		UInventoryComponent* InventoryComp = PC->GetInventoryComponent();
-		if (InventoryComp)
-		{
+		if (UInventoryComponent* InventoryComp = PC->GetInventoryComponent())
 			InventoryComp->SetItemLockState(CurrentBagSlot, TopLeft, bLocked);
-		}
 	}
-	// Now refresh to update the visual state
+
 	InventoryGrid->Refresh();
 }
-
