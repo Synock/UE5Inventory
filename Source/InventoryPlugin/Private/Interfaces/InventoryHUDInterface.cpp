@@ -7,6 +7,7 @@
 #include "Items/InventoryItemEquipable.h"
 #include "UI/InventoryBagWindowInterface.h"
 #include "UI/InventoryBookWidgetInterface.h"
+#include "UI/InventoryLootWindowInterface.h"
 #include "Blueprint/UserWidget.h"
 #include "GameFramework/PlayerController.h"
 
@@ -218,6 +219,105 @@ void IInventoryHUDInterface::ToggleBag_Implementation(EBagSlot InputBagSlot)
 		UObject* SelfObject = Cast<UObject>(this);
 		Execute_DisplayBag(SelfObject, InputBagSlot);
 	}
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+// Loot window registry — default no-ops
+//----------------------------------------------------------------------------------------------------------------------
+
+TScriptInterface<IInventoryLootWindowInterface> IInventoryHUDInterface::GetLootWindow() const
+{
+	return {};
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::RegisterLootWindow(TScriptInterface<IInventoryLootWindowInterface> /*LootWindow*/)
+{
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+// Loot lifecycle
+//----------------------------------------------------------------------------------------------------------------------
+
+TSubclassOf<UUserWidget> IInventoryHUDInterface::GetLootWindowClass_Implementation() const
+{
+	static TSoftClassPtr<UUserWidget> DefaultClass(FSoftObjectPath(TEXT("/InventoryPlugin/UI/UI_LootWidget.UI_LootWidget_C")));
+	if (UClass* Loaded = DefaultClass.LoadSynchronous())
+		return Loaded;
+	return nullptr;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::DisplayLootScreen_Implementation(AActor* LootedActor)
+{
+	if (!LootedActor)
+		return;
+
+	UObject* SelfObject = Cast<UObject>(this);
+	if (!SelfObject)
+		return;
+
+	APlayerController* PC = nullptr;
+	if (const UUserWidget* AsWidget = Cast<UUserWidget>(SelfObject))
+		PC = AsWidget->GetOwningPlayer();
+
+	TScriptInterface<IInventoryLootWindowInterface> LootWindow = GetLootWindow();
+
+	if (!LootWindow.GetObject())
+	{
+		const TSubclassOf<UUserWidget> WindowClass = Execute_GetLootWindowClass(SelfObject);
+		if (!WindowClass)
+		{
+			UE_LOG(LogTemp, Warning,
+			       TEXT("IInventoryHUDInterface::DisplayLootScreen — no registered window and GetLootWindowClass returned nullptr."));
+			return;
+		}
+
+		UUserWidget* NewWindow = CreateWidget<UUserWidget>(PC, WindowClass);
+		if (!NewWindow)
+			return;
+
+		if (!NewWindow->GetClass()->ImplementsInterface(UInventoryLootWindowInterface::StaticClass()))
+		{
+			UE_LOG(LogTemp, Warning,
+			       TEXT("IInventoryHUDInterface::DisplayLootScreen — created widget '%s' does not implement IInventoryLootWindowInterface."),
+			       *WindowClass->GetName());
+			return;
+		}
+
+		LootWindow = TScriptInterface<IInventoryLootWindowInterface>(NewWindow);
+		RegisterLootWindow(LootWindow);
+		NewWindow->AddToViewport();
+
+		// Position bottom-right of the cursor on first creation.
+		NewWindow->SetAlignmentInViewport(FVector2D(0.0f, 0.0f));
+		float MouseX = 0.f, MouseY = 0.f;
+		if (PC)
+			PC->GetMousePosition(MouseX, MouseY);
+		NewWindow->SetPositionInViewport(FVector2D(MouseX, MouseY), true);
+	}
+
+	UObject* WindowObj = LootWindow.GetObject();
+	if (!WindowObj)
+		return;
+
+	IInventoryLootWindowInterface::Execute_InitLootWindow(WindowObj, LootedActor);
+	IInventoryLootWindowInterface::Execute_ShowLootWindow(WindowObj);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::HideLootScreen_Implementation()
+{
+	const TScriptInterface<IInventoryLootWindowInterface> LootWindow = GetLootWindow();
+	UObject* WindowObj = LootWindow.GetObject();
+	if (!WindowObj)
+		return;
+
+	IInventoryLootWindowInterface::Execute_DeInitLootWindow(WindowObj);
+	IInventoryLootWindowInterface::Execute_HideLootWindow(WindowObj);
 }
 
 //----------------------------------------------------------------------------------------------------------------------

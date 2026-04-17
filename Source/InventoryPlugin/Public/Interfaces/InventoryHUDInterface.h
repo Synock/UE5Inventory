@@ -5,6 +5,7 @@
 #include "UObject/Interface.h"
 #include "Blueprint/UserWidget.h"
 #include "UI/InventoryBagWindowInterface.h"
+#include "UI/InventoryLootWindowInterface.h"
 #include "InventoryHUDInterface.generated.h"
 
 class UInventoryItemBase;
@@ -140,16 +141,59 @@ public:
 	virtual void ToggleBag_Implementation(EBagSlot InputBagSlot);
 
 	//------------------------------------------------------------------------------------------------------------------
-	// Inventory grids / loot / merchant / repair (unchanged)
+	// Inventory grids / loot / merchant / repair
 
 	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, BlueprintCosmetic, Category = "Inventory")
 	void RefreshAllInventoryGrids();
 
-	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, BlueprintCosmetic, Category = "Inventory")
-	void DisplayLootScreen(class AActor* LootedActor);
+	//------------------------------------------------------------------------------------------------------------------
+	// Loot window registry
 
-	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, BlueprintCosmetic, Category = "Inventory")
+	/**
+	 * Return the registered loot window, or an empty interface if none.
+	 * Default returns empty; override to expose your stored window.
+	 */
+	virtual TScriptInterface<IInventoryLootWindowInterface> GetLootWindow() const;
+
+	/**
+	 * Register a loot window.
+	 * Default is a no-op; override to store in your HUD.
+	 */
+	virtual void RegisterLootWindow(TScriptInterface<IInventoryLootWindowInterface> LootWindow);
+
+	//------------------------------------------------------------------------------------------------------------------
+	// Loot lifecycle
+
+	/**
+	 * Returns the widget class to instantiate for the loot window.
+	 * Must implement IInventoryLootWindowInterface.
+	 * Default loads the plugin's built-in UI_LootWidget.
+	 * Override to supply a game-specific draggable window class.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Inventory|Loot")
+	TSubclassOf<UUserWidget> GetLootWindowClass() const;
+	virtual TSubclassOf<UUserWidget> GetLootWindowClass_Implementation() const;
+
+	/**
+	 * Display the loot window for the given actor.
+	 *
+	 * Default C++ flow:
+	 *   1. Look up via GetLootWindow(). If missing, lazy-create via GetLootWindowClass().
+	 *   2. Call IInventoryLootWindowInterface::Execute_InitLootWindow(Actor).
+	 *   3. Call IInventoryLootWindowInterface::Execute_ShowLootWindow().
+	 *   4. Position the window to the bottom-right of the current mouse cursor.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, BlueprintCosmetic, Category = "Inventory")
+	void DisplayLootScreen(class AActor* LootedActor);
+	virtual void DisplayLootScreen_Implementation(AActor* LootedActor);
+
+	/**
+	 * Hide the loot window and release loot data.
+	 * Default calls DeInitLootWindow then HideLootWindow on the registered window.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, BlueprintCosmetic, Category = "Inventory")
 	void HideLootScreen();
+	virtual void HideLootScreen_Implementation();
 
 	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, BlueprintCosmetic, Category = "Inventory")
 	void DisplayMerchantScreen(AActor* MerchantActor);

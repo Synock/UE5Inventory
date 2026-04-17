@@ -4,6 +4,7 @@
 #include "Blueprint/UserWidget.h"
 #include "InventoryItem.h"
 #include "Interfaces/LootableInterface.h"
+#include "UI/InventoryLootWindowInterface.h"
 #include "LootScreenWidget.generated.h"
 
 class UButton;
@@ -15,7 +16,7 @@ class UInventoryGridWidget;
  * 
  */
 UCLASS()
-class INVENTORYPLUGIN_API ULootScreenWidget : public UUserWidget
+class INVENTORYPLUGIN_API ULootScreenWidget : public UUserWidget, public IInventoryLootWindowInterface
 {
 	GENERATED_BODY()
 protected:
@@ -106,9 +107,15 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Inventory|Loot")
 	void InitLootData(AActor* InputLootedActor);
 
-
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic)
 	void DeInitLootData();
+
+	// ---- IInventoryLootWindowInterface --------------------------------------
+	virtual void InitLootWindow_Implementation(AActor* LootedActor) override;
+	virtual void DeInitLootWindow_Implementation() override;
+	virtual void ShowLootWindow_Implementation() override;
+	virtual void HideLootWindow_Implementation() override;
+	virtual void RefreshLootWindow_Implementation() override;
 
 protected:
 	virtual void NativeConstruct() override;

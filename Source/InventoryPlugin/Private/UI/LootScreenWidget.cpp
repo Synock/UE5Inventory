@@ -178,3 +178,43 @@ void ULootScreenWidget::DeInitLootData()
 	DeInitUI();
 	LootedActor = nullptr;
 }
+
+//----------------------------------------------------------------------------------------------------------------------
+// IInventoryLootWindowInterface
+//----------------------------------------------------------------------------------------------------------------------
+
+void ULootScreenWidget::InitLootWindow_Implementation(AActor* InLootedActor)
+{
+	InitLootData(InLootedActor);
+	SetVisibility(ESlateVisibility::Visible);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void ULootScreenWidget::DeInitLootWindow_Implementation()
+{
+	DeInitLootData();
+	SetVisibility(ESlateVisibility::Hidden);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void ULootScreenWidget::ShowLootWindow_Implementation()
+{
+	SetVisibility(ESlateVisibility::Visible);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void ULootScreenWidget::HideLootWindow_Implementation()
+{
+	SetVisibility(ESlateVisibility::Hidden);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void ULootScreenWidget::RefreshLootWindow_Implementation()
+{
+	Refresh();
+}
+
