@@ -6,6 +6,7 @@
 #include "Blueprint/UserWidget.h"
 #include "UI/InventoryBagWindowInterface.h"
 #include "UI/InventoryLootWindowInterface.h"
+#include "UI/InventoryMerchantWindowInterface.h"
 #include "InventoryHUDInterface.generated.h"
 
 class UInventoryItemBase;
@@ -195,11 +196,53 @@ public:
 	void HideLootScreen();
 	virtual void HideLootScreen_Implementation();
 
-	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, BlueprintCosmetic, Category = "Inventory")
-	void DisplayMerchantScreen(AActor* MerchantActor);
+	//------------------------------------------------------------------------------------------------------------------
+	// Merchant window registry
 
-	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, BlueprintCosmetic, Category = "Inventory")
+	/**
+	 * Return the registered merchant window, or an empty interface if none.
+	 * Default returns empty; override to expose your stored window.
+	 */
+	virtual TScriptInterface<IInventoryMerchantWindowInterface> GetMerchantWindow() const;
+
+	/**
+	 * Register a merchant window.
+	 * Default is a no-op; override to store in your HUD.
+	 */
+	virtual void RegisterMerchantWindow(TScriptInterface<IInventoryMerchantWindowInterface> MerchantWindow);
+
+	//------------------------------------------------------------------------------------------------------------------
+	// Merchant lifecycle
+
+	/**
+	 * Returns the widget class to instantiate for the merchant window.
+	 * Must implement IInventoryMerchantWindowInterface.
+	 * Default returns nullptr; game code overrides this to return its draggable window class.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Inventory|Merchant")
+	TSubclassOf<UUserWidget> GetMerchantWindowClass() const;
+	virtual TSubclassOf<UUserWidget> GetMerchantWindowClass_Implementation() const;
+
+	/**
+	 * Display the merchant window for the given actor.
+	 *
+	 * Default C++ flow:
+	 *   1. Look up via GetMerchantWindow(). If missing, lazy-create via GetMerchantWindowClass().
+	 *   2. Call IInventoryMerchantWindowInterface::Execute_InitMerchantWindow(Actor).
+	 *   3. Call IInventoryMerchantWindowInterface::Execute_ShowMerchantWindow().
+	 *   4. Position the window to the bottom-right of the current mouse cursor on first creation.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, BlueprintCosmetic, Category = "Inventory")
+	void DisplayMerchantScreen(AActor* MerchantActor);
+	virtual void DisplayMerchantScreen_Implementation(AActor* MerchantActor);
+
+	/**
+	 * Hide the merchant window and release merchant data.
+	 * Default calls DeInitMerchantWindow then HideMerchantWindow on the registered window.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, BlueprintCosmetic, Category = "Inventory")
 	void HideMerchantScreen();
+	virtual void HideMerchantScreen_Implementation();
 
 	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, BlueprintCosmetic, Category = "Inventory")
 	void DisplayRepairScreen(AActor* RepairerActor);
@@ -210,11 +253,13 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, BlueprintCosmetic, Category = "Inventory")
 	void OnRepairTransactionComplete();
 
-	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, BlueprintCosmetic, Category = "Inventory")
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, BlueprintCosmetic, Category = "Inventory")
 	void TryPresentSellItem(EBagSlot OutSlot, int32 ItemID, int32 TopLeft);
+	virtual void TryPresentSellItem_Implementation(EBagSlot OutSlot, int32 ItemID, int32 TopLeft) {}
 
-	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, BlueprintCosmetic, Category = "Inventory")
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, BlueprintCosmetic, Category = "Inventory")
 	void ResetSellItem();
+	virtual void ResetSellItem_Implementation() {}
 
 	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, BlueprintCosmetic, Category = "Inventory")
 	void DisplayItemDescription(const UInventoryItemBase* Item, float X, float Y);

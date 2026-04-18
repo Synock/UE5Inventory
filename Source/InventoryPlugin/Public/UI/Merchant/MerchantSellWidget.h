@@ -203,6 +203,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Merchant")
 	void ResetSellData();
 
+	/** Returns the optional Done button so external owners can rebind it. */
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Inventory|Merchant")
+	UButton* GetDoneButton() const { return DoneButton; }
+
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Merchant|Buy")
 	void AssignSellData(int32 ItemID, int32 TopLeft, EBagSlot OriginBag);
 

@@ -8,6 +8,7 @@
 #include "UI/InventoryBagWindowInterface.h"
 #include "UI/InventoryBookWidgetInterface.h"
 #include "UI/InventoryLootWindowInterface.h"
+#include "UI/InventoryMerchantWindowInterface.h"
 #include "Blueprint/UserWidget.h"
 #include "GameFramework/PlayerController.h"
 
@@ -318,6 +319,103 @@ void IInventoryHUDInterface::HideLootScreen_Implementation()
 
 	IInventoryLootWindowInterface::Execute_DeInitLootWindow(WindowObj);
 	IInventoryLootWindowInterface::Execute_HideLootWindow(WindowObj);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+// Merchant window registry — default no-ops
+//----------------------------------------------------------------------------------------------------------------------
+
+TScriptInterface<IInventoryMerchantWindowInterface> IInventoryHUDInterface::GetMerchantWindow() const
+{
+	return {};
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::RegisterMerchantWindow(TScriptInterface<IInventoryMerchantWindowInterface> /*MerchantWindow*/)
+{
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+// Merchant lifecycle
+//----------------------------------------------------------------------------------------------------------------------
+
+TSubclassOf<UUserWidget> IInventoryHUDInterface::GetMerchantWindowClass_Implementation() const
+{
+	// No plugin-default merchant window asset; game code overrides this to return its draggable window class.
+	return nullptr;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::DisplayMerchantScreen_Implementation(AActor* MerchantActor)
+{
+	if (!MerchantActor)
+		return;
+
+	UObject* SelfObject = Cast<UObject>(this);
+	if (!SelfObject)
+		return;
+
+	APlayerController* PC = nullptr;
+	if (const UUserWidget* AsWidget = Cast<UUserWidget>(SelfObject))
+		PC = AsWidget->GetOwningPlayer();
+
+	TScriptInterface<IInventoryMerchantWindowInterface> MerchantWindow = GetMerchantWindow();
+
+	if (!MerchantWindow.GetObject())
+	{
+		const TSubclassOf<UUserWidget> WindowClass = Execute_GetMerchantWindowClass(SelfObject);
+		if (!WindowClass)
+		{
+			UE_LOG(LogTemp, Warning,
+			       TEXT("IInventoryHUDInterface::DisplayMerchantScreen — no registered window and GetMerchantWindowClass returned nullptr."));
+			return;
+		}
+
+		UUserWidget* NewWindow = CreateWidget<UUserWidget>(PC, WindowClass);
+		if (!NewWindow)
+			return;
+
+		if (!NewWindow->GetClass()->ImplementsInterface(UInventoryMerchantWindowInterface::StaticClass()))
+		{
+			UE_LOG(LogTemp, Warning,
+			       TEXT("IInventoryHUDInterface::DisplayMerchantScreen — created widget '%s' does not implement IInventoryMerchantWindowInterface."),
+			       *WindowClass->GetName());
+			return;
+		}
+
+		MerchantWindow = TScriptInterface<IInventoryMerchantWindowInterface>(NewWindow);
+		RegisterMerchantWindow(MerchantWindow);
+		NewWindow->AddToViewport();
+
+		// Position bottom-right of the cursor on first creation.
+		NewWindow->SetAlignmentInViewport(FVector2D(0.0f, 0.0f));
+		float MouseX = 0.f, MouseY = 0.f;
+		if (PC)
+			PC->GetMousePosition(MouseX, MouseY);
+		NewWindow->SetPositionInViewport(FVector2D(MouseX, MouseY), true);
+	}
+
+	UObject* WindowObj = MerchantWindow.GetObject();
+	if (!WindowObj)
+		return;
+
+	IInventoryMerchantWindowInterface::Execute_InitMerchantWindow(WindowObj, MerchantActor);
+	IInventoryMerchantWindowInterface::Execute_ShowMerchantWindow(WindowObj);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::HideMerchantScreen_Implementation()
+{
+	const TScriptInterface<IInventoryMerchantWindowInterface> MerchantWindow = GetMerchantWindow();
+	UObject* WindowObj = MerchantWindow.GetObject();
+	if (!WindowObj)
+		return;
+
+	IInventoryMerchantWindowInterface::Execute_DeInitMerchantWindow(WindowObj);
+	IInventoryMerchantWindowInterface::Execute_HideMerchantWindow(WindowObj);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
