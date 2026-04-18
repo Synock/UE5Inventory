@@ -578,3 +578,41 @@ void UMerchantSellWidget::OnMerchantOffersItemForSale(const FString& MerchantNam
 {
 	OnMerchantOffersItemForSaleDelegate.Broadcast(MerchantName, ItemOfferName, SalePrice);
 }
+
+//----------------------------------------------------------------------------------------------------------------------
+// IInventoryMerchantWindowInterface
+//----------------------------------------------------------------------------------------------------------------------
+
+void UMerchantSellWidget::InitMerchantWindow_Implementation(AActor* NewMerchantActor)
+{
+	InitMerchantData(NewMerchantActor);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UMerchantSellWidget::DeInitMerchantWindow_Implementation()
+{
+	DeInitMerchantData();
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UMerchantSellWidget::ShowMerchantWindow_Implementation()
+{
+	SetVisibility(ESlateVisibility::Visible);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UMerchantSellWidget::HideMerchantWindow_Implementation()
+{
+	SetVisibility(ESlateVisibility::Hidden);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UMerchantSellWidget::RefreshMerchantWindow_Implementation()
+{
+	Refresh();
+}
+

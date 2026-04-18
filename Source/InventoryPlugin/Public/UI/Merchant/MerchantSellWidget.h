@@ -10,6 +10,7 @@
 #include "Components/TextBlock.h"
 #include "InventoryPlugin/Public/Interfaces/MerchantInterface.h"
 #include "InventoryItem.h"
+#include "UI/InventoryMerchantWindowInterface.h"
 #include "UI/PurseWidget.h"
 #include "MerchantSellWidget.generated.h"
 
@@ -41,7 +42,7 @@ enum class EMerchantWindowMode : uint8
  * Displays merchant inventory, handles buy/sell transactions, and shows item preview.
  */
 UCLASS()
-class INVENTORYPLUGIN_API UMerchantSellWidget : public UUserWidget
+class INVENTORYPLUGIN_API UMerchantSellWidget : public UUserWidget, public IInventoryMerchantWindowInterface
 {
 	GENERATED_BODY()
 
@@ -206,6 +207,14 @@ public:
 	/** Returns the optional Done button so external owners can rebind it. */
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Inventory|Merchant")
 	UButton* GetDoneButton() const { return DoneButton; }
+
+	// ---- IInventoryMerchantWindowInterface ----------------------------------
+
+	virtual void InitMerchantWindow_Implementation(AActor* NewMerchantActor) override;
+	virtual void DeInitMerchantWindow_Implementation() override;
+	virtual void ShowMerchantWindow_Implementation() override;
+	virtual void HideMerchantWindow_Implementation() override;
+	virtual void RefreshMerchantWindow_Implementation() override;
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Merchant|Buy")
 	void AssignSellData(int32 ItemID, int32 TopLeft, EBagSlot OriginBag);

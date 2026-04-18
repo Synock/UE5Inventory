@@ -9,6 +9,7 @@
 #include "UI/InventoryBookWidgetInterface.h"
 #include "UI/InventoryLootWindowInterface.h"
 #include "UI/InventoryMerchantWindowInterface.h"
+#include "UI/Merchant/MerchantSellWidget.h"
 #include "Blueprint/UserWidget.h"
 #include "GameFramework/PlayerController.h"
 
@@ -342,8 +343,9 @@ void IInventoryHUDInterface::RegisterMerchantWindow(TScriptInterface<IInventoryM
 
 TSubclassOf<UUserWidget> IInventoryHUDInterface::GetMerchantWindowClass_Implementation() const
 {
-	// No plugin-default merchant window asset; game code overrides this to return its draggable window class.
-	return nullptr;
+	// Default: use the built-in UMerchantSellWidget as a standalone merchant window.
+	// Game code overrides this (e.g. UHUDWidget) to return a richer class.
+	return UMerchantSellWidget::StaticClass();
 }
 
 //----------------------------------------------------------------------------------------------------------------------
