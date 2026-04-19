@@ -8,6 +8,7 @@
 #include "Interfaces/RepairInterface.h"
 #include "CoinValue.h"
 #include "Definitions.h"
+#include "UI/InventoryRepairWindowInterface.h"
 #include "RepairWidget.generated.h"
 
 class URepairLineData;
@@ -59,7 +60,7 @@ struct FRepairItemData
  * Uses modern BindWidget approach for automatic UI element binding.
  */
 UCLASS()
-class INVENTORYPLUGIN_API URepairWidget : public UUserWidget
+class INVENTORYPLUGIN_API URepairWidget : public UUserWidget, public IInventoryRepairWindowInterface
 {
 	GENERATED_BODY()
 
@@ -222,5 +223,14 @@ public:
 	/** Broadcast when repair is successful */
 	UPROPERTY(BlueprintAssignable, Category = "Repair")
 	FRepairSuccessful OnRepairSuccessfulDelegate;
+
+	// ---- IInventoryRepairWindowInterface ------------------------------------
+
+	virtual void InitRepairWindow_Implementation(AActor* NewRepairerActor) override;
+	virtual void DeInitRepairWindow_Implementation() override;
+	virtual void ShowRepairWindow_Implementation() override;
+	virtual void HideRepairWindow_Implementation() override;
+	virtual void RefreshRepairWindow_Implementation() override;
+	virtual void OnRepairWindowTransactionComplete_Implementation() override;
 };
 

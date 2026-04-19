@@ -395,3 +395,47 @@ bool URepairWidget::IsRepairInProgress() const
 }
 
 //----------------------------------------------------------------------------------------------------------------------
+// IInventoryRepairWindowInterface
+//----------------------------------------------------------------------------------------------------------------------
+
+void URepairWidget::InitRepairWindow_Implementation(AActor* NewRepairerActor)
+{
+	InitRepairData(NewRepairerActor);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void URepairWidget::DeInitRepairWindow_Implementation()
+{
+	DeInitRepairData();
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void URepairWidget::ShowRepairWindow_Implementation()
+{
+	SetVisibility(ESlateVisibility::Visible);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void URepairWidget::HideRepairWindow_Implementation()
+{
+	SetVisibility(ESlateVisibility::Hidden);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void URepairWidget::RefreshRepairWindow_Implementation()
+{
+	Refresh();
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void URepairWidget::OnRepairWindowTransactionComplete_Implementation()
+{
+	OnRepairTransactionComplete();
+}
+
+//----------------------------------------------------------------------------------------------------------------------

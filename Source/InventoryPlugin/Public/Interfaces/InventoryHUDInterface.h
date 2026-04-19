@@ -7,6 +7,7 @@
 #include "UI/InventoryBagWindowInterface.h"
 #include "UI/InventoryLootWindowInterface.h"
 #include "UI/InventoryMerchantWindowInterface.h"
+#include "UI/InventoryRepairWindowInterface.h"
 #include "InventoryHUDInterface.generated.h"
 
 class UInventoryItemBase;
@@ -240,18 +241,66 @@ public:
 	 * Hide the merchant window and release merchant data.
 	 * Default calls DeInitMerchantWindow then HideMerchantWindow on the registered window.
 	 */
-	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, BlueprintCosmetic, Category = "Inventory")
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Inventory|Merchant")
 	void HideMerchantScreen();
 	virtual void HideMerchantScreen_Implementation();
 
-	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, BlueprintCosmetic, Category = "Inventory")
+	//------------------------------------------------------------------------------------------------------------------
+	// Repair window registry
+
+	/**
+	 * Return the registered repair window, or an empty interface if none.
+	 * Default returns empty; override to expose your stored window.
+	 */
+	virtual TScriptInterface<IInventoryRepairWindowInterface> GetRepairWindow() const;
+
+	/**
+	 * Register a repair window.
+	 * Default is a no-op; override to store in your HUD.
+	 */
+	virtual void RegisterRepairWindow(TScriptInterface<IInventoryRepairWindowInterface> RepairWindow);
+
+	//------------------------------------------------------------------------------------------------------------------
+	// Repair lifecycle
+
+	/**
+	 * Returns the widget class to instantiate for the repair window.
+	 * Must implement IInventoryRepairWindowInterface.
+	 * Default returns URepairWidget::StaticClass().
+	 * Override to supply a game-specific draggable window class.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Inventory|Repair")
+	TSubclassOf<UUserWidget> GetRepairWindowClass() const;
+	virtual TSubclassOf<UUserWidget> GetRepairWindowClass_Implementation() const;
+
+	/**
+	 * Display the repair window for the given repairer actor.
+	 *
+	 * Default C++ flow:
+	 *   1. Look up via GetRepairWindow(). If missing, lazy-create via GetRepairWindowClass().
+	 *   2. Call IInventoryRepairWindowInterface::Execute_InitRepairWindow(Actor).
+	 *   3. Call IInventoryRepairWindowInterface::Execute_ShowRepairWindow().
+	 *   4. Position the window to the bottom-right of the current mouse cursor on first creation.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, BlueprintCosmetic, Category = "Inventory")
 	void DisplayRepairScreen(AActor* RepairerActor);
+	virtual void DisplayRepairScreen_Implementation(AActor* RepairerActor);
 
-	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, BlueprintCosmetic, Category = "Inventory")
+	/**
+	 * Hide the repair window and release repairer data.
+	 * Default calls DeInitRepairWindow then HideRepairWindow on the registered window.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, BlueprintCosmetic, Category = "Inventory")
 	void HideRepairScreen();
+	virtual void HideRepairScreen_Implementation();
 
-	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, BlueprintCosmetic, Category = "Inventory")
+	/**
+	 * Notify the repair window that a transaction has completed.
+	 * Default calls OnRepairWindowTransactionComplete on the registered window.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, BlueprintCosmetic, Category = "Inventory")
 	void OnRepairTransactionComplete();
+	virtual void OnRepairTransactionComplete_Implementation();
 
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, BlueprintCosmetic, Category = "Inventory")
 	void TryPresentSellItem(EBagSlot OutSlot, int32 ItemID, int32 TopLeft);

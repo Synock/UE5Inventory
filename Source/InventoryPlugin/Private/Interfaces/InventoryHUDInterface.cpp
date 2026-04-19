@@ -9,7 +9,9 @@
 #include "UI/InventoryBookWidgetInterface.h"
 #include "UI/InventoryLootWindowInterface.h"
 #include "UI/InventoryMerchantWindowInterface.h"
+#include "UI/InventoryRepairWindowInterface.h"
 #include "UI/Merchant/MerchantSellWidget.h"
+#include "UI/Repair/RepairWidget.h"
 #include "Blueprint/UserWidget.h"
 #include "GameFramework/PlayerController.h"
 
@@ -515,3 +517,115 @@ void IInventoryHUDInterface::LockEquipmentSlot_Implementation(EEquipmentSlot Equ
 	EquipmentComp->SetEquipmentLockState(EquipmentSlot, bLocked);
 	EquipmentComp->EquipmentDispatcher.Broadcast();
 }
+
+//----------------------------------------------------------------------------------------------------------------------
+// Repair window registry — default no-ops
+//----------------------------------------------------------------------------------------------------------------------
+
+TScriptInterface<IInventoryRepairWindowInterface> IInventoryHUDInterface::GetRepairWindow() const
+{
+	return {};
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::RegisterRepairWindow(TScriptInterface<IInventoryRepairWindowInterface> /*RepairWindow*/)
+{
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+// Repair lifecycle
+//----------------------------------------------------------------------------------------------------------------------
+
+TSubclassOf<UUserWidget> IInventoryHUDInterface::GetRepairWindowClass_Implementation() const
+{
+	// Default: use the built-in URepairWidget as a standalone repair window.
+	// Game code overrides this to return a richer draggable window class.
+	return URepairWidget::StaticClass();
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::DisplayRepairScreen_Implementation(AActor* RepairerActor)
+{
+	if (!RepairerActor)
+		return;
+
+	UObject* SelfObject = Cast<UObject>(this);
+	if (!SelfObject)
+		return;
+
+	APlayerController* PC = nullptr;
+	if (const UUserWidget* AsWidget = Cast<UUserWidget>(SelfObject))
+		PC = AsWidget->GetOwningPlayer();
+
+	TScriptInterface<IInventoryRepairWindowInterface> RepairWindow = GetRepairWindow();
+
+	if (!RepairWindow.GetObject())
+	{
+		const TSubclassOf<UUserWidget> WindowClass = Execute_GetRepairWindowClass(SelfObject);
+		if (!WindowClass)
+		{
+			UE_LOG(LogTemp, Warning,
+			       TEXT("IInventoryHUDInterface::DisplayRepairScreen — no registered window and GetRepairWindowClass returned nullptr."));
+			return;
+		}
+
+		UUserWidget* NewWindow = CreateWidget<UUserWidget>(PC, WindowClass);
+		if (!NewWindow)
+			return;
+
+		if (!NewWindow->GetClass()->ImplementsInterface(UInventoryRepairWindowInterface::StaticClass()))
+		{
+			UE_LOG(LogTemp, Warning,
+			       TEXT("IInventoryHUDInterface::DisplayRepairScreen — created widget '%s' does not implement IInventoryRepairWindowInterface."),
+			       *WindowClass->GetName());
+			return;
+		}
+
+		RepairWindow = TScriptInterface<IInventoryRepairWindowInterface>(NewWindow);
+		RegisterRepairWindow(RepairWindow);
+		NewWindow->AddToViewport();
+
+		// Position bottom-right of the cursor on first creation.
+		NewWindow->SetAlignmentInViewport(FVector2D(0.0f, 0.0f));
+		float MouseX = 0.f, MouseY = 0.f;
+		if (PC)
+			PC->GetMousePosition(MouseX, MouseY);
+		NewWindow->SetPositionInViewport(FVector2D(MouseX, MouseY), true);
+	}
+
+	UObject* WindowObj = RepairWindow.GetObject();
+	if (!WindowObj)
+		return;
+
+	IInventoryRepairWindowInterface::Execute_InitRepairWindow(WindowObj, RepairerActor);
+	IInventoryRepairWindowInterface::Execute_ShowRepairWindow(WindowObj);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::HideRepairScreen_Implementation()
+{
+	const TScriptInterface<IInventoryRepairWindowInterface> RepairWindow = GetRepairWindow();
+	UObject* WindowObj = RepairWindow.GetObject();
+	if (!WindowObj)
+		return;
+
+	IInventoryRepairWindowInterface::Execute_DeInitRepairWindow(WindowObj);
+	IInventoryRepairWindowInterface::Execute_HideRepairWindow(WindowObj);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::OnRepairTransactionComplete_Implementation()
+{
+	const TScriptInterface<IInventoryRepairWindowInterface> RepairWindow = GetRepairWindow();
+	UObject* WindowObj = RepairWindow.GetObject();
+	if (!WindowObj)
+		return;
+
+	IInventoryRepairWindowInterface::Execute_OnRepairWindowTransactionComplete(WindowObj);
+}
+
+
