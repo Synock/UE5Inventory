@@ -199,6 +199,18 @@ protected:
 	/** Get the inventory player interface from owning player */
 	IInventoryPlayerInterface* GetInventoryPlayerInterface() const;
 
+	// ============================================================================
+	// IFieldRepairWidgetInterface — Window Lifecycle
+	// ============================================================================
+
+	virtual void InitFieldRepairWindow_Implementation(int32 RepairKitItemID, EBagSlot BagSlot, int32 TopLeft) override;
+	virtual void ShowFieldRepairWindow_Implementation() override;
+	virtual void HideFieldRepairWindow_Implementation() override;
+	virtual void DeInitFieldRepairWindow_Implementation() override;
+	virtual void OnFieldRepairFinished_Implementation(EBagSlot RepairBagSlot, int32 RepairTopLeft,
+	                                                  float ActualRepairAmount, float NewTargetDurability,
+	                                                  float NewKitDurability) override;
+
 public:
 	// ============================================================================
 	// Public Interface

@@ -10,6 +10,8 @@
 #include "UI/InventoryLootWindowInterface.h"
 #include "UI/InventoryMerchantWindowInterface.h"
 #include "UI/InventoryRepairWindowInterface.h"
+#include "UI/FieldRepairWidgetInterface.h"
+#include "UI/FieldRepairWidget.h"
 #include "UI/Merchant/MerchantSellWidget.h"
 #include "UI/Repair/RepairWidget.h"
 #include "Blueprint/UserWidget.h"
@@ -651,6 +653,134 @@ void IInventoryHUDInterface::OnRepairTransactionComplete_Implementation()
 		return;
 
 	IInventoryRepairWindowInterface::Execute_OnRepairWindowTransactionComplete(WindowObj);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+// Field repair window registry — default no-ops
+//----------------------------------------------------------------------------------------------------------------------
+
+TScriptInterface<IFieldRepairWidgetInterface> IInventoryHUDInterface::GetFieldRepairWindow() const
+{
+	return {};
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::RegisterFieldRepairWindow(TScriptInterface<IFieldRepairWidgetInterface> /*FieldRepairWindow*/)
+{
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+// Field repair lifecycle
+//----------------------------------------------------------------------------------------------------------------------
+
+TSubclassOf<UUserWidget> IInventoryHUDInterface::GetFieldRepairWidgetClass_Implementation() const
+{
+	return UFieldRepairWidget::StaticClass();
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::DisplayFieldRepairScreen_Implementation(int32 RepairKitItemID, EBagSlot BagSlot, int32 TopLeft)
+{
+	UObject* SelfObject = Cast<UObject>(this);
+	if (!SelfObject)
+		return;
+
+	APlayerController* PC = nullptr;
+	if (const UUserWidget* AsWidget = Cast<UUserWidget>(SelfObject))
+		PC = AsWidget->GetOwningPlayer();
+
+	TScriptInterface<IFieldRepairWidgetInterface> FieldRepairWindow = GetFieldRepairWindow();
+
+	if (!FieldRepairWindow.GetObject())
+	{
+		const TSubclassOf<UUserWidget> WindowClass = Execute_GetFieldRepairWidgetClass(SelfObject);
+		if (!WindowClass)
+		{
+			UE_LOG(LogTemp, Warning,
+			       TEXT("IInventoryHUDInterface::DisplayFieldRepairScreen — no registered window and GetFieldRepairWidgetClass returned nullptr."));
+			return;
+		}
+
+		UUserWidget* NewWindow = CreateWidget<UUserWidget>(PC, WindowClass);
+		if (!NewWindow)
+			return;
+
+		if (!NewWindow->GetClass()->ImplementsInterface(UFieldRepairWidgetInterface::StaticClass()))
+		{
+			UE_LOG(LogTemp, Warning,
+			       TEXT("IInventoryHUDInterface::DisplayFieldRepairScreen — created widget '%s' does not implement IFieldRepairWidgetInterface."),
+			       *WindowClass->GetName());
+			return;
+		}
+
+		FieldRepairWindow = TScriptInterface<IFieldRepairWidgetInterface>(NewWindow);
+		RegisterFieldRepairWindow(FieldRepairWindow);
+		NewWindow->AddToViewport();
+
+		NewWindow->SetAlignmentInViewport(FVector2D(0.0f, 0.0f));
+		float MouseX = 0.f, MouseY = 0.f;
+		if (PC)
+			PC->GetMousePosition(MouseX, MouseY);
+		NewWindow->SetPositionInViewport(FVector2D(MouseX, MouseY), true);
+	}
+
+	UObject* WindowObj = FieldRepairWindow.GetObject();
+	if (!WindowObj)
+		return;
+
+	IFieldRepairWidgetInterface::Execute_InitFieldRepairWindow(WindowObj, RepairKitItemID, BagSlot, TopLeft);
+	IFieldRepairWidgetInterface::Execute_ShowFieldRepairWindow(WindowObj);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::HideFieldRepairScreen_Implementation()
+{
+	const TScriptInterface<IFieldRepairWidgetInterface> FieldRepairWindow = GetFieldRepairWindow();
+	UObject* WindowObj = FieldRepairWindow.GetObject();
+	if (!WindowObj)
+		return;
+
+	IFieldRepairWidgetInterface::Execute_DeInitFieldRepairWindow(WindowObj);
+	IFieldRepairWidgetInterface::Execute_HideFieldRepairWindow(WindowObj);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::NotifyFieldRepairFinished_Implementation(EBagSlot RepairBagSlot, int32 RepairTopLeft,
+                                                                      float ActualRepairAmount,
+                                                                      float NewTargetDurability, float NewKitDurability)
+{
+	const TScriptInterface<IFieldRepairWidgetInterface> FieldRepairWindow = GetFieldRepairWindow();
+	UObject* WindowObj = FieldRepairWindow.GetObject();
+	if (!WindowObj)
+		return;
+
+	IFieldRepairWidgetInterface::Execute_OnFieldRepairFinished(WindowObj, RepairBagSlot, RepairTopLeft,
+	                                                           ActualRepairAmount, NewTargetDurability,
+	                                                           NewKitDurability);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::LockInventorySlot_Implementation(EBagSlot BagSlot, int32 TopLeft, bool bLocked)
+{
+	// Route through the registered bag window for this slot.
+	// Pocket1/Pocket2 typically map to the main InventoryWindow which the plugin has no abstraction
+	// for — game-side overrides handle those. All other slots go through IInventoryBagWindowInterface.
+	const TScriptInterface<IInventoryBagWindowInterface> BagWindow = GetBagWindowForSlot(BagSlot);
+	if (UObject* WindowObj = BagWindow.GetObject())
+	{
+		IInventoryBagWindowInterface::Execute_LockBagItemSlot(WindowObj, TopLeft, bLocked);
+		return;
+	}
+
+	UE_LOG(LogTemp, Verbose,
+	       TEXT("IInventoryHUDInterface::LockInventorySlot — no bag window registered for slot %d (TopLeft=%d). "
+	            "Override LockInventorySlot_Implementation in the game HUD to handle pocket/main-window slots."),
+	       static_cast<int32>(BagSlot), TopLeft);
 }
 
 

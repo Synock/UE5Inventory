@@ -1,8 +1,9 @@
 #include "UI/FieldRepairWidget.h"
 #include "InventoryPlugin.h"
+#include "InventoryUtilities.h"
 #include "UI/FieldRepairWidgetInterface.h"
-#include "InventoryPlugin.h"
 #include "Items/Interfaces/InventoryItemFieldRepairInterface.h"
+#include "Components/InventoryComponent.h"
 #include "InventoryPlugin.h"
 #include "Items/InventoryItemEquipable.h"
 #include "InventoryPlugin.h"
@@ -486,5 +487,110 @@ IInventoryPlayerInterface* UFieldRepairWidget::GetInventoryPlayerInterface() con
 		return Cast<IInventoryPlayerInterface>(PC);
 	}
 	return nullptr;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+// IFieldRepairWidgetInterface — Window Lifecycle
+//----------------------------------------------------------------------------------------------------------------------
+
+void UFieldRepairWidget::InitFieldRepairWindow_Implementation(int32 RepairKitItemID, EBagSlot BagSlot, int32 TopLeft)
+{
+	IInventoryPlayerInterface* Player = GetInventoryPlayerInterface();
+	if (!Player)
+	{
+		UE_LOG(LogInventoryPlugin, Warning, TEXT("UFieldRepairWidget::InitFieldRepairWindow — no IInventoryPlayerInterface on owning controller."));
+		return;
+	}
+
+	const UInventoryComponent* InvComp = Player->GetInventoryComponentConst();
+	if (!InvComp)
+	{
+		UE_LOG(LogInventoryPlugin, Warning, TEXT("UFieldRepairWidget::InitFieldRepairWindow — no InventoryComponent available."));
+		return;
+	}
+
+	// Locate the item storage entry to read current durability.
+	const TArray<FMinimalItemStorage>& BagItems = InvComp->GetBagConst(BagSlot);
+	const FMinimalItemStorage* StorageEntry = BagItems.FindByPredicate([TopLeft](const FMinimalItemStorage& S)
+	{
+		return S.TopLeftID == TopLeft;
+	});
+
+	if (!StorageEntry)
+	{
+		UE_LOG(LogInventoryPlugin, Warning,
+		       TEXT("UFieldRepairWidget::InitFieldRepairWindow — no item found at BagSlot %d / TopLeft %d."),
+		       static_cast<int32>(BagSlot), TopLeft);
+		return;
+	}
+
+	// Resolve the item object from the global registry.
+	UInventoryItemBase* ItemBase = UInventoryUtilities::GetItemFromID(RepairKitItemID, GetWorld());
+	if (!ItemBase)
+	{
+		UE_LOG(LogInventoryPlugin, Warning,
+		       TEXT("UFieldRepairWidget::InitFieldRepairWindow — GetItemFromID returned null for ID %d."),
+		       RepairKitItemID);
+		return;
+	}
+
+	if (!ItemBase->GetClass()->ImplementsInterface(UInventoryItemFieldRepairInterface::StaticClass()))
+	{
+		UE_LOG(LogInventoryPlugin, Warning,
+		       TEXT("UFieldRepairWidget::InitFieldRepairWindow — item ID %d does not implement IInventoryItemFieldRepairInterface."),
+		       RepairKitItemID);
+		return;
+	}
+
+	TScriptInterface<IInventoryItemFieldRepairInterface> RepairItem;
+	RepairItem.SetObject(ItemBase);
+	RepairItem.SetInterface(Cast<IInventoryItemFieldRepairInterface>(ItemBase));
+
+	InitializeWithRepairItem(RepairItem, StorageEntry->Durability);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UFieldRepairWidget::ShowFieldRepairWindow_Implementation()
+{
+	SetVisibility(ESlateVisibility::Visible);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UFieldRepairWidget::HideFieldRepairWindow_Implementation()
+{
+	if (IsRepairing)
+		CancelRepair();
+
+	SetVisibility(ESlateVisibility::Hidden);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UFieldRepairWidget::DeInitFieldRepairWindow_Implementation()
+{
+	if (IsRepairing)
+		CancelRepair();
+
+	CurrentRepairItem = nullptr;
+	ClearTargetItem();
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UFieldRepairWidget::OnFieldRepairFinished_Implementation(EBagSlot /*RepairBagSlot*/, int32 /*RepairTopLeft*/,
+                                                              float /*ActualRepairAmount*/,
+                                                              float NewTargetDurability, float NewKitDurability)
+{
+	// Apply server-confirmed durability values and refresh UI.
+	CurrentTargetDurability = NewTargetDurability;
+	CurrentRepairKitDurability = NewKitDurability;
+	IsRepairing = false;
+	RepairProgress = 0.0f;
+	ElapsedRepairTime = 0.0f;
+
+	Execute_UpdateUI(this);
+	Execute_ValidateState(this);
 }
 

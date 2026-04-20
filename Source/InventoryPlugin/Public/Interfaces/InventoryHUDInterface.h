@@ -8,6 +8,7 @@
 #include "UI/InventoryLootWindowInterface.h"
 #include "UI/InventoryMerchantWindowInterface.h"
 #include "UI/InventoryRepairWindowInterface.h"
+#include "UI/FieldRepairWidgetInterface.h"
 #include "InventoryHUDInterface.generated.h"
 
 class UInventoryItemBase;
@@ -371,18 +372,69 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, BlueprintCosmetic, Category = "Inventory")
 	void CloseTradeWindow();
 
-	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, BlueprintCosmetic, Category = "Inventory|FieldRepair")
+	//------------------------------------------------------------------------------------------------------------------
+	// Field repair window registry
+
+	/**
+	 * Return the registered field repair window, or an empty interface if none.
+	 * Default returns empty; override to expose your stored window.
+	 */
+	virtual TScriptInterface<IFieldRepairWidgetInterface> GetFieldRepairWindow() const;
+
+	/**
+	 * Register a field repair window.
+	 * Default is a no-op; override to store in your HUD.
+	 */
+	virtual void RegisterFieldRepairWindow(TScriptInterface<IFieldRepairWidgetInterface> FieldRepairWindow);
+
+	//------------------------------------------------------------------------------------------------------------------
+	// Field repair lifecycle
+
+	/**
+	 * Returns the widget class to instantiate for the field repair window.
+	 * Must implement IFieldRepairWidgetInterface.
+	 * Default returns UFieldRepairWidget::StaticClass().
+	 * Override to supply a game-specific draggable window class.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Inventory|FieldRepair")
+	TSubclassOf<UUserWidget> GetFieldRepairWidgetClass() const;
+	virtual TSubclassOf<UUserWidget> GetFieldRepairWidgetClass_Implementation() const;
+
+	/**
+	 * Display the field repair window for a repair kit in the player's inventory.
+	 *
+	 * Default C++ flow:
+	 *   1. Look up via GetFieldRepairWindow(). If missing, lazy-create via GetFieldRepairWidgetClass().
+	 *   2. Call IFieldRepairWidgetInterface::Execute_InitFieldRepairWindow.
+	 *   3. Call IFieldRepairWidgetInterface::Execute_ShowFieldRepairWindow.
+	 *   4. Position the window at the current mouse cursor on first creation.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, BlueprintCosmetic, Category = "Inventory|FieldRepair")
 	void DisplayFieldRepairScreen(int32 RepairKitItemID, EBagSlot BagSlot, int32 TopLeft);
+	virtual void DisplayFieldRepairScreen_Implementation(int32 RepairKitItemID, EBagSlot BagSlot, int32 TopLeft);
 
-	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, BlueprintCosmetic, Category = "Inventory|FieldRepair")
+	/**
+	 * Hide the field repair window and release all repair state.
+	 * Default calls DeInitFieldRepairWindow then HideFieldRepairWindow on the registered window.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, BlueprintCosmetic, Category = "Inventory|FieldRepair")
 	void HideFieldRepairScreen();
+	virtual void HideFieldRepairScreen_Implementation();
 
-	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, BlueprintCosmetic, Category = "Inventory|FieldRepair")
+	/**
+	 * Forward the server-authoritative repair result to the field repair window.
+	 * Default calls OnFieldRepairFinished on the registered window.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, BlueprintCosmetic, Category = "Inventory|FieldRepair")
 	void NotifyFieldRepairFinished(EBagSlot RepairBagSlot, int32 RepairTopLeft, float ActualRepairAmount,
-	                                float NewTargetDurability, float NewKitDurability);
+	                               float NewTargetDurability, float NewKitDurability);
+	virtual void NotifyFieldRepairFinished_Implementation(EBagSlot RepairBagSlot, int32 RepairTopLeft,
+	                                                      float ActualRepairAmount, float NewTargetDurability,
+	                                                      float NewKitDurability);
 
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Inventory|FieldRepair")
 	void LockInventorySlot(EBagSlot BagSlot, int32 TopLeft, bool bLocked);
+	virtual void LockInventorySlot_Implementation(EBagSlot BagSlot, int32 TopLeft, bool bLocked);
 
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Inventory|FieldRepair")
 	void LockEquipmentSlot(EEquipmentSlot EquipmentSlot, bool bLocked);

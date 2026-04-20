@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Definitions.h"
 #include "UObject/Interface.h"
 #include "FieldRepairWidgetInterface.generated.h"
 
@@ -205,4 +206,56 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "FieldRepair")
 	bool ShouldEnableRepairButton() const;
 	virtual bool ShouldEnableRepairButton_Implementation() const { return false; }
+
+	// ============================================================================
+	// Window Lifecycle (HUD dispatch contract — mirrors IInventoryBookWidgetInterface)
+	// ============================================================================
+
+	/**
+	 * Initialize the field repair window with a repair kit located in the player's inventory.
+	 * Default implementation resolves the item via IInventoryPlayerInterface and calls InitializeWithRepairItem.
+	 * @param RepairKitItemID  Item ID of the repair kit to use
+	 * @param BagSlot          Bag containing the repair kit
+	 * @param TopLeft          Grid position of the repair kit in that bag
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "FieldRepair|Window")
+	void InitFieldRepairWindow(int32 RepairKitItemID, EBagSlot BagSlot, int32 TopLeft);
+	virtual void InitFieldRepairWindow_Implementation(int32 RepairKitItemID, EBagSlot BagSlot, int32 TopLeft) {}
+
+	/** Make the field repair window visible. */
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "FieldRepair|Window")
+	void ShowFieldRepairWindow();
+	virtual void ShowFieldRepairWindow_Implementation() {}
+
+	/**
+	 * Hide the field repair window.
+	 * Cancels any repair in progress before hiding.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "FieldRepair|Window")
+	void HideFieldRepairWindow();
+	virtual void HideFieldRepairWindow_Implementation() {}
+
+	/**
+	 * Clear all repair state and release item references.
+	 * Called by IInventoryHUDInterface::HideFieldRepairScreen before hiding.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "FieldRepair|Window")
+	void DeInitFieldRepairWindow();
+	virtual void DeInitFieldRepairWindow_Implementation() {}
+
+	/**
+	 * Notify the window that the server-authoritative repair result has arrived.
+	 * Updates local durability state and refreshes the UI.
+	 * @param RepairBagSlot        Bag slot of the item that was repaired
+	 * @param RepairTopLeft        Grid position of the repaired item
+	 * @param ActualRepairAmount   Durability actually restored
+	 * @param NewTargetDurability  Confirmed post-repair durability of the target item
+	 * @param NewKitDurability     Confirmed post-repair durability (charges) of the repair kit
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "FieldRepair|Window")
+	void OnFieldRepairFinished(EBagSlot RepairBagSlot, int32 RepairTopLeft,
+	                           float ActualRepairAmount, float NewTargetDurability, float NewKitDurability);
+	virtual void OnFieldRepairFinished_Implementation(EBagSlot RepairBagSlot, int32 RepairTopLeft,
+	                                                  float ActualRepairAmount, float NewTargetDurability,
+	                                                  float NewKitDurability) {}
 };
