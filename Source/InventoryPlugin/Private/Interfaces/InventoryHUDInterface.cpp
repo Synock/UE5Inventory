@@ -1,4 +1,5 @@
 #include "Interfaces/InventoryHUDInterface.h"
+#include "UI/InventoryWindowInterface.h"
 #include "Interfaces/EquipmentInterface.h"
 #include "Components/EquipmentComponent.h"
 #include "Components/InventoryComponent.h"
@@ -16,6 +17,59 @@
 #include "UI/Repair/RepairWidget.h"
 #include "Blueprint/UserWidget.h"
 #include "GameFramework/PlayerController.h"
+
+//----------------------------------------------------------------------------------------------------------------------
+// Inventory window registry — default no-ops
+//----------------------------------------------------------------------------------------------------------------------
+
+TScriptInterface<IInventoryWindowInterface> IInventoryHUDInterface::GetInventoryWindow() const
+{
+	return {};
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::RegisterInventoryWindow(TScriptInterface<IInventoryWindowInterface> /*InventoryWindow*/)
+{
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+// Inventory display
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::SetInventoryDisplay_Implementation(bool State)
+{
+	const TScriptInterface<IInventoryWindowInterface> Window = GetInventoryWindow();
+	UObject* WindowObj = Window.GetObject();
+	if (!WindowObj)
+		return;
+
+	if (State)
+	{
+		IInventoryWindowInterface::Execute_ShowInventoryWindow(WindowObj);
+		IInventoryWindowInterface::Execute_RefreshInventoryEquipments(WindowObj);
+		IInventoryWindowInterface::Execute_RefreshInventoryGrids(WindowObj);
+	}
+	else
+	{
+		IInventoryWindowInterface::Execute_HideInventoryWindow(WindowObj);
+	}
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::ToggleInventoryDisplay_Implementation()
+{
+	const TScriptInterface<IInventoryWindowInterface> Window = GetInventoryWindow();
+	UObject* WindowObj = Window.GetObject();
+	if (!WindowObj)
+		return;
+
+	const bool bVisible = IInventoryWindowInterface::Execute_IsInventoryWindowVisible(WindowObj);
+
+	UObject* SelfObject = _getUObject();
+	Execute_SetInventoryDisplay(SelfObject, !bVisible);
+}
 
 //----------------------------------------------------------------------------------------------------------------------
 // Bag window registry — default no-ops

@@ -9,6 +9,7 @@
 #include "UI/InventoryMerchantWindowInterface.h"
 #include "UI/InventoryRepairWindowInterface.h"
 #include "UI/FieldRepairWidgetInterface.h"
+#include "UI/InventoryWindowInterface.h"
 #include "InventoryHUDInterface.generated.h"
 
 class UInventoryItemBase;
@@ -28,13 +29,41 @@ class INVENTORYPLUGIN_API IInventoryHUDInterface
 public:
 
 	//------------------------------------------------------------------------------------------------------------------
+	// Inventory window registry
+
+	/**
+	 * Return the registered inventory window, or an empty interface if none.
+	 * Default returns empty; override to expose your stored window.
+	 */
+	virtual TScriptInterface<IInventoryWindowInterface> GetInventoryWindow() const;
+
+	/**
+	 * Register the inventory window.
+	 * Default is a no-op; override to store in your HUD.
+	 */
+	virtual void RegisterInventoryWindow(TScriptInterface<IInventoryWindowInterface> InventoryWindow);
+
+	//------------------------------------------------------------------------------------------------------------------
 	// Inventory
 
-	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable, Category = "Inventory")
+	/**
+	 * Show or hide the inventory window.
+	 *
+	 * Default C++ flow:
+	 *   - State == true:  ShowInventoryWindow → RefreshInventoryEquipments → RefreshInventoryGrids
+	 *   - State == false: HideInventoryWindow
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, BlueprintCosmetic, Category = "Inventory")
 	void SetInventoryDisplay(bool State);
+	virtual void SetInventoryDisplay_Implementation(bool State);
 
-	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable, Category = "Inventory")
+	/**
+	 * Toggle the inventory window (show if hidden, hide if visible).
+	 * Default calls SetInventoryDisplay(!IsInventoryWindowVisible()).
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, BlueprintCosmetic, Category = "Inventory")
 	void ToggleInventoryDisplay();
+	virtual void ToggleInventoryDisplay_Implementation();
 
 	/**
 	 * Full inventory refresh: refresh equipment display, all registered bag windows, then all inventory grids.
