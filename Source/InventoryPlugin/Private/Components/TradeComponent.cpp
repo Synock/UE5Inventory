@@ -88,36 +88,7 @@ void UTradeComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutL
 void UTradeComponent::OnRep_TradePartner()
 {
 	OnTradeStateChanged.Broadcast();
-	// If trading just started, open the trade UI
-	if (bIsTrading)
-	{
-		// Get the player controller
-		if (APlayerController* PC = Cast<APlayerController>(GetOwner()))
-		{
-			// Open trade window via the HUD interface
-			if (IInventoryPlayerInterface* PlayerInterface = Cast<IInventoryPlayerInterface>(PC))
-			{
-				if (IInventoryHUDInterface* HUDInterface = PlayerInterface->GetInventoryHUDInterface())
-				{
-					HUDInterface->Execute_OpenTradeWindow(PlayerInterface->GetInventoryHUDObject());
-				}
-			}
-		}
-	}
-	else
-	{
-		// Trading ended, close the trade UI
-		if (APlayerController* PC = Cast<APlayerController>(GetOwner()))
-		{
-			if (IInventoryPlayerInterface* PlayerInterface = Cast<IInventoryPlayerInterface>(PC))
-			{
-				if (IInventoryHUDInterface* HUDInterface = PlayerInterface->GetInventoryHUDInterface())
-				{
-					HUDInterface->Execute_CloseTradeWindow(PlayerInterface->GetInventoryHUDObject());
-				}
-			}
-		}
-	}
+	// UI is driven by OnRep_IsTrading — no UI calls here to avoid replication race conditions.
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -143,6 +114,24 @@ void UTradeComponent::OnRep_TheirOffer()
 void UTradeComponent::OnRep_IsTrading()
 {
 	OnTradeStateChanged.Broadcast();
+
+	APlayerController* PC = Cast<APlayerController>(GetOwner());
+	if (!PC)
+		return;
+
+	IInventoryPlayerInterface* PlayerInterface = Cast<IInventoryPlayerInterface>(PC);
+	if (!PlayerInterface)
+		return;
+
+	IInventoryHUDInterface* HUDInterface = PlayerInterface->GetInventoryHUDInterface();
+	if (!HUDInterface)
+		return;
+
+	UObject* HUDObject = PlayerInterface->GetInventoryHUDObject();
+	if (bIsTrading)
+		HUDInterface->Execute_OpenTradeWindow(HUDObject);
+	else
+		HUDInterface->Execute_CloseTradeWindow(HUDObject);
 }
 
 //----------------------------------------------------------------------------------------------------------------------

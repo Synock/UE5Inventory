@@ -11,6 +11,7 @@
 #include "UI/FieldRepairWidgetInterface.h"
 #include "UI/InventoryWindowInterface.h"
 #include "UI/Keyring/KeyringWindowInterface.h"
+#include "UI/TradeWindowInterface.h"
 #include "InventoryHUDInterface.generated.h"
 
 class UInventoryItemBase;
@@ -421,11 +422,43 @@ public:
 	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable, Category = "Inventory")
 	void ForceRefreshStagingAreaPossibilities();
 
-	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, BlueprintCosmetic, Category = "Inventory")
-	void OpenTradeWindow();
+	//------------------------------------------------------------------------------------------------------------------
+	// Trade window registry
 
-	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, BlueprintCosmetic, Category = "Inventory")
+	/**
+	 * Return the registered trade window, or an empty interface if none.
+	 * Default returns empty; override to expose your stored window.
+	 */
+	virtual TScriptInterface<ITradeWindowInterface> GetTradeWindow() const;
+
+	/**
+	 * Register the trade window.
+	 * Default is a no-op; override to store in your HUD.
+	 */
+	virtual void RegisterTradeWindow(TScriptInterface<ITradeWindowInterface> TradeWindow);
+
+	/**
+	 * Open (init + show) the trade window.
+	 *
+	 * Default C++ flow:
+	 *   1. Cast GetOwningPlayer() to IInventoryPlayerInterface.
+	 *   2. Check IsTrading() — bail if not trading.
+	 *   3. Call Execute_InitTradeWindow(GetLocalTradeComponent()).
+	 *   4. Call Execute_ShowTradeWindow().
+	 *
+	 * Override in the implementing class only when the default flow is insufficient.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, BlueprintCosmetic, Category = "Inventory")
+	void OpenTradeWindow();
+	virtual void OpenTradeWindow_Implementation();
+
+	/**
+	 * Close (deinit + hide) the trade window.
+	 * Default calls Execute_DeInitTradeWindow then Execute_HideTradeWindow.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, BlueprintCosmetic, Category = "Inventory")
 	void CloseTradeWindow();
+	virtual void CloseTradeWindow_Implementation();
 
 	//------------------------------------------------------------------------------------------------------------------
 	// Field repair window registry

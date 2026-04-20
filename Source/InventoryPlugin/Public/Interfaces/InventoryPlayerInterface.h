@@ -15,6 +15,7 @@
 class UInventoryNetComponent;
 class UKeyringComponent;
 class UBankComponent;
+class UTradeComponent;
 // This class does not need to be modified.
 UINTERFACE(MinimalAPI, meta = (CannotImplementInterfaceInBlueprint))
 class UInventoryPlayerInterface : public UInterface
@@ -249,6 +250,12 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Keys")
 	virtual UKeyringComponent* GetKeyring() const;
+
+	/**
+	 * Returns the local trade component for player-to-player trading.
+	 * Default returns nullptr; override in the player controller to return LocalTradeComponent.
+	 */
+	virtual UTradeComponent* GetLocalTradeComponent() const { return nullptr; }
 
 	//------------------------------------------------------------------------------------------------------------------
 	// Equipment

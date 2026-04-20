@@ -1,6 +1,9 @@
 #include "Interfaces/InventoryHUDInterface.h"
 #include "UI/InventoryWindowInterface.h"
 #include "UI/Keyring/KeyringWindowInterface.h"
+#include "UI/TradeWindowInterface.h"
+#include "Interfaces/InventoryPlayerInterface.h"
+#include "GameFramework/PlayerController.h"
 #include "Interfaces/EquipmentInterface.h"
 #include "Components/EquipmentComponent.h"
 #include "Components/InventoryComponent.h"
@@ -70,6 +73,70 @@ void IInventoryHUDInterface::ToggleInventoryDisplay_Implementation()
 
 	UObject* SelfObject = _getUObject();
 	Execute_SetInventoryDisplay(SelfObject, !bVisible);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+// Trade window registry — default no-ops
+//----------------------------------------------------------------------------------------------------------------------
+
+TScriptInterface<ITradeWindowInterface> IInventoryHUDInterface::GetTradeWindow() const
+{
+	return {};
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::RegisterTradeWindow(TScriptInterface<ITradeWindowInterface> /*TradeWindow*/)
+{
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+// Trade display
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::OpenTradeWindow_Implementation()
+{
+	// Resolve the owning player controller's IInventoryPlayerInterface.
+	UObject* SelfObject = Cast<UObject>(this);
+	if (!SelfObject)
+		return;
+
+	APlayerController* PC = nullptr;
+	if (const UUserWidget* AsWidget = Cast<UUserWidget>(SelfObject))
+		PC = AsWidget->GetOwningPlayer();
+
+	if (!PC)
+		return;
+
+	IInventoryPlayerInterface* PlayerInterface = Cast<IInventoryPlayerInterface>(PC);
+	if (!PlayerInterface)
+		return;
+
+	// Guard: only open if a player-to-player trade session is active.
+	UTradeComponent* TradeComp = PlayerInterface->GetLocalTradeComponent();
+	if (!TradeComp || !TradeComp->IsTrading())
+		return;
+
+	const TScriptInterface<ITradeWindowInterface> Window = GetTradeWindow();
+	UObject* WindowObj = Window.GetObject();
+	if (!WindowObj)
+		return;
+
+	ITradeWindowInterface::Execute_InitTradeWindow(WindowObj, TradeComp);
+	ITradeWindowInterface::Execute_ShowTradeWindow(WindowObj);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::CloseTradeWindow_Implementation()
+{
+	const TScriptInterface<ITradeWindowInterface> Window = GetTradeWindow();
+	UObject* WindowObj = Window.GetObject();
+	if (!WindowObj)
+		return;
+
+	ITradeWindowInterface::Execute_DeInitTradeWindow(WindowObj);
+	ITradeWindowInterface::Execute_HideTradeWindow(WindowObj);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
