@@ -39,6 +39,31 @@ TArray<EBagSlot> IInventoryHUDInterface::GetRegisteredBagSlots() const
 }
 
 //----------------------------------------------------------------------------------------------------------------------
+// Inventory refresh
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::RefreshAllInventoryGrids_Implementation()
+{
+	// Refresh every registered bag window. Game side adds the InventoryWindow grid refresh on top.
+	for (const EBagSlot Slot : GetRegisteredBagSlots())
+	{
+		if (TScriptInterface<IInventoryBagWindowInterface> BagWindow = GetBagWindowForSlot(Slot))
+		{
+			IInventoryBagWindowInterface::Execute_RefreshBagWindow(BagWindow.GetObject());
+		}
+	}
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::ForceRefreshInventory_Implementation()
+{
+	// Plugin default: iterate bags + refresh grids.
+	// Game side prepends RefreshAllEquipments() on the InventoryWindow before calling this.
+	Execute_RefreshAllInventoryGrids(_getUObject());
+}
+
+//----------------------------------------------------------------------------------------------------------------------
 // Bag lifecycle
 //----------------------------------------------------------------------------------------------------------------------
 

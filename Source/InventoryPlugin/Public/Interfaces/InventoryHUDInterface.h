@@ -35,8 +35,19 @@ public:
 	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable, Category = "Inventory")
 	void ToggleInventoryDisplay();
 
-	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable, Category = "Inventory")
+	/**
+	 * Full inventory refresh: refresh equipment display, all registered bag windows, then all inventory grids.
+	 *
+	 * Default C++ flow:
+	 *   1. (no-op at plugin level — game overrides to call InventoryWindow->RefreshAllEquipments first)
+	 *   2. Iterates GetRegisteredBagSlots() and calls Execute_RefreshBagWindow on each window.
+	 *   3. Calls Execute_RefreshAllInventoryGrids(this).
+	 *
+	 * Game side (UHUDWidget) overrides this to prepend InventoryWindow->RefreshAllEquipments().
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Inventory")
 	void ForceRefreshInventory();
+	virtual void ForceRefreshInventory_Implementation();
 
 	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable, Category = "Inventory")
 	void SetKeyringDisplay(bool State);
@@ -145,8 +156,16 @@ public:
 	//------------------------------------------------------------------------------------------------------------------
 	// Inventory grids / loot / merchant / repair
 
-	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, BlueprintCosmetic, Category = "Inventory")
+	/**
+	 * Refresh all registered bag-window grids.
+	 *
+	 * Default C++ implementation iterates GetRegisteredBagSlots() and calls
+	 * Execute_RefreshBagWindow on each registered window (game-agnostic).
+	 * Game side (UHUDWidget) overrides to also call InventoryWindow->RefreshAllInventoryGrids().
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, BlueprintCosmetic, Category = "Inventory")
 	void RefreshAllInventoryGrids();
+	virtual void RefreshAllInventoryGrids_Implementation();
 
 	//------------------------------------------------------------------------------------------------------------------
 	// Loot window registry
