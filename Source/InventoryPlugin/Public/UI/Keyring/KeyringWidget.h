@@ -3,17 +3,27 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "Components/ListView.h"
+#include "UI/Keyring/KeyringWindowInterface.h"
 #include "KeyringWidget.generated.h"
 
 struct FkeyLineDataStruct;
 class UKeyLineData;
 
 UCLASS()
-class INVENTORYPLUGIN_API UKeyringWidget : public UUserWidget
+class INVENTORYPLUGIN_API UKeyringWidget : public UUserWidget, public IKeyringWindowInterface
 {
 	GENERATED_BODY()
 
 protected:
+	// ...existing code...
+
+public:
+	// IKeyringWindowInterface
+	virtual void ShowKeyringWindow_Implementation() override;
+	virtual void HideKeyringWindow_Implementation() override;
+	virtual bool IsKeyringWindowVisible_Implementation() const override;
+
+	// ...existing code...
 	/** Bind a UListView named "KeyDataList" in the Blueprint for automatic C++ list management. */
 	UPROPERTY(BlueprintReadWrite, meta = (BindWidget), Category = "Inventory|Keyring|UI")
 	UListView* KeyDataList = nullptr;

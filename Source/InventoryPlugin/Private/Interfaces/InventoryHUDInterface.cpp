@@ -1,5 +1,6 @@
 #include "Interfaces/InventoryHUDInterface.h"
 #include "UI/InventoryWindowInterface.h"
+#include "UI/Keyring/KeyringWindowInterface.h"
 #include "Interfaces/EquipmentInterface.h"
 #include "Components/EquipmentComponent.h"
 #include "Components/InventoryComponent.h"
@@ -69,6 +70,53 @@ void IInventoryHUDInterface::ToggleInventoryDisplay_Implementation()
 
 	UObject* SelfObject = _getUObject();
 	Execute_SetInventoryDisplay(SelfObject, !bVisible);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+// Keyring window registry — default no-ops
+//----------------------------------------------------------------------------------------------------------------------
+
+TScriptInterface<IKeyringWindowInterface> IInventoryHUDInterface::GetKeyringWindow() const
+{
+	return {};
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::RegisterKeyringWindow(TScriptInterface<IKeyringWindowInterface> /*KeyringWindow*/)
+{
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+// Keyring display
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::SetKeyringDisplay_Implementation(bool State)
+{
+	const TScriptInterface<IKeyringWindowInterface> Window = GetKeyringWindow();
+	UObject* WindowObj = Window.GetObject();
+	if (!WindowObj)
+		return;
+
+	if (State)
+		IKeyringWindowInterface::Execute_ShowKeyringWindow(WindowObj);
+	else
+		IKeyringWindowInterface::Execute_HideKeyringWindow(WindowObj);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::ToggleKeyringDisplay_Implementation()
+{
+	const TScriptInterface<IKeyringWindowInterface> Window = GetKeyringWindow();
+	UObject* WindowObj = Window.GetObject();
+	if (!WindowObj)
+		return;
+
+	const bool bVisible = IKeyringWindowInterface::Execute_IsKeyringWindowVisible(WindowObj);
+
+	UObject* SelfObject = _getUObject();
+	Execute_SetKeyringDisplay(SelfObject, !bVisible);
 }
 
 //----------------------------------------------------------------------------------------------------------------------

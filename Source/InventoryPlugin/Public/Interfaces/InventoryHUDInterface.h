@@ -10,6 +10,7 @@
 #include "UI/InventoryRepairWindowInterface.h"
 #include "UI/FieldRepairWidgetInterface.h"
 #include "UI/InventoryWindowInterface.h"
+#include "UI/Keyring/KeyringWindowInterface.h"
 #include "InventoryHUDInterface.generated.h"
 
 class UInventoryItemBase;
@@ -79,11 +80,36 @@ public:
 	void ForceRefreshInventory();
 	virtual void ForceRefreshInventory_Implementation();
 
-	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable, Category = "Inventory")
-	void SetKeyringDisplay(bool State);
+	//------------------------------------------------------------------------------------------------------------------
+	// Keyring window registry
 
-	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable, Category = "Inventory")
+	/**
+	 * Return the registered keyring window, or an empty interface if none.
+	 * Default returns empty; override to expose your stored window.
+	 */
+	virtual TScriptInterface<IKeyringWindowInterface> GetKeyringWindow() const;
+
+	/**
+	 * Register the keyring window.
+	 * Default is a no-op; override to store in your HUD.
+	 */
+	virtual void RegisterKeyringWindow(TScriptInterface<IKeyringWindowInterface> KeyringWindow);
+
+	/**
+	 * Show or hide the keyring window.
+	 * Default dispatches through IKeyringWindowInterface::Show/HideKeyringWindow.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, BlueprintCosmetic, Category = "Inventory")
+	void SetKeyringDisplay(bool State);
+	virtual void SetKeyringDisplay_Implementation(bool State);
+
+	/**
+	 * Toggle the keyring window (show if hidden, hide if visible).
+	 * Default calls SetKeyringDisplay(!IsKeyringWindowVisible()).
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, BlueprintCosmetic, Category = "Inventory")
 	void ToggleKeyringDisplay();
+	virtual void ToggleKeyringDisplay_Implementation();
 
 	//------------------------------------------------------------------------------------------------------------------
 	// Bag window registry
