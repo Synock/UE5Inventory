@@ -3,13 +3,17 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "Items/InventoryItemBase.h"
+#include "UI/InventoryItemDescriptionWidgetInterface.h"
 #include "ItemDescriptionWidget.generated.h"
 
 /**
- * 
+ * Plugin-default item description tooltip widget.
+ * Implements IInventoryItemDescriptionWidgetInterface so it works out-of-the-box
+ * as the default class returned by IInventoryHUDInterface::GetItemDescriptionWidgetClass().
+ * Override in a game-side subclass (e.g. UFinalItemDescriptionWidget) for richer display.
  */
 UCLASS()
-class INVENTORYPLUGIN_API UItemDescriptionWidget : public UUserWidget
+class INVENTORYPLUGIN_API UItemDescriptionWidget : public UUserWidget, public IInventoryItemDescriptionWidgetInterface
 {
 	GENERATED_BODY()
 
@@ -98,5 +102,17 @@ public:
 	UFUNCTION(BlueprintCallable)
 	virtual FString GetDurabilityString() const;
 
+	// IInventoryItemDescriptionWidgetInterface
+	virtual void InitDescription_Implementation(const UInventoryItemBase* Item) override;
+	virtual void InitDescriptionWithDurability_Implementation(const UInventoryItemBase* Item, float Durability, float MaxDurability) override;
 
+	/**
+	 * Called after ObservedItem (and durability) have been set on this widget.
+	 * Override in Blueprint to refresh all bound text blocks, icons, and stat displays.
+	 * The C++ default is a no-op; Blueprint widgets should implement this instead of reading
+	 * ObservedItem in Event Construct.
+	 */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCosmetic, Category = "Inventory|ItemDescription")
+	void OnDescriptionPopulated();
+	virtual void OnDescriptionPopulated_Implementation() {}
 };

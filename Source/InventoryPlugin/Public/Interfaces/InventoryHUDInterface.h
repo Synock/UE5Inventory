@@ -10,6 +10,7 @@
 #include "UI/InventoryRepairWindowInterface.h"
 #include "UI/FieldRepairWidgetInterface.h"
 #include "UI/InventoryWindowInterface.h"
+#include "UI/InventoryItemDescriptionWidgetInterface.h"
 #include "UI/Keyring/KeyringWindowInterface.h"
 #include "UI/TradeWindowInterface.h"
 #include "InventoryHUDInterface.generated.h"
@@ -386,12 +387,46 @@ public:
 	void ResetSellItem();
 	virtual void ResetSellItem_Implementation() {}
 
-	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, BlueprintCosmetic, Category = "Inventory")
-	void DisplayItemDescription(const UInventoryItemBase* Item, float X, float Y);
+	//------------------------------------------------------------------------------------------------------------------
+	// Item description
 
-	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, BlueprintCosmetic, Category = "Inventory")
+	/**
+	 * Returns the widget class to instantiate for an item description tooltip.
+	 * Must implement IInventoryItemDescriptionWidgetInterface.
+	 * Default returns UItemDescriptionWidget::StaticClass().
+	 * Override to supply a game-specific draggable window class.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Inventory|ItemDescription")
+	TSubclassOf<UUserWidget> GetItemDescriptionWidgetClass() const;
+	virtual TSubclassOf<UUserWidget> GetItemDescriptionWidgetClass_Implementation() const;
+
+	/**
+	 * Display an item description tooltip at the given viewport position.
+	 *
+	 * Default C++ flow:
+	 *   1. Create a widget via GetItemDescriptionWidgetClass().
+	 *   2. Cast to IInventoryItemDescriptionWidgetInterface; log a warning and bail if missing.
+	 *   3. Call Execute_InitDescription(Item).
+	 *   4. AddToViewport and position at (X, Y).
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, BlueprintCosmetic, Category = "Inventory")
+	void DisplayItemDescription(const UInventoryItemBase* Item, float X, float Y);
+	virtual void DisplayItemDescription_Implementation(const UInventoryItemBase* Item, float X, float Y);
+
+	/**
+	 * Display an item description tooltip with explicit durability values at the given viewport position.
+	 *
+	 * Default C++ flow:
+	 *   1. Create a widget via GetItemDescriptionWidgetClass().
+	 *   2. Cast to IInventoryItemDescriptionWidgetInterface; log a warning and bail if missing.
+	 *   3. Call Execute_InitDescriptionWithDurability(Item, Durability, MaxDurability).
+	 *   4. AddToViewport and position at (X, Y).
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, BlueprintCosmetic, Category = "Inventory")
 	void DisplayItemDescriptionWithDurability(const UInventoryItemBase* Item, float X, float Y,
 	                                           float Durability, float MaxDurability);
+	virtual void DisplayItemDescriptionWithDurability_Implementation(const UInventoryItemBase* Item, float X, float Y,
+	                                                                  float Durability, float MaxDurability);
 
 	//------------------------------------------------------------------------------------------------------------------
 	// Book

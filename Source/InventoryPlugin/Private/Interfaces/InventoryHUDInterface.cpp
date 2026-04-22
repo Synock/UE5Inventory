@@ -12,6 +12,8 @@
 #include "Items/InventoryItemEquipable.h"
 #include "UI/InventoryBagWindowInterface.h"
 #include "UI/InventoryBookWidgetInterface.h"
+#include "UI/InventoryItemDescriptionWidgetInterface.h"
+#include "UI/ItemDescriptionWidget.h"
 #include "UI/InventoryLootWindowInterface.h"
 #include "UI/InventoryMerchantWindowInterface.h"
 #include "UI/InventoryRepairWindowInterface.h"
@@ -542,7 +544,7 @@ void IInventoryHUDInterface::RegisterMerchantWindow(TScriptInterface<IInventoryM
 TSubclassOf<UUserWidget> IInventoryHUDInterface::GetMerchantWindowClass_Implementation() const
 {
 	// Default: use the built-in UMerchantSellWidget as a standalone merchant window.
-	// Game code overrides this (e.g. UHUDWidget) to return a richer class.
+	// Game code overrides this to return a richer class.
 	return UMerchantSellWidget::StaticClass();
 }
 
@@ -952,4 +954,92 @@ void IInventoryHUDInterface::LockInventorySlot_Implementation(EBagSlot BagSlot, 
 	       static_cast<int32>(BagSlot), TopLeft);
 }
 
+//----------------------------------------------------------------------------------------------------------------------
+// Item description
+//----------------------------------------------------------------------------------------------------------------------
+
+TSubclassOf<UUserWidget> IInventoryHUDInterface::GetItemDescriptionWidgetClass_Implementation() const
+{
+	return UItemDescriptionWidget::StaticClass();
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+namespace
+{
+	UUserWidget* CreateAndPositionDescriptionWidget(IInventoryHUDInterface* Self, float X, float Y)
+	{
+		UObject* SelfObject = Cast<UObject>(Self);
+		if (!SelfObject)
+			return nullptr;
+
+		const TSubclassOf<UUserWidget> WidgetClass = IInventoryHUDInterface::Execute_GetItemDescriptionWidgetClass(SelfObject);
+		if (!WidgetClass)
+			return nullptr;
+
+		APlayerController* PC = nullptr;
+		if (const UUserWidget* AsWidget = Cast<UUserWidget>(SelfObject))
+			PC = AsWidget->GetOwningPlayer();
+
+		UUserWidget* Widget = CreateWidget<UUserWidget>(PC, WidgetClass);
+		if (!Widget)
+			return nullptr;
+
+		float MouseX = X, MouseY = Y;
+		if (PC)
+			PC->GetMousePosition(MouseX, MouseY);
+
+		Widget->AddToViewport(5);
+		Widget->SetPositionInViewport(FVector2D(MouseX, MouseY), true);
+		return Widget;
+	}
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::DisplayItemDescription_Implementation(const UInventoryItemBase* Item, float X, float Y)
+{
+	if (!Item)
+		return;
+
+	UUserWidget* Widget = CreateAndPositionDescriptionWidget(this, X, Y);
+	if (!Widget)
+		return;
+
+	if (!Widget->GetClass()->ImplementsInterface(UInventoryItemDescriptionWidgetInterface::StaticClass()))
+	{
+		UE_LOG(LogTemp, Warning,
+		       TEXT("IInventoryHUDInterface::DisplayItemDescription — widget class '%s' does not implement IInventoryItemDescriptionWidgetInterface."),
+		       *Widget->GetClass()->GetName());
+		Widget->RemoveFromParent();
+		return;
+	}
+
+	IInventoryItemDescriptionWidgetInterface::Execute_InitDescription(Widget, Item);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::DisplayItemDescriptionWithDurability_Implementation(const UInventoryItemBase* Item,
+                                                                                  float X, float Y,
+                                                                                  float Durability, float MaxDurability)
+{
+	if (!Item)
+		return;
+
+	UUserWidget* Widget = CreateAndPositionDescriptionWidget(this, X, Y);
+	if (!Widget)
+		return;
+
+	if (!Widget->GetClass()->ImplementsInterface(UInventoryItemDescriptionWidgetInterface::StaticClass()))
+	{
+		UE_LOG(LogTemp, Warning,
+		       TEXT("IInventoryHUDInterface::DisplayItemDescriptionWithDurability — widget class '%s' does not implement IInventoryItemDescriptionWidgetInterface."),
+		       *Widget->GetClass()->GetName());
+		Widget->RemoveFromParent();
+		return;
+	}
+
+	IInventoryItemDescriptionWidgetInterface::Execute_InitDescriptionWithDurability(Widget, Item, Durability, MaxDurability);
+}
 

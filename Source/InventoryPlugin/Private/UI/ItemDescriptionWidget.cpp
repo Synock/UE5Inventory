@@ -226,3 +226,24 @@ FString UItemDescriptionWidget::GetDurabilityString() const
 {
 	return "Condition: " + GetDurabilityConditionString();
 }
+
+//----------------------------------------------------------------------------------------------------------------------
+// IInventoryItemDescriptionWidgetInterface
+//----------------------------------------------------------------------------------------------------------------------
+
+void UItemDescriptionWidget::InitDescription_Implementation(const UInventoryItemBase* Item)
+{
+	ObservedItem = const_cast<UInventoryItemBase*>(Item);
+	ItemDurability = ItemMaxDurability;
+	OnDescriptionPopulated();
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UItemDescriptionWidget::InitDescriptionWithDurability_Implementation(const UInventoryItemBase* Item,
+                                                                           float Durability, float MaxDurability)
+{
+	ObservedItem = const_cast<UInventoryItemBase*>(Item);
+	SetItemDurabilityWithMax(Durability, MaxDurability);
+	OnDescriptionPopulated();
+}
