@@ -92,7 +92,7 @@ USkeletalMesh* AYourCharacter::GetEquipmentOverlayMesh(
 The InventoryPlugin requires four mandatory interfaces and provides several optional ones. This guide covers each interface's responsibility and the methods you must implement.
 
 ---
-
+[Integration_Guide.md](Integration_Guide.md)
 ## Mandatory Interfaces
 
 ### IInventoryGameInstanceInterface

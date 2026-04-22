@@ -14,6 +14,11 @@
 3. [Installation](#installation)
 4. [Architecture](#architecture)
 5. [Step-by-Step Integration](#step-by-step-integration)
+   - [Step 1: GameInstance](#step-1-gameinstance---item-registry)
+   - [Step 2: GameMode](#step-2-gamemode---item-spawning)
+   - [Step 3: PlayerController](#step-3-playercontroller---inventory-components-and-net-component)
+   - [Step 4: Character](#step-4-character---equipment)
+   - [Step 5: HUD — Window Registry](#step-5-hud--window-registry)
 6. [Inventory Initialization](#inventory-initialization)
 7. [Item Creation](#item-creation)
 8. [UI Integration](#ui-integration)
@@ -131,17 +136,28 @@ These have default implementations returning `nullptr`, so no action required un
 - `SpawnItemFromActorRaw()` now takes an optional `float Durability = 100.0f` parameter.
 - `SpawnCoinsFromActor()` changed from **pure virtual** to **virtual with default implementation**. If you were only forwarding to a default spawn, you can remove your override.
 
-### 8. `IInventoryHUDInterface` — New Events
+### 8. `IInventoryHUDInterface` — Events and Window Registry (**Major**)
 
-New `BlueprintImplementableEvent` methods to implement in your HUD:
+All `IInventoryHUDInterface` methods have been converted from `BlueprintImplementableEvent` (pure Blueprint) to `BlueprintNativeEvent` with full C++ default implementations. The defaults dispatch through a new window-registry pattern — no Blueprint HUD overrides are required for the new UI features to work.
 
-- `DisplayRepairScreen(AActor*)` / `HideRepairScreen()` / `OnRepairTransactionComplete()` — for NPC repair UI
-- `OpenTradeWindow()` / `CloseTradeWindow()` — for trade UI
-- `DisplayFieldRepairScreen(int32, EBagSlot, int32)` / `HideFieldRepairScreen()` / `NotifyFieldRepairFinished(...)` — for field repair UI
+**What changed:**
+
+| Before | After |
+|--------|-------|
+| `BlueprintImplementableEvent` — must implement in Blueprint | `BlueprintNativeEvent` — C++ defaults work out of the box |
+| `HandleBag(EBagSlot, UBagWidget*)` — pure virtual | `HandleBag(EBagSlot, const TScriptInterface<IInventoryBagWindowInterface>&)` — NativeEvent with default |
+| No window registry | `Register*Window()` / `Get*Window()` pairs for each window type |
+| No lazy widget creation | `Get*WindowClass()` NativeEvents for on-demand instantiation |
+
+**New events added** (all now `BlueprintNativeEvent`):
+
+- `DisplayRepairScreen(AActor*)` / `HideRepairScreen()` / `OnRepairTransactionComplete()` — NPC repair UI
+- `OpenTradeWindow()` / `CloseTradeWindow()` — trade UI
+- `DisplayFieldRepairScreen(int32, EBagSlot, int32)` / `HideFieldRepairScreen()` / `NotifyFieldRepairFinished(...)` — field repair UI
 - `DisplayItemDescriptionWithDurability(...)` — item tooltip with durability bar
 - `LockInventorySlot(EBagSlot, int32, bool)` / `LockEquipmentSlot(EEquipmentSlot, bool)` — slot locking during field repair
 
-These are `BlueprintImplementableEvent` so they won't cause compile errors, but the new UI features won't work until you implement them in your HUD Blueprint.
+For the full integration pattern — window interface contracts, registry accessor implementation, custom window widget example, and lazy creation — see [Step 5: HUD — Window Registry](#step-5-hud--window-registry).
 
 ### 9. Enum Changes
 
@@ -177,8 +193,11 @@ These have default implementations and don't require changes unless you use rang
 - [ ] Update `PlayerRemoveItem` overrides to return `float` instead of `void`
 - [ ] Update `FInventoryItemAdd` delegate bindings (now 4 params)
 - [ ] Optionally subclass `UInventoryNetComponent` for game-specific Handle/Validate overrides
-- [ ] Implement new HUD events in Blueprint if using repair/trade/field repair features
 - [ ] Update any hardcoded `EBagSlot::LastValidBag` references
+- [ ] Add window registry storage and `Register*Window` / `Get*Window` accessors to your HUD C++ class (see [Step 5](#step-5-hud--window-registry))
+- [ ] Implement `Get*WindowClass()` overrides for any game-specific draggable window wrappers
+- [ ] Update any `HandleBag` override signature from `(EBagSlot, UBagWidget*)` to `(EBagSlot, const TScriptInterface<IInventoryBagWindowInterface>&)`
+- [ ] Implement the appropriate window interface on each custom game-side window widget
 
 ---
 
@@ -730,6 +749,183 @@ const UEquipmentComponent* AYourCharacter::GetEquipmentComponentConst() const { 
 
 ---
 
+### Step 5: HUD — Window Registry
+
+Your HUD widget implements `IInventoryHUDInterface` and acts as the plugin's UI dispatch point. All `IInventoryHUDInterface` methods are `BlueprintNativeEvent` with C++ defaults — they work automatically as long as you implement the window registry accessors so the plugin can locate each window widget.
+
+#### How the dispatch model works
+
+Every window type has a dedicated interface the plugin dispatches through. When the plugin needs to open a window (e.g. `DisplayLootScreen`), it:
+
+1. Calls `GetLootWindow()` on the HUD to retrieve the registered window.
+2. If none is registered and `GetLootWindowClass()` returns a valid class, it instantiates the widget lazily and registers it automatically.
+3. Calls `Execute_InitLootWindow` / `Execute_ShowLootWindow` on the window widget.
+
+Your responsibility is to (a) store the window widgets, (b) expose them through the registry accessors, and (c) ensure each widget class implements the corresponding interface.
+
+#### Window interface contracts
+
+| Interface | Purpose | Built-in implementation |
+|-----------|---------|------------------------|
+| `IInventoryWindowInterface` | Main inventory panel (equipment + grids) | — (game-side) |
+| `IInventoryBagWindowInterface` | Single bag popup window | `UBagWidget` |
+| `IInventoryLootWindowInterface` | Loot window | `ULootScreenWidget` |
+| `IInventoryMerchantWindowInterface` | Merchant window | — (game-side) |
+| `IInventoryRepairWindowInterface` | NPC repair window | — (game-side) |
+| `ITradeWindowInterface` | Player-to-player trade window | — (game-side) |
+| `IKeyringWindowInterface` | Keyring window | `UKeyringWidget` |
+| `IFieldRepairWidgetInterface` | Field repair window | `UFieldRepairWidget` |
+| `IInventoryBookWidgetInterface` | Readable book display | `UInventoryBookWidget` |
+| `IInventoryItemDescriptionWidgetInterface` | Item description tooltip | `UItemDescriptionWidget` |
+
+#### HUD C++ class — storage and registry accessors
+
+**Header:**
+```cpp
+#pragma once
+#include "CoreMinimal.h"
+#include "Blueprint/UserWidget.h"
+#include "Interfaces/InventoryHUDInterface.h"  // pulls in all window interface headers
+#include "YourHUDWidget.generated.h"
+
+UCLASS()
+class YOURPROJECT_API UYourHUDWidget : public UUserWidget,
+    public IInventoryHUDInterface
+{
+    GENERATED_BODY()
+
+public:
+    virtual void NativeConstruct() override;
+
+    // IInventoryHUDInterface window registry
+    virtual TScriptInterface<IInventoryWindowInterface>         GetInventoryWindow() const override         { return InventoryWindow; }
+    virtual void RegisterInventoryWindow(TScriptInterface<IInventoryWindowInterface> W) override            { InventoryWindow = W; }
+    virtual TScriptInterface<IKeyringWindowInterface>           GetKeyringWindow() const override           { return KeyringWindow; }
+    virtual void RegisterKeyringWindow(TScriptInterface<IKeyringWindowInterface> W) override                { KeyringWindow = W; }
+    virtual TScriptInterface<IInventoryLootWindowInterface>     GetLootWindow() const override              { return LootWindow; }
+    virtual void RegisterLootWindow(TScriptInterface<IInventoryLootWindowInterface> W) override             { LootWindow = W; }
+    virtual TScriptInterface<IInventoryMerchantWindowInterface> GetMerchantWindow() const override         { return MerchantWindow; }
+    virtual void RegisterMerchantWindow(TScriptInterface<IInventoryMerchantWindowInterface> W) override    { MerchantWindow = W; }
+    virtual TScriptInterface<IInventoryRepairWindowInterface>   GetRepairWindow() const override           { return RepairWindow; }
+    virtual void RegisterRepairWindow(TScriptInterface<IInventoryRepairWindowInterface> W) override        { RepairWindow = W; }
+    virtual TScriptInterface<ITradeWindowInterface>             GetTradeWindow() const override            { return TradeWindow; }
+    virtual void RegisterTradeWindow(TScriptInterface<ITradeWindowInterface> W) override                   { TradeWindow = W; }
+    virtual TScriptInterface<IFieldRepairWidgetInterface>       GetFieldRepairWindow() const override      { return FieldRepairWindow; }
+    virtual void RegisterFieldRepairWindow(TScriptInterface<IFieldRepairWidgetInterface> W) override       { FieldRepairWindow = W; }
+
+    // Bag slot registry
+    virtual TScriptInterface<IInventoryBagWindowInterface> GetBagWindowForSlot(EBagSlot Slot) const override
+    {
+        const auto* Found = BagWindowMap.Find(Slot);
+        return Found ? *Found : TScriptInterface<IInventoryBagWindowInterface>();
+    }
+    virtual void RegisterBagWindowForSlot(EBagSlot Slot,
+                                          TScriptInterface<IInventoryBagWindowInterface> W) override
+        { BagWindowMap.Add(Slot, W); }
+    virtual TArray<EBagSlot> GetRegisteredBagSlots() const override
+    {
+        TArray<EBagSlot> Out;
+        BagWindowMap.GetKeys(Out);
+        return Out;
+    }
+
+    // Override to supply custom draggable wrapper classes for lazy creation
+    virtual TSubclassOf<UUserWidget> GetLootWindowClass_Implementation() const override       { return LootWindowClass; }
+    virtual TSubclassOf<UUserWidget> GetMerchantWindowClass_Implementation() const override   { return MerchantWindowClass; }
+    virtual TSubclassOf<UUserWidget> GetBagWindowClass_Implementation() const override        { return BagWindowClass; }
+    virtual TSubclassOf<UUserWidget> GetRepairWindowClass_Implementation() const override     { return RepairWindowClass; }
+    virtual TSubclassOf<UUserWidget> GetFieldRepairWidgetClass_Implementation() const override{ return FieldRepairWindowClass; }
+
+protected:
+    // Window storage
+    TScriptInterface<IInventoryWindowInterface>         InventoryWindow;
+    TScriptInterface<IKeyringWindowInterface>           KeyringWindow;
+    TScriptInterface<IInventoryLootWindowInterface>     LootWindow;
+    TScriptInterface<IInventoryMerchantWindowInterface> MerchantWindow;
+    TScriptInterface<IInventoryRepairWindowInterface>   RepairWindow;
+    TScriptInterface<ITradeWindowInterface>             TradeWindow;
+    TScriptInterface<IFieldRepairWidgetInterface>       FieldRepairWindow;
+    TMap<EBagSlot, TScriptInterface<IInventoryBagWindowInterface>> BagWindowMap;
+
+    // Assign in the Blueprint subclass to enable lazy window creation
+    UPROPERTY(EditDefaultsOnly, Category = "Inventory|Windows")
+    TSubclassOf<UUserWidget> LootWindowClass;
+    UPROPERTY(EditDefaultsOnly, Category = "Inventory|Windows")
+    TSubclassOf<UUserWidget> MerchantWindowClass;
+    UPROPERTY(EditDefaultsOnly, Category = "Inventory|Windows")
+    TSubclassOf<UUserWidget> BagWindowClass;
+    UPROPERTY(EditDefaultsOnly, Category = "Inventory|Windows")
+    TSubclassOf<UUserWidget> RepairWindowClass;
+    UPROPERTY(EditDefaultsOnly, Category = "Inventory|Windows")
+    TSubclassOf<UUserWidget> FieldRepairWindowClass;
+};
+```
+
+**Implementation — registering windows in `NativeConstruct`:**
+
+Pre-create windows that should exist before first user interaction. Windows opened infrequently (loot, merchant, repair) can rely on lazy creation via the `Get*WindowClass()` overrides above.
+
+```cpp
+void UYourHUDWidget::NativeConstruct()
+{
+    Super::NativeConstruct();
+
+    // Pre-create the main inventory window
+    if (UUserWidget* W = CreateWidget<UUserWidget>(GetOwningPlayer(), InventoryWindowClass))
+    {
+        W->AddToViewport();
+        RegisterInventoryWindow(TScriptInterface<IInventoryWindowInterface>(W));
+    }
+
+    // Pre-create a bag window for each bag slot the player can equip
+    for (EBagSlot Slot : { EBagSlot::WaistBag1, EBagSlot::WaistBag2,
+                            EBagSlot::BackPack1, EBagSlot::BackPack2 })
+    {
+        if (UUserWidget* BagW = CreateWidget<UUserWidget>(GetOwningPlayer(), BagWindowClass))
+        {
+            BagW->AddToViewport();
+            RegisterBagWindowForSlot(Slot, TScriptInterface<IInventoryBagWindowInterface>(BagW));
+        }
+    }
+
+    // Loot / merchant / repair use lazy creation — GetLootWindowClass() etc. handle instantiation
+    // on the first DisplayLootScreen / DisplayMerchantScreen / DisplayRepairScreen call.
+}
+```
+
+#### Implementing a custom window widget
+
+Any widget registered with the plugin must implement the corresponding interface. The built-in plugin widgets (`UBagWidget`, `ULootScreenWidget`, `UKeyringWidget`, `UInventoryBookWidget`, `UFieldRepairWidget`, `UItemDescriptionWidget`) already do so. For game-specific wrappers (e.g., a draggable frame), implement the interface and delegate to the inner plugin widget:
+
+```cpp
+UCLASS()
+class YOURPROJECT_API UYourInventoryWindow : public UUserWidget,
+    public IInventoryWindowInterface
+{
+    GENERATED_BODY()
+
+    UPROPERTY(meta = (BindWidget))
+    UInventoryEquipmentWidget* EquipmentPanel;
+
+    UPROPERTY(meta = (BindWidget))
+    UInventoryBagsWidget* BagsPanel;
+
+public:
+    virtual void ShowInventoryWindow_Implementation() override
+        { SetVisibility(ESlateVisibility::SelfHitTestInvisible); }
+    virtual void HideInventoryWindow_Implementation() override
+        { SetVisibility(ESlateVisibility::Collapsed); }
+    virtual bool IsInventoryWindowVisible_Implementation() const override
+        { return GetVisibility() != ESlateVisibility::Collapsed; }
+    virtual void RefreshInventoryEquipments_Implementation() override
+        { if (EquipmentPanel) EquipmentPanel->RefreshAll(); }
+    virtual void RefreshInventoryGrids_Implementation() override
+        { if (BagsPanel) BagsPanel->RefreshAll(); }
+};
+```
+
+---
+
 ## Inventory Initialization
 
 ### Component-Side: Initializing Bags in `BeginPlay()`
@@ -810,29 +1006,59 @@ LootGrid->InitData(LootableActor, EBagSlot::LootPool);
 
 The plugin provides ready-made UMG widgets in `Plugins/UE5Inventory/Content/UI/`. Key widgets:
 
-| Widget | Purpose |
-|--------|---------|
-| `UI_BagWidget` | Single bag display |
-| `UI_InventoryGrid` | Grid-based item layout |
-| `UI_EquipmentSlot` | Single equipment slot |
-| `UI_Purse` | Currency display |
-| `UI_LootWidget` | Loot window |
-| `UI_MerchantSellWidget` | Merchant buy/sell |
-| `UI_BankWidget` | Bank storage |
-| `UI_TradeWidget` | Player-to-player trade |
-| `UI_RepairWidget` | NPC repair |
+| Widget | Purpose | Implements interface |
+|--------|---------|---------------------|
+| `UI_BagWidget` | Single bag popup window | `IInventoryBagWindowInterface` |
+| `UI_InventoryGrid` | Grid-based item layout | — |
+| `UI_EquipmentSlot` | Single equipment slot | — |
+| `UI_Purse` | Currency display | — |
+| `UI_LootWidget` | Loot window | `IInventoryLootWindowInterface` |
+| `UI_MerchantSellWidget` | Merchant buy/sell (inner) | — |
+| `UI_MerchantItemList` | Merchant item list | — |
+| `UI_BankWidget` | Bank storage | — |
+| `UI_TradeWidget` | Player-to-player trade (inner) | — |
+| `UI_RepairWidget` | NPC repair (inner) | — |
+| `UI_BookWidget` | Readable book display | `IInventoryBookWidgetInterface` |
+| `UI_KeyringWidget` | Keyring display | `IKeyringWindowInterface` |
+| `UI_FieldRepairWidget` | Field repair (inner) | `IFieldRepairWidgetInterface` |
 
-Bind to component delegates for automatic UI updates:
+Widget logic that was previously in Blueprint event graphs has been migrated to C++. Customization is done by subclassing the C++ widget and overriding its virtual methods — not by editing the Blueprint graph.
+
+### Connecting the HUD
+
+The window registry you set up in [Step 5](#step-5-hud--window-registry) is what connects the plugin's C++ dispatch to your UI. Once registered, calls like `DisplayLootScreen`, `DisplayMerchantScreen`, and `DisplayBag` work automatically without any Blueprint override.
+
+Bind component delegates for data-driven UI updates:
 
 ```cpp
-// In your HUD or widget initialization
+// In your HUD or widget NativeConstruct
 Inventory->FullInventoryDispatcher.AddDynamic(this, &UMyWidget::OnInventoryChanged);
 Inventory->InventoryItemAdd.AddDynamic(this, &UMyWidget::OnItemAdded);
 Equipment->EquipmentDispatcher.AddDynamic(this, &UMyWidget::OnEquipmentChanged);
 CoinPurse->PurseDispatcher.AddDynamic(this, &UMyWidget::OnCoinChanged);
 ```
 
-To respond to loot/merchant/repair window changes, override the `OnRep_*` methods in your `UInventoryNetComponent` subclass (see [Customizing Server Behavior](#customizing-server-behavior)) and drive your HUD from there.
+### Window lifecycle
+
+When `DisplayLootScreen(LootActor)` is called, the C++ default:
+
+1. Calls `GetLootWindow()` on the HUD.
+2. If empty, instantiates `GetLootWindowClass()` and registers it via `RegisterLootWindow()`.
+3. Calls `Execute_InitLootWindow(LootActor)` on the window.
+4. Calls `Execute_ShowLootWindow()`.
+5. Positions the window near the mouse cursor on first creation.
+
+The same four-step pattern applies to merchant, repair, trade, field repair, bag, and item description windows.
+
+### `UInventoryGridWidget` — editor-friendly initialization
+
+Set the **Bag ID** property in the Blueprint editor (Details → **Inventory | Bag → Bag ID**); `UInventoryGridWidget` calls `InitData` automatically in `NativeConstruct` using the owning player pawn. Explicit `InitData` is only required for `LootPool` grids where the owner is a world actor:
+
+```cpp
+// Player grid — Bag ID set via Blueprint editor, no code needed
+// LootPool grid — must call explicitly
+LootGrid->InitData(LootableActor, EBagSlot::LootPool);
+```
 
 ---
 
@@ -997,15 +1223,27 @@ UTradeComponent*           GetTradeComponent() const;     // Trade component fro
 
 ### Loot/Merchant/Repair Windows Not Opening
 
-The `OnRep_LootedActor`, `OnRep_MerchantActor`, and `OnRep_RepairerActor` callbacks on `UInventoryNetComponent` are empty by default. Override them in your subclass to drive your HUD:
+The C++ defaults on `IInventoryHUDInterface` dispatch through registered window instances. Check:
+
+1. **Window registered?** If `GetLootWindow()` / `GetMerchantWindow()` / `GetRepairWindow()` return empty, `Register*Window()` was never called after widget creation. Follow [Step 5](#step-5-hud--window-registry).
+2. **Widget class set?** If relying on lazy creation, override `GetLootWindowClass_Implementation()` etc. in your HUD C++ class to return a valid `TSubclassOf<UUserWidget>`.
+3. **Interface implemented?** The class returned by `Get*WindowClass()` must implement the corresponding window interface (e.g. `IInventoryLootWindowInterface`). Missing interface → plugin logs a warning and skips the call.
+4. **Prefer delegate-driven HUD driving?** Override `OnRep_LootedActor` in your `UInventoryNetComponent` subclass and call the HUD methods manually:
 
 ```cpp
 void UMyInventoryNetComponent::OnRep_LootedActor()
 {
-    if (LootedActor)
-        ShowLootWindow(LootedActor);
-    else
-        HideLootWindow();
+    APlayerController* PC = Cast<APlayerController>(GetOwner());
+    IInventoryPlayerInterface* PI = Cast<IInventoryPlayerInterface>(PC);
+    if (!PI) return;
+
+    if (UObject* HUDObj = PI->GetInventoryHUDObject())
+    {
+        if (LootedActor)
+            IInventoryHUDInterface::Execute_DisplayLootScreen(HUDObj, LootedActor);
+        else
+            IInventoryHUDInterface::Execute_HideLootScreen(HUDObj);
+    }
 }
 ```
 
@@ -1033,14 +1271,15 @@ If `FItemContainerLine` was previously defined in your project, add to `Config/D
 
 1. Implement **four interfaces**: `IInventoryGameInstanceInterface` (GameInstance), `IInventoryGameModeInterface` (GameMode), `IInventoryPlayerInterface` (PlayerController), `IEquipmentInterface` (Character)
 2. Create **components** in constructors:
-   - `UInventoryNetComponent` (or your subclass) for Server RPCs - handles its own replication
+   - `UInventoryNetComponent` (or your subclass) for Server RPCs — handles its own replication
    - Data components (`UInventoryComponent`, `UCoinComponent`, etc.) with `SetNetAddressable()` + `SetIsReplicated(true)`
 3. Register **`DOREPLIFETIME`** for all replicated component UPROPERTYs
 4. Implement **`GetInventoryNetComponent()`** in your PlayerController to return the net component
 5. Delegate **`GetMerchantActor()`**, **`GetLootedActor()`**, **`GetTransactionBoolean()`** to the net component's replicated properties
 6. Create **items** as Data Assets, register via DataTable in GameInstance
 7. Initialize **bags** in `BeginPlay()` with `BagSet()`
-8. Bind **UI widgets** to component delegates
-9. Optionally **subclass** `UInventoryNetComponent` to override `Handle*`/`Validate*` for game-specific behavior
+8. Implement the **HUD window registry** in your `IInventoryHUDInterface` class: storage fields, `Register*Window` / `Get*Window` accessors, `Get*WindowClass` overrides for lazy creation, and window interface implementations on each custom widget (see [Step 5](#step-5-hud--window-registry))
+9. Bind **component delegates** for data-driven UI updates
+10. Optionally **subclass** `UInventoryNetComponent` to override `Handle*`/`Validate*` for game-specific behavior
 
 For deeper details, see the linked guides above.
