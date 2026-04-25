@@ -148,6 +148,7 @@ protected:
 
 	/**
 	 * @brief Handle close button click
+	 * Protected so game-side subclasses can rebind the close button after overriding it.
 	 */
 	UFUNCTION()
 	void OnCloseButtonClicked();
@@ -215,6 +216,9 @@ public:
 	//------------------------------------------------------------------------------------------------------------------
 	// Delegates
 	//------------------------------------------------------------------------------------------------------------------
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Repair")
+	UButton* GetCloseButton() const { return CloseButton; }
 
 	/** Broadcast when player doesn't have enough money */
 	UPROPERTY(BlueprintAssignable, Category = "Repair")

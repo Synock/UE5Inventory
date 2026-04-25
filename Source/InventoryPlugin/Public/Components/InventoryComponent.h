@@ -155,7 +155,7 @@ public:
 	bool HasAnyItem(const TArray<int32>& ItemID);
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
-	bool HasItem(int32 ItemID);
+	bool HasItem(int32 ItemID) const;
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	bool HasItems(int32 ItemId, int32 ItemAmount);

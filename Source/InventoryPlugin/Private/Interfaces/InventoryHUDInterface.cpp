@@ -647,7 +647,26 @@ void IInventoryHUDInterface::DisplayBookText_Implementation(const UInventoryItem
 	if (const UUserWidget* AsWidget = Cast<UUserWidget>(SelfObject))
 		PC = AsWidget->GetOwningPlayer();
 
-	const TSubclassOf<UUserWidget> WidgetClass = Execute_GetBookWidgetClass(SelfObject);
+	// Resolve pages first so we can pick the right widget class
+	TArray<FBookPage> Pages;
+	bool bImplementsBook = Item->GetClass()->ImplementsInterface(UInventoryItemBookInterface::StaticClass());
+	if (bImplementsBook)
+		Pages = IInventoryItemBookInterface::Execute_GetBookPages(Item);
+
+	// Single-page notes use GetNoteWidgetClass() if provided, fall back to GetBookWidgetClass()
+	const bool bSinglePage = Pages.Num() <= 1;
+	TSubclassOf<UUserWidget> WidgetClass = nullptr;
+	if (bSinglePage)
+	{
+		WidgetClass = Execute_GetNoteWidgetClass(SelfObject);
+		if (!WidgetClass)
+			WidgetClass = Execute_GetBookWidgetClass(SelfObject);
+	}
+	else
+	{
+		WidgetClass = Execute_GetBookWidgetClass(SelfObject);
+	}
+
 	if (!WidgetClass)
 		return;
 
@@ -666,10 +685,13 @@ void IInventoryHUDInterface::DisplayBookText_Implementation(const UInventoryItem
 
 	IInventoryBookWidgetInterface::Execute_SetupUI(Widget);
 
-	if (Item->GetClass()->ImplementsInterface(UInventoryItemBookInterface::StaticClass()))
+	if (bImplementsBook)
 	{
 		IInventoryBookWidgetInterface::Execute_SetTitle(Widget, IInventoryItemBookInterface::Execute_GetBookTitle(Item));
-		IInventoryBookWidgetInterface::Execute_SetPages(Widget, IInventoryItemBookInterface::Execute_GetBookPages(Item));
+		if (bSinglePage)
+			IInventoryBookWidgetInterface::Execute_SetText(Widget, Pages.IsEmpty() ? FText::GetEmpty() : Pages[0].Content);
+		else
+			IInventoryBookWidgetInterface::Execute_SetPages(Widget, Pages);
 	}
 
 	float MouseX = X, MouseY = Y;

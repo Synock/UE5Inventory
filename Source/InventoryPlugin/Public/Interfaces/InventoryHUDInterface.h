@@ -432,13 +432,22 @@ public:
 	// Book
 
 	/**
-	 * Returns the widget class to instantiate when displaying book text.
+	 * Returns the widget class to instantiate when displaying a multi-page book.
 	 * The returned class must implement IInventoryBookWidgetInterface.
 	 * Override to supply a custom class; the default loads the plugin's built-in UI_BookWidget.
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Inventory|Book")
 	TSubclassOf<UUserWidget> GetBookWidgetClass() const;
 	virtual TSubclassOf<UUserWidget> GetBookWidgetClass_Implementation() const;
+
+	/**
+	 * Returns the widget class to instantiate when displaying a single-page note/scroll.
+	 * The returned class must implement IInventoryBookWidgetInterface.
+	 * If null (default), falls back to GetBookWidgetClass().
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Inventory|Book")
+	TSubclassOf<UUserWidget> GetNoteWidgetClass() const;
+	virtual TSubclassOf<UUserWidget> GetNoteWidgetClass_Implementation() const { return nullptr; }
 
 	/**
 	 * Displays the text of a book item at the specified viewport location.

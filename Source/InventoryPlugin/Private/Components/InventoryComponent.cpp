@@ -243,9 +243,9 @@ bool UInventoryComponent::HasAnyItem(const TArray<int32>& ItemID)
 
 //----------------------------------------------------------------------------------------------------------------------
 
-bool UInventoryComponent::HasItem(int32 ItemID)
+bool UInventoryComponent::HasItem(int32 ItemID) const
 {
-	for (auto& BagData : VariableBags)
+	for (const auto& BagData : VariableBags)
 	{
 		if (BagData.Bag->HasItem(ItemID))
 			return true;
