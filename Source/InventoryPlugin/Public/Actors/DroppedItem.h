@@ -27,9 +27,9 @@ public:
 
 	ADroppedItem();
 
-	virtual void InitializeFromItem(UInventoryItemBase* Item, bool AllowToRotate = true);
+	virtual void InitializeFromItem(UInventoryItemBase* Item, bool AllowToRotate = true, const FRotator& SpawningActorRotation = FRotator::ZeroRotator);
 
-	virtual void InitializeFromItemWithDurability(UInventoryItemBase* Item, float InDurability, bool AllowToRotate = true);
+	virtual void InitializeFromItemWithDurability(UInventoryItemBase* Item, float InDurability, bool AllowToRotate = true, const FRotator& SpawningActorRotation = FRotator::ZeroRotator);
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Durability")
 	float GetDurability() const { return Durability; }

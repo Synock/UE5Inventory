@@ -1224,14 +1224,17 @@ bool UEquipmentComponent::IsWeaponTwoHanded() const
 
 FTransform UEquipmentComponent::GetOffHandTransform() const
 {
-	FTransform Out;
-	if (PrimaryWeaponComponent && IsHoldingATwoHandedWeapon && PrimaryWeaponComponent->GetSkeletalMeshAsset())
+	if (PrimaryWeaponComponent
+		&& IsHoldingATwoHandedWeapon
+		&& PrimaryWeaponComponent->GetSkeletalMeshAsset()
+		&& PrimaryWeaponComponent->DoesSocketExist(FName("SOCKET_LeftHandPosition")))
 	{
-		Out = PrimaryWeaponComponent->GetSocketTransform(FName("SOCKET_LeftHandPosition"),
-		                                                 ERelativeTransformSpace::RTS_World);
+		return PrimaryWeaponComponent->GetSocketTransform(FName("SOCKET_LeftHandPosition"),
+		                                                  ERelativeTransformSpace::RTS_World);
 	}
 
-	return Out;
+	// No valid socket — caller should treat Identity as "IK disabled".
+	return FTransform::Identity;
 }
 
 //----------------------------------------------------------------------------------------------------------------------

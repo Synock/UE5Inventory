@@ -29,7 +29,7 @@ ADroppedItem* IInventoryGameModeInterface::SpawnItemFromActor(AActor* SpawningAc
 		ADroppedItem* Item = SpawningActor->GetWorld()->SpawnActor<ADroppedItem>(SpawnLocation, SpawningActor->GetActorRotation(),
 																	SpawnParams);
 		Item->SetReplicates(true);
-		Item->InitializeFromItem(ItemToSpawn);
+		Item->InitializeFromItem(ItemToSpawn, true, SpawningActor->GetActorRotation());
 		return Item;
 }
 
