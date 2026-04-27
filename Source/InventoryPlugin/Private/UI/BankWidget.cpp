@@ -71,6 +71,11 @@ void UBankWidget::NativeConstruct()
 	{
 		ReorganiseButton->OnClicked.AddDynamic(this, &UBankWidget::OnReorganiseButtonClicked);
 	}
+
+	if (DoneButton)
+	{
+		DoneButton->OnClicked.AddDynamic(this, &UBankWidget::OnDoneButtonClicked);
+	}
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -101,6 +106,13 @@ void UBankWidget::NativeDestruct()
 	}
 
 	Super::NativeDestruct();
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UBankWidget::OnDoneButtonClicked()
+{
+	OnDoneClicked.Broadcast();
 }
 
 //----------------------------------------------------------------------------------------------------------------------

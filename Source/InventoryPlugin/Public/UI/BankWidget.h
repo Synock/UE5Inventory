@@ -8,6 +8,8 @@ class UInventoryGridWidget;
 class UDynamicPurseWidget;
 class UButton;
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnBankDoneClicked);
+
 /**
  * @class UBankWidget
  * @brief Widget for displaying and managing the player's bank storage
@@ -81,7 +83,21 @@ protected:
 	UFUNCTION()
 	void EnableReorganiseButton();
 
+
+	//------------------------------------------------------------------------------------------------------------------
+	// Button Handlers (continued)
+	//------------------------------------------------------------------------------------------------------------------
+
+	/** Called when DoneButton is clicked; broadcasts OnDoneClicked. */
+	UFUNCTION()
+	void OnDoneButtonClicked();
+
 public:
+
+	/** Broadcast when DoneButton is clicked — bind to this to handle bank closure. */
+	UPROPERTY(BlueprintAssignable, Category = "Inventory|Bank")
+	FOnBankDoneClicked OnDoneClicked;
+
 	/**
 	 * @brief Reorganize bank contents to optimize space
 	 * Calls the bank component's reorganize function to compact items
