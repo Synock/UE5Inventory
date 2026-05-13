@@ -791,6 +791,44 @@ void UEquipmentComponent::OnRep_ItemList()
 	// in its final state before the per-slot refresh below.
 	EquipmentDispatcher.Broadcast();
 
+	// Weapon socket SKMs (Primary, Secondary, Ranged) are NOT managed by UpdateMeshFromInternal
+	// (which only handles the merged body mesh).  If UEquipmentComponent::BeginPlay ran before
+	// the initial Equipment replication arrived (the common NPC-spawn case), the socket
+	// components will be empty even though the server sent the per-equip UpdateEquipment
+	// multicast.  Re-sync them whenever the replicated Equipment array changes so weapon
+	// meshes are always correct after any replication update.
+	if (PrimaryWeaponComponent)
+	{
+		if (const UInventoryItemEquipable* PrimaryWeapon = GetItemAtSlot(EEquipmentSlot::Primary))
+			Equip(PrimaryWeapon, EEquipmentSlot::Primary);
+		else
+		{
+			PrimaryWeaponComponent->SetSkeletalMeshAsset(nullptr);
+			if (PrimaryWeaponSheath)
+				PrimaryWeaponSheath->SetSkeletalMeshAsset(nullptr);
+		}
+	}
+	if (SecondaryWeaponComponent)
+	{
+		if (const UInventoryItemEquipable* SecWeapon = GetItemAtSlot(EEquipmentSlot::Secondary))
+			Equip(SecWeapon, EEquipmentSlot::Secondary);
+		else
+		{
+			SecondaryWeaponComponent->SetSkeletalMeshAsset(nullptr);
+			if (SecondaryWeaponSheath)
+				SecondaryWeaponSheath->SetSkeletalMeshAsset(nullptr);
+			if (BackWeaponSheath)
+				BackWeaponSheath->SetSkeletalMeshAsset(nullptr);
+		}
+	}
+	if (RangedWeaponSheath)
+	{
+		if (const UInventoryItemEquipable* RangedWeapon = GetItemAtSlot(EEquipmentSlot::Range))
+			Equip(RangedWeapon, EEquipmentSlot::Range);
+		else
+			RangedWeaponSheath->SetSkeletalMeshAsset(nullptr);
+	}
+
 	// Refresh only overlay-eligible slots (those for which GetEquipmentOverlayMesh returns a
 	// non-null mesh, e.g. Shoulders, Neck, Back, Face, Wrists).
 	// Body-part slots (Torso, Legs, etc.) return nullptr here and are managed exclusively by
@@ -1010,10 +1048,16 @@ bool UEquipmentComponent::RemoveItem(EEquipmentSlot InSlot)
 	if (IsSlotEmpty(InSlot))
 		return false;
 
-	UnEquip(Equipment[static_cast<int>(InSlot)], InSlot);
-	ItemUnEquipedDispatcher_Server.Broadcast(InSlot, Equipment[static_cast<int>(InSlot)]);
+	const UInventoryItemEquipable* RemovedItem = Equipment[static_cast<int>(InSlot)];
 
+	UnEquip(RemovedItem, InSlot);
+
+	// Null the slot BEFORE broadcasting so any subscriber (e.g. ALootableCorpse)
+	// that calls UpdateMeshFromInternal() sees the slot as already empty and
+	// rebuilds the merged mesh without the removed item.
 	Equipment[static_cast<int>(InSlot)] = nullptr;
+
+	ItemUnEquipedDispatcher_Server.Broadcast(InSlot, RemovedItem);
 	EquipmentDispatcher_Server.Broadcast();
 
 	// Remove any overlay component for this slot (no-op if none existed)

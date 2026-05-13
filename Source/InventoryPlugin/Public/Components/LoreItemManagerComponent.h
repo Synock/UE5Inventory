@@ -18,7 +18,11 @@ protected:
 
 	TSet<int32> KnownLoreItems;
 
-	TMap<int32, TObjectPtr<ULootPoolComponent>> DelayedLootPools;
+	/// Items whose global ownership status is being queried from the backend.
+	/// IsKnownLoreItem() treats these as blocked until the HTTP response resolves the state.
+	TSet<int32> PendingStatusChecks;
+
+	TMap<int32, TWeakObjectPtr<ULootPoolComponent>> DelayedLootPools;
 
 public:
 	ULoreItemManagerComponent();

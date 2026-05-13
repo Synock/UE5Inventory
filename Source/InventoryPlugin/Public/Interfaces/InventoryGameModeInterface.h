@@ -129,6 +129,7 @@ public:
 	 */
 	virtual ULoreItemManagerComponent* GetLoreManagementComponent();
 
+
 	/**
 	 * @brief Returns the current inflation value.
 	 *

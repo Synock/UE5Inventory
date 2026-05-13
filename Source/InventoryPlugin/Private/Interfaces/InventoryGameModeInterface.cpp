@@ -118,11 +118,11 @@ FVector IInventoryGameModeInterface::GetItemSpawnLocation(AActor* SpawningActor,
 
 bool IInventoryGameModeInterface::CanSpawnItem(UInventoryItemBase* NewItem)
 {
-	const auto* LoreComponent = GetLoreManagementComponent();
+	const ULoreItemManagerComponent* LoreComponent = GetLoreManagementComponent();
 	if (!LoreComponent)
 		return true;
 
-	return true;
+	return LoreComponent->CanSpawnItem(NewItem);
 }
 
 //------------------------------------------------------------------------------------------------------------------
@@ -142,6 +142,7 @@ ULoreItemManagerComponent* IInventoryGameModeInterface::GetLoreManagementCompone
 {
 	return nullptr;
 }
+
 
 float IInventoryGameModeInterface::GetCurrentInflationValue()
 {
