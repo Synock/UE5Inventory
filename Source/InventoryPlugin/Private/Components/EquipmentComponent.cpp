@@ -1392,6 +1392,50 @@ void UEquipmentComponent::UpdateBagUsage(EBagSlot BagSlot, float BagUsage)
 
 //----------------------------------------------------------------------------------------------------------------------
 
+UStaticMeshComponent* UEquipmentComponent::GetStaticMeshComponentForSlot(EEquipmentSlot Slot) const
+{
+	switch (Slot)
+	{
+	case EEquipmentSlot::WaistBag1:  return WaistBag1Component;
+	case EEquipmentSlot::WaistBag2:  return WaistBag2Component;
+	case EEquipmentSlot::BackPack1:  return ShoulderBag1Component;
+	case EEquipmentSlot::BackPack2:  return ShoulderBag2Component;
+	default:                         return nullptr;
+	}
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UEquipmentComponent::ApplyRigidItemFitting(EEquipmentSlot Slot, FName BoneName, FVector LocationOffset, FVector Scale)
+{
+	UStaticMeshComponent* Comp = GetStaticMeshComponentForSlot(Slot);
+	if (!Comp)
+		return;
+
+	ACharacter* Owner = Cast<ACharacter>(GetOwner());
+	if (!Owner)
+		return;
+
+	USkeletalMeshComponent* OwnerMesh = Owner->GetMesh();
+	if (!OwnerMesh)
+		return;
+
+	FAttachmentTransformRules Rules(EAttachmentRule::SnapToTarget, EAttachmentRule::SnapToTarget,
+	                                EAttachmentRule::SnapToTarget, true);
+	Comp->AttachToComponent(OwnerMesh, Rules, BoneName);
+	Comp->SetRelativeLocation(LocationOffset);
+	Comp->SetRelativeScale3D(Scale);
+}
+
+USkeletalMeshComponent* UEquipmentComponent::GetOverlayComponentForSlot(EEquipmentSlot Slot) const
+{
+	if (const auto* Found = VariableMeshesMap.Find(Slot))
+		return *Found;
+	return nullptr;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 void UEquipmentComponent::EquipLightItem_Implementation(TSubclassOf<AInventoryLightSourceActor> LightActor) const
 {
 	if (LightActor)

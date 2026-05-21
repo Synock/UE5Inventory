@@ -176,8 +176,10 @@ const TArray<FMinimalItemStorage>& UBagStorage::GetBagConst() const
 
 float UBagStorage::GetBagSlotUsage() const
 {
-	float Usage = static_cast<float>(BagSlotUsage) / (Width * Height);
-	return Usage;
+	const int32 TotalCells = Width * Height;
+	if (TotalCells <= 0)
+		return 0.f; // guard: bag not yet initialized / zero-dimension edge case
+	return static_cast<float>(BagSlotUsage) / TotalCells;
 }
 
 GridBagSolver UBagStorage::GetSolver() const

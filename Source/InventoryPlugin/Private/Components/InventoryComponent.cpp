@@ -68,9 +68,22 @@ void UInventoryComponent::BeginPlay()
 
 //----------------------------------------------------------------------------------------------------------------------
 
+namespace
+{
+	// Shared empty bag list returned when bag is not found — avoids a crash on null dereference.
+	static const TArray<FMinimalItemStorage> GEmptyBagContent;
+}
+
 const TArray<FMinimalItemStorage>& UInventoryComponent::GetBagConst(EBagSlot WantedBagSlot) const
 {
-	return GetRelatedBag(WantedBagSlot)->GetBagConst();
+	const UBagStorage* Bag = GetRelatedBag(WantedBagSlot);
+	if (!Bag)
+	{
+		UE_LOG(LogInventoryPlugin, Warning, TEXT("GetBagConst: bag for slot %d not found, returning empty"),
+		       static_cast<int32>(WantedBagSlot));
+		return GEmptyBagContent;
+	}
+	return Bag->GetBagConst();
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -127,7 +140,14 @@ void UInventoryComponent::InventoryBagUsageChange(EBagSlot ConsideredBag, float 
 
 int32 UInventoryComponent::GetItemAtIndex(EBagSlot ConsideredBag, int32 ID) const
 {
-	return GetRelatedBag(ConsideredBag)->GetItemAtIndex(ID);
+	const UBagStorage* Bag = GetRelatedBag(ConsideredBag);
+	if (!Bag)
+	{
+		UE_LOG(LogInventoryPlugin, Warning, TEXT("GetItemAtIndex: bag for slot %d not found"),
+		       static_cast<int32>(ConsideredBag));
+		return -1;
+	}
+	return Bag->GetItemAtIndex(ID);
 }
 
 //----------------------------------------------------------------------------------------------------------------------

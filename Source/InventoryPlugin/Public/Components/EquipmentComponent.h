@@ -462,4 +462,33 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void UpdateBagUsage(EBagSlot BagSlot, float BagUsage);
+
+	/**
+	 * Re-attaches a rigid (static-mesh) bag/backpack component to the named anchor bone on the
+	 * owner's skeletal mesh, then applies a location offset and an XY-plane scale override.
+	 * Pass FVector::OneVector for ScaleXY when no scaling is needed (backpacks, hip bags).
+	 * Pass (BulkScale, BulkScale, 1) for belt/girdle items that must expand radially.
+	 *
+	 * @param Slot        The equipment slot whose static mesh component to reposition.
+	 * @param BoneName    Anchor bone on the owner CharacterMesh to attach to.
+	 * @param LocationOffset  Relative location offset applied after attachment (component space).
+	 * @param ScaleXY     Relative scale applied to the component (Z kept from w passed value).
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Equipment|Fitting")
+	void ApplyRigidItemFitting(EEquipmentSlot Slot, FName BoneName, FVector LocationOffset, FVector Scale);
+
+	/**
+	 * Returns the UStaticMeshComponent responsible for the given bag/backpack slot, or nullptr
+	 * for slots that do not use a static-mesh component (weapons, skeletal overlays, jewellery).
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Equipment|Fitting")
+	UStaticMeshComponent* GetStaticMeshComponentForSlot(EEquipmentSlot Slot) const;
+
+	/**
+	 * Returns the dynamic skeletal overlay component for the given slot from VariableMeshesMap,
+	 * or nullptr if no overlay component exists for that slot.
+	 * Used by the fitting system to apply scale/attachment to belt and other overlays.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Equipment|Fitting")
+	USkeletalMeshComponent* GetOverlayComponentForSlot(EEquipmentSlot Slot) const;
 };

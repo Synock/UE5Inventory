@@ -7,6 +7,10 @@ TArray<int32> URandomizedLootPool::GetRandomisedItems() const
 	TArray<int32> LootPoolItems;
 	for (auto& ItemData : LootPool)
 	{
+		// Guard: misconfigured pool rows with a null Item asset must not crash the server.
+		if (!ItemData.Item)
+			continue;
+
 		const float ProbaStatus = FMath::RandRange(0.f, 1.f);
 		if (ProbaStatus <= ItemData.Probability)
 		{

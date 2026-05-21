@@ -48,13 +48,14 @@ struct FItemAlternative: public FTableRowBase
 			float SumProbability = 0.f;
 			for (const auto& [Item, Probability] : AlternativeList)
 			{
-				const float AlternativeProbability = SumProbability + (Probability / TotalProbability);
-				if (ProbaStatus <= AlternativeProbability)
+				// FIX: accumulate only this entry's normalised share, not the running sum.
+				// Old code: `SumProbability += AlternativeProbability` double-counted, making
+				// entries beyond index 2 unreachable when there are 3+ items of equal weight.
+				SumProbability += (Probability / TotalProbability);
+				if (ProbaStatus <= SumProbability)
 				{
 					return Item;
 				}
-
-				SumProbability += AlternativeProbability;
 			}
 		}
 
