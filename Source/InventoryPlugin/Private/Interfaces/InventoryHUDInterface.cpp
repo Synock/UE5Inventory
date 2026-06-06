@@ -23,6 +23,98 @@
 #include "UI/Repair/RepairWidget.h"
 #include "Blueprint/UserWidget.h"
 #include "GameFramework/PlayerController.h"
+#include "UObject/ObjectKey.h"
+#include "TimerManager.h"
+
+static FVector2D ClampWindowPositionToViewport(const FVector2D& DesiredPosition, const FVector2D& DesiredSize,
+                                               int32 ViewportX, int32 ViewportY)
+{
+	if (DesiredSize.X <= 0.f || DesiredSize.Y <= 0.f || ViewportX <= 0 || ViewportY <= 0)
+	{
+		return DesiredPosition;
+	}
+
+	return FVector2D(
+		FMath::Clamp(DesiredPosition.X, 0.f, FMath::Max(0.f, static_cast<float>(ViewportX) - DesiredSize.X)),
+		FMath::Clamp(DesiredPosition.Y, 0.f, FMath::Max(0.f, static_cast<float>(ViewportY) - DesiredSize.Y)));
+}
+
+static void ApplyWindowViewportPosition(UUserWidget* Window, FVector2D DesiredPosition)
+{
+	if (!Window)
+	{
+		return;
+	}
+
+	Window->ForceLayoutPrepass();
+
+	APlayerController* PC = Window->GetOwningPlayer();
+	int32 ViewportX = 0;
+	int32 ViewportY = 0;
+	if (PC)
+	{
+		PC->GetViewportSize(ViewportX, ViewportY);
+	}
+
+	const FVector2D ClampedPosition = ClampWindowPositionToViewport(
+		DesiredPosition, Window->GetDesiredSize(), ViewportX, ViewportY);
+
+	Window->SetAlignmentInViewport(FVector2D::ZeroVector);
+	Window->SetPositionInViewport(ClampedPosition, true);
+}
+
+static void PositionWindowBottomRightOfCursor(APlayerController* PC, UUserWidget* Window)
+{
+	if (!PC || !Window)
+	{
+		return;
+	}
+
+	float MouseX = 0.f;
+	float MouseY = 0.f;
+	if (!PC->GetMousePosition(MouseX, MouseY))
+	{
+		return;
+	}
+
+	int32 ViewportX = 0;
+	int32 ViewportY = 0;
+	PC->GetViewportSize(ViewportX, ViewportY);
+
+	constexpr float CursorOffset = 24.f;
+	const FVector2D DesiredPosition(MouseX + CursorOffset, MouseY + CursorOffset);
+	ApplyWindowViewportPosition(Window, DesiredPosition);
+
+	if (UWorld* World = Window->GetWorld())
+	{
+		TWeakObjectPtr<UUserWidget> WeakWindow(Window);
+		World->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateLambda([WeakWindow, DesiredPosition]()
+		{
+			if (UUserWidget* StrongWindow = WeakWindow.Get())
+			{
+				ApplyWindowViewportPosition(StrongWindow, DesiredPosition);
+			}
+		}));
+	}
+}
+
+static bool ShouldApplyInitialCursorPosition(UObject* WindowObj)
+{
+	static TSet<TObjectKey<UObject>> CursorPositionedBagWindows;
+	if (!WindowObj)
+	{
+		return false;
+	}
+
+	const TObjectKey<UObject> WindowKey(WindowObj);
+	if (CursorPositionedBagWindows.Contains(WindowKey))
+	{
+		return false;
+	}
+
+	CursorPositionedBagWindows.Add(WindowKey);
+	return true;
+}
 
 //----------------------------------------------------------------------------------------------------------------------
 // Inventory window registry — default no-ops
@@ -333,15 +425,6 @@ void IInventoryHUDInterface::DisplayBag_Implementation(EBagSlot InputBagSlot)
 		BagWindow = TScriptInterface<IInventoryBagWindowInterface>(NewWindow);
 		RegisterBagWindowForSlot(InputBagSlot, BagWindow);
 		NewWindow->AddToViewport();
-
-		// SetPositionInViewport calls CanvasSlot->SetAutoSize(true), which prevents the
-		// widget from stretching to fill the viewport on first creation.
-		float MouseX = 0.f, MouseY = 0.f;
-		if (PC)
-			PC->GetMousePosition(MouseX, MouseY);
-		// Align top-left corner to the cursor — window opens to the bottom-right of the mouse.
-		NewWindow->SetAlignmentInViewport(FVector2D(0.0f, 0.0f));
-		NewWindow->SetPositionInViewport(FVector2D(MouseX, MouseY), true);
 	}
 
 	UObject* WindowObj = BagWindow.GetObject();
@@ -353,6 +436,14 @@ void IInventoryHUDInterface::DisplayBag_Implementation(EBagSlot InputBagSlot)
 	Execute_HandleBag(SelfObject, InputBagSlot, BagWindow);
 
 	IInventoryBagWindowInterface::Execute_ShowBagWindow(WindowObj);
+
+	if (ShouldApplyInitialCursorPosition(WindowObj))
+	{
+		if (UUserWidget* BagWidget = Cast<UUserWidget>(WindowObj))
+		{
+			PositionWindowBottomRightOfCursor(BagWidget->GetOwningPlayer(), BagWidget);
+		}
+	}
 }
 
 //----------------------------------------------------------------------------------------------------------------------
