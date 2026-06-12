@@ -101,7 +101,6 @@ FVector IInventoryGameModeInterface::GetItemSpawnLocation(AActor* SpawningActor,
 	{
 		FHitResult HitResult;
 		FCollisionQueryParams QueryParams;
-		QueryParams.bDebugQuery = true;
 		QueryParams.bTraceComplex = true;
 		if (SpawningActor->GetWorld()->LineTraceSingleByChannel(HitResult, SpawnLocation + FVector(0, 0, 50),
 		                                                        SpawnLocation - FVector(0, 0, 1000),
