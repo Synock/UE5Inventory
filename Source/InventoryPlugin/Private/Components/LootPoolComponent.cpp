@@ -206,5 +206,5 @@ void ULootPoolComponent::BeginPlay()
 void ULootPoolComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-	DOREPLIFETIME(ULootPoolComponent, Items);
+	DOREPLIFETIME_CONDITION(ULootPoolComponent, Items, COND_OwnerOnly);
 }

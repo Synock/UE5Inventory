@@ -19,7 +19,7 @@ void UCoinComponent::BeginPlay()
 void UCoinComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-	DOREPLIFETIME(UCoinComponent, PurseContent);
+	DOREPLIFETIME_CONDITION(UCoinComponent, PurseContent, COND_OwnerOnly);
 }
 
 //----------------------------------------------------------------------------------------------------------------------

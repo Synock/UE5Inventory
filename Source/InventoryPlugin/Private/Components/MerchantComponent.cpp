@@ -1,6 +1,19 @@
 #include "Components/MerchantComponent.h"
 #include "InventoryPlugin.h"
+#include "GameFramework/Actor.h"
 #include <Net/UnrealNetwork.h>
+
+namespace
+{
+	void MarkMerchantOwnerNetDirty(const UActorComponent* Component)
+	{
+		if (AActor* Owner = Component ? Component->GetOwner() : nullptr)
+		{
+			Owner->FlushNetDormancy();
+			Owner->ForceNetUpdate();
+		}
+	}
+}
 
 // Sets default values for this component's properties
 UMerchantComponent::UMerchantComponent()
@@ -57,6 +70,8 @@ void UMerchantComponent::RemoveItemID_Implementation(int32 ItemID)
 		UE_LOG(LogInventoryPlugin, Verbose, TEXT("RemoveItemID: removing item %d (index %d) — quantity hit 0"), ItemID, IDToRemove);
 		DynamicMerchantPool.RemoveAt(IDToRemove);
 	}
+
+	MarkMerchantOwnerNetDirty(this);
 
 	//Static items are not affected
 }
@@ -116,6 +131,7 @@ void UMerchantComponent::InitDynamic_Implementation(const TArray<FMerchantDynami
 	DynamicMerchantPool = MerchantDynamicItems;
 	//call the refresh broadcast just in case
 	MerchantPoolDispatcher.Broadcast();
+	MarkMerchantOwnerNetDirty(this);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -126,6 +142,7 @@ void UMerchantComponent::InitStatic_Implementation(const TArray<int32>& Merchant
 
 	//call the refresh broadcast just in case
 	MerchantPoolDispatcher.Broadcast();
+	MarkMerchantOwnerNetDirty(this);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -154,6 +171,8 @@ void UMerchantComponent::AddItem_Implementation(int32 ItemID)
 	if (DynamicMerchantPool.Num() < DynamicPoolLimit)
 		DynamicMerchantPool.Add({ItemID, 1});
 
+	MarkMerchantOwnerNetDirty(this);
+
 	//otherwise drop the request
 }
 
@@ -168,6 +187,8 @@ void UMerchantComponent::RemoveItem_Implementation(int32 ListIndex)
 		else
 			DynamicMerchantPool.RemoveAt(ListIndex);
 	}
+
+	MarkMerchantOwnerNetDirty(this);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
