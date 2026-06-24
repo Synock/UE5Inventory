@@ -60,9 +60,19 @@ void UCoinComponent::PayAndAdjust(const FCoinValue& Cost)
 	if (GetOwnerRole() != ROLE_Authority)
 		return;
 
+	if (!Cost.IsNonNegative())
+	{
+		UE_LOG(LogInventoryPlugin, Warning, TEXT("Rejected negative PayAndAdjust cost on %s"), *GetName());
+		return;
+	}
+
 	FCoinValue CurrentCoinValue = PurseContent;
 	FCoinValue PaidCost = Cost;
-	FCoinValue::RetrieveValue(CurrentCoinValue, PaidCost);
+	if (!FCoinValue::RetrieveValue(CurrentCoinValue, PaidCost))
+	{
+		UE_LOG(LogInventoryPlugin, Warning, TEXT("Rejected unaffordable PayAndAdjust cost on %s"), *GetName());
+		return;
+	}
 
 	PurseContent = {
 		CurrentCoinValue.CopperPieces - PaidCost.CopperPieces,
@@ -82,8 +92,14 @@ void UCoinComponent::PayAndAdjustSimple(const FCoinValue& Cost)
 	if (GetOwnerRole() != ROLE_Authority)
 		return;
 
-	float NewValue = FMath::Max(PurseContent.ToFloat() - Cost.ToFloat(), 0.f);
-	PurseContent = FCoinValue(NewValue);
+	if (!Cost.IsNonNegative())
+	{
+		UE_LOG(LogInventoryPlugin, Warning, TEXT("Rejected negative PayAndAdjustSimple cost on %s"), *GetName());
+		return;
+	}
+
+	const int64 NewValue = FMath::Max(PurseContent.ToCopperValue() - Cost.ToCopperValue(), 0LL);
+	PurseContent = FCoinValue(static_cast<float>(FMath::Min(NewValue, static_cast<int64>(INT32_MAX))));
 
 	UE_LOG(LogInventoryPlugin, Verbose, TEXT("PayAndAdjustSimple: %s"), *GetName());
 	PurseDispatcher_Server.Broadcast();
@@ -96,6 +112,12 @@ void UCoinComponent::RemoveCoins(const FCoinValue& CoinValue)
 	if (GetOwnerRole() != ROLE_Authority)
 		return;
 
+	if (!CoinValue.IsNonNegative())
+	{
+		UE_LOG(LogInventoryPlugin, Warning, TEXT("Rejected negative RemoveCoins value on %s"), *GetName());
+		return;
+	}
+
 	EditCoinContent(-CoinValue.CopperPieces, -CoinValue.SilverPieces,
 	                -CoinValue.GoldPieces, -CoinValue.PlatinumPieces);
 }
@@ -106,6 +128,12 @@ void UCoinComponent::AddCoins(const FCoinValue& CoinValue)
 {
 	if (GetOwnerRole() != ROLE_Authority)
 		return;
+
+	if (!CoinValue.IsNonNegative())
+	{
+		UE_LOG(LogInventoryPlugin, Warning, TEXT("Rejected negative AddCoins value on %s"), *GetName());
+		return;
+	}
 
 	EditCoinContent(CoinValue.CopperPieces, CoinValue.SilverPieces,
 	                CoinValue.GoldPieces, CoinValue.PlatinumPieces);

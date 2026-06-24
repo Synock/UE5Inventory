@@ -25,6 +25,8 @@
 #include "InventoryPlugin.h"
 #include "Interfaces/MerchantInterface.h"
 #include "InventoryPlugin.h"
+#include "Interfaces/RepairInterface.h"
+#include "InventoryPlugin.h"
 #include "Items/InventoryItemBase.h"
 #include "InventoryPlugin.h"
 #include "Items/InventoryItemEquipable.h"
@@ -757,8 +759,12 @@ void UInventoryNetComponent::HandlePlayerBuyFromMerchant(int32 ItemId, const FCo
 	if (!Merchant || !Merchant->HasItem(ItemId))
 		return;
 
+	const FCoinValue ServerPrice = Merchant->GetItemPriceBuy(ItemId);
+	if (!Price.IsNonNegative() || !Price.HasSameValue(ServerPrice) || !PlayerInterface->PlayerCanPayAmount(ServerPrice))
+		return;
+
 	// Deduct coins
-	PlayerInterface->GetCoinComponent()->PayAndAdjust(Price);
+	PlayerInterface->GetCoinComponent()->PayAndAdjust(ServerPrice);
 
 	// Remove from merchant
 	Merchant->RemoveItemAmountIfNeeded(ItemId);
@@ -782,7 +788,7 @@ void UInventoryNetComponent::HandlePlayerBuyFromMerchant(int32 ItemId, const FCo
 	}
 
 	// Pay merchant
-	Merchant->ReceiveCoin(Price);
+	Merchant->ReceiveCoin(ServerPrice);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -793,14 +799,21 @@ void UInventoryNetComponent::HandlePlayerSellToMerchant(EBagSlot OutSlot, int32 
 	if (!PlayerInterface || !MerchantActor)
 		return;
 
+	if (PlayerInterface->PlayerGetItem(TopLeft, OutSlot) != ItemId)
+		return;
+
 	IMerchantInterface* Merchant = Cast<IMerchantInterface>(MerchantActor);
-	if (!Merchant || !Merchant->CanPayAmount(Price))
+	if (!Merchant)
+		return;
+
+	const FCoinValue ServerPrice = Merchant->GetItemPriceSell(ItemId);
+	if (!Price.IsNonNegative() || !Price.HasSameValue(ServerPrice) || !Merchant->CanPayAmount(ServerPrice))
 		return;
 
 	PlayerInterface->PlayerRemoveItem(TopLeft, OutSlot);
-	Merchant->PayCoin(Price);
+	Merchant->PayCoin(ServerPrice);
 	Merchant->AddDynamicItem(ItemId);
-	PlayerInterface->GetCoinComponent()->AddCoins(Price);
+	PlayerInterface->GetCoinComponent()->AddCoins(ServerPrice);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -846,13 +859,19 @@ void UInventoryNetComponent::HandlePlayerRepairEquipment(EEquipmentSlot Slot, co
 	if (CurrentDurability >= Item->GetTotalDurability())
 		return;
 
-	if (!PlayerInterface->PlayerCanPayAmount(Price))
+	const IRepairInterface* RepairInterface = Cast<IRepairInterface>(RepairerActor);
+	if (!RepairInterface)
 		return;
 
-	PlayerInterface->GetCoinComponent()->PayAndAdjust(Price);
+	const FCoinValue ServerPrice = RepairInterface->CalculateRepairCost(Item->ItemID, CurrentDurability,
+	                                                                    Item->GetTotalDurability());
+	if (!Price.IsNonNegative() || !Price.HasSameValue(ServerPrice) || !PlayerInterface->PlayerCanPayAmount(ServerPrice))
+		return;
+
+	PlayerInterface->GetCoinComponent()->PayAndAdjust(ServerPrice);
 
 	if (IMerchantInterface* MerchantInterface = Cast<IMerchantInterface>(RepairerActor))
-		MerchantInterface->ReceiveCoin(Price);
+		MerchantInterface->ReceiveCoin(ServerPrice);
 
 	EquipComp->SetEquipmentDurability(Slot, Item->GetTotalDurability());
 }
@@ -872,15 +891,35 @@ void UInventoryNetComponent::HandlePlayerRepairAllEquipment(const FCoinValue& To
 	if (!EquipComp)
 		return;
 
-	if (!PlayerInterface->PlayerCanPayAmount(TotalPrice))
+	const IRepairInterface* RepairInterface = Cast<IRepairInterface>(RepairerActor);
+	if (!RepairInterface)
 		return;
 
-	PlayerInterface->GetCoinComponent()->PayAndAdjust(TotalPrice);
+	FCoinValue ServerPrice{0, 0, 0, 0};
+	const TArray<const UInventoryItemEquipable*>& AllEquipment = EquipComp->GetAllEquipment();
+	for (int32 i = 0; i < AllEquipment.Num(); ++i)
+	{
+		if (const UInventoryItemEquipable* Item = AllEquipment[i])
+		{
+			const EEquipmentSlot ItemSlot = static_cast<EEquipmentSlot>(i);
+			float CurrentDurability = 0.0f;
+			if (EquipComp->GetEquipmentDurability(ItemSlot, CurrentDurability)
+				&& CurrentDurability < Item->GetTotalDurability())
+			{
+				ServerPrice += RepairInterface->CalculateRepairCost(Item->ItemID, CurrentDurability,
+				                                                    Item->GetTotalDurability());
+			}
+		}
+	}
+
+	if (!TotalPrice.IsNonNegative() || !TotalPrice.HasSameValue(ServerPrice) || !PlayerInterface->PlayerCanPayAmount(ServerPrice))
+		return;
+
+	PlayerInterface->GetCoinComponent()->PayAndAdjust(ServerPrice);
 
 	if (IMerchantInterface* MerchantInterface = Cast<IMerchantInterface>(RepairerActor))
-		MerchantInterface->ReceiveCoin(TotalPrice);
+		MerchantInterface->ReceiveCoin(ServerPrice);
 
-	const TArray<const UInventoryItemEquipable*>& AllEquipment = EquipComp->GetAllEquipment();
 	for (int32 i = 0; i < AllEquipment.Num(); ++i)
 	{
 		if (const UInventoryItemEquipable* Item = AllEquipment[i])
@@ -1216,14 +1255,26 @@ bool UInventoryNetComponent::ValidateTransferCoinTo(UCoinComponent* GivingCompon
 	if (!PlayerInterface)
 		return false;
 
-	if (GivingComponent && ReceivingComponent)
-	{
-		AActor* OwningActor = PlayerInterface->GetInventoryOwningActor();
-		if (ReceivingComponent->GetOwner() != GetOwner() && ReceivingComponent->GetOwner() != OwningActor)
-			return false;
-	}
+	if (!GivingComponent || !ReceivingComponent)
+		return false;
 
-	return true;
+	if (!RemovedCoinValue.IsNonNegative() || !AddedCoinValue.IsNonNegative())
+		return false;
+
+	if (!RemovedCoinValue.HasSameValue(AddedCoinValue))
+		return false;
+
+	const AActor* OwningActor = PlayerInterface->GetInventoryOwningActor();
+	const auto IsPlayerOwnedCoin = [this, OwningActor](const UCoinComponent* CoinComponent)
+	{
+		const AActor* CoinOwner = CoinComponent ? CoinComponent->GetOwner() : nullptr;
+		return CoinOwner && (CoinOwner == GetOwner() || CoinOwner == OwningActor);
+	};
+
+	if (!IsPlayerOwnedCoin(GivingComponent) || !IsPlayerOwnedCoin(ReceivingComponent))
+		return false;
+
+	return FCoinValue::CanPayWithChange(GivingComponent->GetPurseContent(), RemovedCoinValue);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -1289,7 +1340,14 @@ bool UInventoryNetComponent::ValidatePlayerBuyFromMerchant(int32 ItemId, const F
 	if (!MerchantActor || !PlayerInterface)
 		return false;
 
-	return PlayerInterface->PlayerCanPayAmount(Price);
+	const IMerchantInterface* Merchant = Cast<IMerchantInterface>(MerchantActor);
+	if (!Merchant || !Merchant->HasItem(ItemId))
+		return false;
+
+	const FCoinValue ServerPrice = Merchant->GetItemPriceBuy(ItemId);
+	return Price.IsNonNegative()
+		&& Price.HasSameValue(ServerPrice)
+		&& PlayerInterface->PlayerCanPayAmount(ServerPrice);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -1300,7 +1358,15 @@ bool UInventoryNetComponent::ValidatePlayerSellToMerchant(EBagSlot OutSlot, int3
 	if (!MerchantActor || !PlayerInterface)
 		return false;
 
-	return PlayerInterface->PlayerGetItem(TopLeft, OutSlot) == ItemId;
+	const IMerchantInterface* Merchant = Cast<IMerchantInterface>(MerchantActor);
+	if (!Merchant)
+		return false;
+
+	const FCoinValue ServerPrice = Merchant->GetItemPriceSell(ItemId);
+	return Price.IsNonNegative()
+		&& Price.HasSameValue(ServerPrice)
+		&& Merchant->CanPayAmount(ServerPrice)
+		&& PlayerInterface->PlayerGetItem(TopLeft, OutSlot) == ItemId;
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -1314,7 +1380,25 @@ bool UInventoryNetComponent::ValidatePlayerRepairEquipment(EEquipmentSlot Slot, 
 	if (!Equipment)
 		return false;
 
-	return Equipment->GetEquippedItem(Slot) != nullptr;
+	const UInventoryItemEquipable* Item = Equipment->GetEquippedItem(Slot);
+	if (!Item)
+		return false;
+
+	const IRepairInterface* RepairInterface = Cast<IRepairInterface>(RepairerActor);
+	if (!RepairInterface)
+		return false;
+
+	float CurrentDurability = 0.0f;
+	if (!Equipment->GetEquipmentDurability(Slot, CurrentDurability)
+		|| CurrentDurability >= Item->GetTotalDurability())
+		return false;
+
+	const FCoinValue ServerPrice = RepairInterface->CalculateRepairCost(Item->ItemID, CurrentDurability,
+	                                                                    Item->GetTotalDurability());
+	return Price.IsNonNegative()
+		&& Price.HasSameValue(ServerPrice)
+		&& PlayerInterface
+		&& PlayerInterface->PlayerCanPayAmount(ServerPrice);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -1325,7 +1409,33 @@ bool UInventoryNetComponent::ValidatePlayerRepairAllEquipment(const FCoinValue& 
 		return false;
 
 	IEquipmentInterface* Equipment = GetEquipmentInterface();
-	return Equipment && Equipment->GetEquipmentComponent() != nullptr;
+	if (!Equipment || !Equipment->GetEquipmentComponent() || !PlayerInterface)
+		return false;
+
+	const IRepairInterface* RepairInterface = Cast<IRepairInterface>(RepairerActor);
+	if (!RepairInterface)
+		return false;
+
+	FCoinValue ServerPrice{0, 0, 0, 0};
+	const TArray<const UInventoryItemEquipable*>& AllEquipment = Equipment->GetAllEquipment();
+	for (int32 i = 0; i < AllEquipment.Num(); ++i)
+	{
+		if (const UInventoryItemEquipable* Item = AllEquipment[i])
+		{
+			const EEquipmentSlot ItemSlot = static_cast<EEquipmentSlot>(i);
+			float CurrentDurability = 0.0f;
+			if (Equipment->GetEquipmentDurability(ItemSlot, CurrentDurability)
+				&& CurrentDurability < Item->GetTotalDurability())
+			{
+				ServerPrice += RepairInterface->CalculateRepairCost(Item->ItemID, CurrentDurability,
+				                                                    Item->GetTotalDurability());
+			}
+		}
+	}
+
+	return TotalPrice.IsNonNegative()
+		&& TotalPrice.HasSameValue(ServerPrice)
+		&& PlayerInterface->PlayerCanPayAmount(ServerPrice);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -1418,4 +1528,3 @@ bool UInventoryNetComponent::ValidatePlayerSetTradeCoin(const FCoinValue& CoinAm
 
 	return PlayerInterface->PlayerCanPayAmount(CoinAmount);
 }
-

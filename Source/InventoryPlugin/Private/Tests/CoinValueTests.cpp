@@ -282,6 +282,64 @@ bool FCoinValueCanPayWithChangeTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+//----------------------------------------------------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCoinValueToCopperValueTest,
+	"InventoryPlugin.CoinValue.ToCopperValue.MixedDenominations",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FCoinValueToCopperValueTest::RunTest(const FString& Parameters)
+{
+	TestEqual(TEXT("Mixed denominations convert to copper"), FCoinValue(4, 3, 2, 1).ToCopperValue(), 1234LL);
+	TestEqual(TEXT("Uses int64 for large values"),
+		FCoinValue(0, 0, 0, INT32_MAX).ToCopperValue(), static_cast<int64>(INT32_MAX) * 1000LL);
+	return true;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCoinValueIsNonNegativeTest,
+	"InventoryPlugin.CoinValue.IsNonNegative",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FCoinValueIsNonNegativeTest::RunTest(const FString& Parameters)
+{
+	TestTrue(TEXT("Zero is non-negative"), FCoinValue(0, 0, 0, 0).IsNonNegative());
+	TestTrue(TEXT("Positive mixed value is non-negative"), FCoinValue(1, 2, 3, 4).IsNonNegative());
+	TestFalse(TEXT("Negative copper is rejected"), FCoinValue(-1, 0, 0, 0).IsNonNegative());
+	TestFalse(TEXT("Negative platinum is rejected"), FCoinValue(0, 0, 0, -1).IsNonNegative());
+	return true;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCoinValueHasSameValueTest,
+	"InventoryPlugin.CoinValue.HasSameValue.DenominationChange",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FCoinValueHasSameValueTest::RunTest(const FString& Parameters)
+{
+	TestTrue(TEXT("10 copper equals 1 silver"), FCoinValue(10, 0, 0, 0).HasSameValue(FCoinValue(0, 1, 0, 0)));
+	TestTrue(TEXT("100 copper equals 1 gold"), FCoinValue(100, 0, 0, 0).HasSameValue(FCoinValue(0, 0, 1, 0)));
+	TestFalse(TEXT("Different values are not equal"), FCoinValue(9, 0, 0, 0).HasSameValue(FCoinValue(0, 1, 0, 0)));
+	return true;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCoinValueCanPayWithChangeRejectsNegativeTest,
+	"InventoryPlugin.CoinValue.CanPayWithChange.RejectsNegative",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FCoinValueCanPayWithChangeRejectsNegativeTest::RunTest(const FString& Parameters)
+{
+	TestFalse(TEXT("Negative needed value is rejected"),
+		FCoinValue::CanPayWithChange(FCoinValue(10, 0, 0, 0), FCoinValue(-1, 0, 0, 0)));
+	TestFalse(TEXT("Negative available value is rejected"),
+		FCoinValue::CanPayWithChange(FCoinValue(-10, 0, 0, 0), FCoinValue(1, 0, 0, 0)));
+	return true;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // RetrieveValue (make-change algorithm)
 // ─────────────────────────────────────────────────────────────────────────────
