@@ -2,6 +2,7 @@
 
 #include <CoreMinimal.h>
 #include <Blueprint/UserWidget.h>
+#include <TimerManager.h>
 
 #include "MerchantItemListWidget.h"
 #include "MerchantItemWidget.h"
@@ -116,6 +117,9 @@ protected:
 	UPROPERTY(BlueprintReadWrite, Category = "Inventory|Merchant")
 	EMerchantWindowMode MerchantMode = EMerchantWindowMode::Sell;
 
+	/** Pending post-transaction refresh. Cleared when the merchant session closes. */
+	FTimerHandle TransactionRefreshTimer;
+
 	//------------------------------------------------------------------------------------------------------------------
 	// Internal Functions
 	//------------------------------------------------------------------------------------------------------------------
@@ -184,6 +188,9 @@ protected:
 
 	bool IsWorthless();
 
+	/** Clear transient transaction state and all merchant-facing UI. */
+	void ResetMerchantSessionState();
+
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Merchant")
 	void StopTrading();
 
@@ -207,6 +214,22 @@ public:
 	/** Returns the optional Done button so external owners can rebind it. */
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Inventory|Merchant")
 	UButton* GetDoneButton() const { return DoneButton; }
+
+#if WITH_AUTOMATION_WORKER
+	bool MerchantCanSellForTests(int32 ItemID) const { return MerchantCanSell(ItemID); }
+	void SetMerchantSessionStateForTests(int32 ItemID, int32 TopLeft, EBagSlot OriginBag, EMerchantWindowMode Mode)
+	{
+		SelectedItemId = ItemID;
+		MerchantBuyOriginTopLeft = TopLeft;
+		MerchantBuyOriginSlot = OriginBag;
+		MerchantMode = Mode;
+	}
+	bool HasMerchantSessionStateForTests() const
+	{
+		return SelectedItemId != 0 || MerchantBuyOriginTopLeft != -1 ||
+			MerchantBuyOriginSlot != EBagSlot::Unknown || MerchantMode != EMerchantWindowMode::Sell;
+	}
+#endif
 
 	// ---- IInventoryMerchantWindowInterface ----------------------------------
 

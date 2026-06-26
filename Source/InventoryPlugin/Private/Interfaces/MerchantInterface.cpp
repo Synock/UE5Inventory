@@ -89,10 +89,12 @@ FCoinValue IMerchantInterface::AdjustPriceSell(const FCoinValue& CoinValue) cons
 FCoinValue IMerchantInterface::AdjustPriceForInflation(const FCoinValue& CoinValue) const
 {
 	float InflationPriceMultiplier = 1.0;
-	if (IInventoryGameModeInterface* GM = Cast<IInventoryGameModeInterface>(
-		GetMerchantWorldContext()->GetAuthGameMode()); GM)
+	if (UWorld* MerchantWorld = GetMerchantWorldContext())
 	{
-		InflationPriceMultiplier += GM->GetCurrentInflationValue();
+		if (IInventoryGameModeInterface* GM = Cast<IInventoryGameModeInterface>(MerchantWorld->GetAuthGameMode()))
+		{
+			InflationPriceMultiplier += GM->GetCurrentInflationValue();
+		}
 	}
 
 	constexpr float MinimalPriceDrop = 1.0;

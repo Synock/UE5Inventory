@@ -29,6 +29,14 @@ protected:
 	UPROPERTY(ReplicatedUsing = OnRep_PurseData, BlueprintReadOnly, Category="Inventory|Purse")
 	FCoinValue PurseContent;
 
+	UPROPERTY(ReplicatedUsing = OnRep_PurseData, BlueprintReadOnly, Category="Inventory|Purse")
+	FCoinValue PublicPurseContent;
+
+	UPROPERTY(Replicated, BlueprintReadOnly, Category="Inventory|Purse")
+	bool bReplicatePurseToNonOwners = false;
+
+	void SyncPublicPurseContent();
+
 public:
 	/**
 	 * @brief Notifies when the PurseData has been replicated.
@@ -51,7 +59,9 @@ public:
 	 * @return A constant reference to the FCoinValue object representing the purse content.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Inventory|Purse")
-	const FCoinValue& GetCoinValue() const { return PurseContent; }
+	const FCoinValue& GetCoinValue() const { return GetPurseContent(); }
+
+	void SetReplicatePurseToNonOwners(bool bNewReplicatePurseToNonOwners);
 
 	/**
 	 * @brief PurseDispatcher Variable
@@ -173,6 +183,12 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category="Inventory|Purse")
 	const FCoinValue& GetPurseContent() const;
+
+#if WITH_AUTOMATION_WORKER
+	void SetPurseContentForTests(const FCoinValue& NewPurseContent);
+	const FCoinValue& GetPublicPurseContentForTests() const { return PublicPurseContent; }
+	bool GetReplicatePurseToNonOwnersForTests() const { return bReplicatePurseToNonOwners; }
+#endif
 
 	/**
 	 * @brief Clears the purse content.

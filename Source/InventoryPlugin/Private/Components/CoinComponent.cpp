@@ -1,5 +1,6 @@
 #include "Components/CoinComponent.h"
 #include "InventoryPlugin.h"
+#include "GameFramework/Actor.h"
 #include <Net/UnrealNetwork.h>
 
 UCoinComponent::UCoinComponent()
@@ -19,7 +20,37 @@ void UCoinComponent::BeginPlay()
 void UCoinComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME(UCoinComponent, bReplicatePurseToNonOwners);
 	DOREPLIFETIME_CONDITION(UCoinComponent, PurseContent, COND_OwnerOnly);
+	DOREPLIFETIME(UCoinComponent, PublicPurseContent);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UCoinComponent::SyncPublicPurseContent()
+{
+	if (bReplicatePurseToNonOwners)
+	{
+		PublicPurseContent = PurseContent;
+	}
+
+	if (AActor* Owner = GetOwner(); Owner && Owner->HasActorBegunPlay())
+	{
+		Owner->FlushNetDormancy();
+		Owner->ForceNetUpdate();
+	}
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UCoinComponent::SetReplicatePurseToNonOwners(bool bNewReplicatePurseToNonOwners)
+{
+	bReplicatePurseToNonOwners = bNewReplicatePurseToNonOwners;
+
+	if (GetOwnerRole() == ROLE_Authority)
+	{
+		SyncPublicPurseContent();
+	}
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -50,6 +81,7 @@ void UCoinComponent::EditCoinContent(int32 InputCP, int32 InputSP, int32 InputGP
 	PurseContent.GoldPieces = FMath::Clamp(NewGP, 0LL, static_cast<int64>(INT32_MAX));
 	PurseContent.PlatinumPieces = FMath::Clamp(NewPP, 0LL, static_cast<int64>(INT32_MAX));
 
+	SyncPublicPurseContent();
 	PurseDispatcher_Server.Broadcast();
 }
 
@@ -82,6 +114,7 @@ void UCoinComponent::PayAndAdjust(const FCoinValue& Cost)
 	};
 
 	UE_LOG(LogInventoryPlugin, Verbose, TEXT("PayAndAdjust: %s"), *GetName());
+	SyncPublicPurseContent();
 	PurseDispatcher_Server.Broadcast();
 }
 
@@ -102,6 +135,7 @@ void UCoinComponent::PayAndAdjustSimple(const FCoinValue& Cost)
 	PurseContent = FCoinValue(static_cast<float>(FMath::Min(NewValue, static_cast<int64>(INT32_MAX))));
 
 	UE_LOG(LogInventoryPlugin, Verbose, TEXT("PayAndAdjustSimple: %s"), *GetName());
+	SyncPublicPurseContent();
 	PurseDispatcher_Server.Broadcast();
 }
 
@@ -175,14 +209,24 @@ void UCoinComponent::LootPurse(UCoinComponent* OtherPurse)
 
 const FCoinValue& UCoinComponent::GetPurseContent() const
 {
-	return PurseContent;
+	return bReplicatePurseToNonOwners ? PublicPurseContent : PurseContent;
 }
+
+#if WITH_AUTOMATION_WORKER
+void UCoinComponent::SetPurseContentForTests(const FCoinValue& NewPurseContent)
+{
+	PurseContent = NewPurseContent;
+	SyncPublicPurseContent();
+}
+#endif
 
 //----------------------------------------------------------------------------------------------------------------------
 
 void UCoinComponent::ClearPurse()
 {
 	PurseContent = {0, 0, 0, 0};
+	SyncPublicPurseContent();
+	PurseDispatcher_Server.Broadcast();
 }
 
 //----------------------------------------------------------------------------------------------------------------------

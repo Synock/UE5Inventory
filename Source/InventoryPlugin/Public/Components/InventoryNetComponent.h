@@ -44,6 +44,28 @@ public:
 	/** Cached reference to the owner's IInventoryPlayerInterface. Set in BeginPlay. */
 	IInventoryPlayerInterface* GetPlayerInterface() const { return PlayerInterface; }
 
+#if WITH_AUTOMATION_WORKER
+	bool ValidatePlayerBuyFromMerchantForTests(int32 ItemId, const FCoinValue& Price)
+	{
+		return ValidatePlayerBuyFromMerchant(ItemId, Price);
+	}
+
+	bool ValidatePlayerSellToMerchantForTests(EBagSlot OutSlot, int32 ItemId, int32 TopLeft, const FCoinValue& Price)
+	{
+		return ValidatePlayerSellToMerchant(OutSlot, ItemId, TopLeft, Price);
+	}
+
+	bool ValidatePlayerRepairEquipmentForTests(EEquipmentSlot Slot, const FCoinValue& Price)
+	{
+		return ValidatePlayerRepairEquipment(Slot, Price);
+	}
+
+	bool ValidatePlayerRepairAllEquipmentForTests(const FCoinValue& TotalPrice)
+	{
+		return ValidatePlayerRepairAllEquipment(TotalPrice);
+	}
+#endif
+
 	//==================================================================================================================
 	// Replicated State
 	//==================================================================================================================
@@ -335,6 +357,5 @@ private:
 
 	IInventoryPlayerInterface* PlayerInterface = nullptr;
 };
-
 
 

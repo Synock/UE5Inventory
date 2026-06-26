@@ -3,6 +3,7 @@
 #include "InventoryUtilities.h"
 #include "Interfaces/InventoryPlayerInterface.h"
 #include "Components/MerchantComponent.h"
+#include "TimerManager.h"
 #include "Items/InventoryItemBase.h"
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -55,7 +56,7 @@ void UMerchantSellWidget::InitListFromDynamic(UMerchantItemListWidget* InputList
 
 bool UMerchantSellWidget::MerchantCanSell(int32 ItemID) const
 {
-	return MerchantActor->HasItem(ItemID);
+	return MerchantActor && ItemID > 0 && MerchantActor->HasItem(ItemID);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -73,6 +74,9 @@ bool UMerchantSellWidget::CanMerchantAcceptItem(const UInventoryItemBase* Item) 
 
 FCoinValue UMerchantSellWidget::GetCorrectPrice(float FloatValue) const
 {
+	if (!MerchantActor)
+		return {};
+
 	FCoinValue BaseValue = UInventoryUtilities::CoinValueFromFloat(FloatValue);
 
 	if (MerchantMode == EMerchantWindowMode::Sell)
@@ -93,7 +97,7 @@ void UMerchantSellWidget::HandleBuyClick()
 {
 	IInventoryPlayerInterface* PC = Cast<IInventoryPlayerInterface>(GetOwningPlayer());
 
-	if (!PC)
+	if (!PC || !MerchantActor || SelectedItemId <= 0)
 		return;
 
 	if (!PC->PlayerCanPutItemSomewhere(SelectedItemId))
@@ -116,6 +120,11 @@ void UMerchantSellWidget::HandleBuyClick()
 	{
 		BuySellButton->SetIsEnabled(false);
 	}
+
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().SetTimer(TransactionRefreshTimer, this, &UMerchantSellWidget::Refresh, 0.25f, false);
+	}
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -124,7 +133,8 @@ void UMerchantSellWidget::HandleSellClick()
 {
 	IInventoryPlayerInterface* PC = Cast<IInventoryPlayerInterface>(GetOwningPlayer());
 
-	if (!PC)
+	if (!PC || !MerchantActor || SelectedItemId <= 0 || MerchantBuyOriginSlot == EBagSlot::Unknown ||
+		MerchantBuyOriginTopLeft < 0)
 		return;
 
 	const FCoinValue TransactionValue = GetSelectedItemPrice();
@@ -146,6 +156,11 @@ void UMerchantSellWidget::HandleSellClick()
 	if (BuySellButton)
 	{
 		BuySellButton->SetIsEnabled(false);
+	}
+
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().SetTimer(TransactionRefreshTimer, this, &UMerchantSellWidget::Refresh, 0.25f, false);
 	}
 }
 
@@ -321,7 +336,13 @@ TArray<FMerchantItemDataStruct> UMerchantSellWidget::GetDynamicDataDisplayable()
 
 FCoinValue UMerchantSellWidget::GetSelectedItemPrice() const
 {
+	if (!MerchantActor || SelectedItemId <= 0)
+		return {};
+
 	const UInventoryItemBase* LocalBareItem = UInventoryUtilities::GetItemFromID(SelectedItemId, GetWorld());
+	if (!LocalBareItem)
+		return {};
+
 	const FCoinValue TransactionValue = GetCorrectPrice(LocalBareItem->BaseValue);
 
 	return TransactionValue;
@@ -357,61 +378,101 @@ void UMerchantSellWidget::StopTrading()
 
 //----------------------------------------------------------------------------------------------------------------------
 
+void UMerchantSellWidget::ResetMerchantSessionState()
+{
+	SelectedItemId = 0;
+	DynamicStartID = 0;
+	MerchantCanBuy = true;
+	MerchantBuyOriginSlot = EBagSlot::Unknown;
+	MerchantBuyOriginTopLeft = -1;
+	MerchantMode = EMerchantWindowMode::Sell;
+
+	if (ItemList)
+	{
+		ItemList->ClearSelection();
+		ItemList->ClearList();
+	}
+
+	if (MerchantPurse)
+		MerchantPurse->InitWidget(nullptr);
+
+	if (MerchantNameText)
+		MerchantNameText->SetText(FText::GetEmpty());
+
+	HideItemPreview();
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 void UMerchantSellWidget::InitMerchantData(AActor* InputMerchantActor)
 {
-	if (!MerchantActor)
+	if (!InputMerchantActor || !InputMerchantActor->Implements<UMerchantInterface>())
+		return;
+
+	if (MerchantActor.GetObject() == InputMerchantActor)
 	{
-		if (InputMerchantActor->Implements<UMerchantInterface>())
-		{
-			MerchantActor.SetObject(InputMerchantActor);
-			MerchantActor.SetInterface(Cast<IMerchantInterface>(InputMerchantActor));
-
-			if (MerchantPurse)
-			{
-				MerchantPurse->InitWidget(MerchantActor->GetCoinComponent());
-			}
-
-			MerchantActor->GetMerchantDispatcher().AddDynamic(this, &UMerchantSellWidget::Refresh);
-			MerchantActor->GetCoinComponent()->PurseDispatcher.AddDynamic(this, &UMerchantSellWidget::Refresh);
-
-			// Bind to item list selection changes
-			if (ItemList)
-			{
-				ItemList->SelectionChangedDelegate.AddDynamic(this, &UMerchantSellWidget::OnItemListSelectionChanged);
-			}
-
-			// Bind BuySellButton click event
-			if (BuySellButton)
-			{
-				BuySellButton->OnClicked.AddDynamic(this, &UMerchantSellWidget::OnBuySellButtonClicked);
-			}
-
-			// Bind DoneButton click event (optional)
-			if (DoneButton)
-			{
-				DoneButton->OnClicked.AddDynamic(this, &UMerchantSellWidget::OnDoneButtonClicked);
-			}
-
-			if (MerchantNameText)
-			{
-				MerchantNameText->SetText(FText::FromString(MerchantActor->GetMerchantName()));
-			}
-
-			Refresh();
-		}
+		Refresh();
+		return;
 	}
+
+	// Replication can replace one merchant actor with another without delivering an
+	// intermediate nullptr. Always release the old delegates before binding the new session.
+	DeInitMerchantData();
+
+	MerchantActor.SetObject(InputMerchantActor);
+	MerchantActor.SetInterface(Cast<IMerchantInterface>(InputMerchantActor));
+
+	if (MerchantPurse)
+	{
+		MerchantPurse->InitWidget(MerchantActor->GetCoinComponent());
+	}
+
+	MerchantActor->GetMerchantDispatcher().AddUniqueDynamic(this, &UMerchantSellWidget::Refresh);
+	MerchantActor->GetCoinComponent()->PurseDispatcher.AddUniqueDynamic(this, &UMerchantSellWidget::Refresh);
+
+	// Bind to item list selection changes
+	if (ItemList)
+	{
+		ItemList->SelectionChangedDelegate.AddUniqueDynamic(this, &UMerchantSellWidget::OnItemListSelectionChanged);
+	}
+
+	// Bind BuySellButton click event
+	if (BuySellButton)
+	{
+		BuySellButton->OnClicked.AddUniqueDynamic(this, &UMerchantSellWidget::OnBuySellButtonClicked);
+	}
+
+	// Bind DoneButton click event (optional)
+	if (DoneButton)
+	{
+		DoneButton->OnClicked.AddUniqueDynamic(this, &UMerchantSellWidget::OnDoneButtonClicked);
+	}
+
+	if (MerchantNameText)
+	{
+		MerchantNameText->SetText(FText::FromString(MerchantActor->GetMerchantName()));
+	}
+
+	Refresh();
 }
 
 //----------------------------------------------------------------------------------------------------------------------
 
 void UMerchantSellWidget::DeInitMerchantData()
 {
+	if (UWorld* World = GetWorld())
+		World->GetTimerManager().ClearTimer(TransactionRefreshTimer);
+
 	if (MerchantActor)
 	{
-		MerchantActor->GetMerchantDispatcher().Clear();
-		MerchantActor->GetCoinComponent()->PurseDispatcher.Clear();
+		MerchantActor->GetMerchantDispatcher().RemoveDynamic(this, &UMerchantSellWidget::Refresh);
+		if (UCoinComponent* CoinComponent = MerchantActor->GetCoinComponent())
+			CoinComponent->PurseDispatcher.RemoveDynamic(this, &UMerchantSellWidget::Refresh);
+
 		MerchantActor = nullptr;
 	}
+
+	ResetMerchantSessionState();
 
 	// Unbind from item list selection changes
 	if (ItemList)
@@ -435,6 +496,12 @@ void UMerchantSellWidget::DeInitMerchantData()
 
 void UMerchantSellWidget::Refresh()
 {
+	if (!MerchantActor)
+	{
+		HideItemPreview();
+		return;
+	}
+
 	if (MerchantPurse)
 		MerchantPurse->Refresh();
 

@@ -18,17 +18,18 @@ void URepairWidget::NativeConstruct()
 	// Bind button events
 	if (RepairAllButton)
 	{
-		RepairAllButton->OnClicked.AddDynamic(this, &URepairWidget::OnRepairAllButtonClicked);
+		RepairAllButton->OnClicked.AddUniqueDynamic(this, &URepairWidget::OnRepairAllButtonClicked);
 	}
 
 	if (CloseButton)
 	{
-		CloseButton->OnClicked.AddDynamic(this, &URepairWidget::OnCloseButtonClicked);
+		CloseButton->OnClicked.AddUniqueDynamic(this, &URepairWidget::OnCloseButtonClicked);
 	}
 
 	// Bind list view entry initialization to set parent widget reference
 	if (RepairItemList)
 	{
+		RepairItemList->OnEntryWidgetGenerated().RemoveAll(this);
 		RepairItemList->OnEntryWidgetGenerated().AddUObject(this, &URepairWidget::OnRepairLineWidgetGenerated);
 	}
 }

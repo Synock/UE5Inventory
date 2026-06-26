@@ -759,8 +759,8 @@ void UInventoryNetComponent::HandlePlayerBuyFromMerchant(int32 ItemId, const FCo
 	if (!Merchant || !Merchant->HasItem(ItemId))
 		return;
 
-	const FCoinValue ServerPrice = Merchant->GetItemPriceBuy(ItemId);
-	if (!Price.IsNonNegative() || !Price.HasSameValue(ServerPrice) || !PlayerInterface->PlayerCanPayAmount(ServerPrice))
+	const FCoinValue ServerPrice = Merchant->GetItemPriceSell(ItemId);
+	if (!Price.IsNonNegative() || !PlayerInterface->PlayerCanPayAmount(ServerPrice))
 		return;
 
 	// Deduct coins
@@ -806,8 +806,8 @@ void UInventoryNetComponent::HandlePlayerSellToMerchant(EBagSlot OutSlot, int32 
 	if (!Merchant)
 		return;
 
-	const FCoinValue ServerPrice = Merchant->GetItemPriceSell(ItemId);
-	if (!Price.IsNonNegative() || !Price.HasSameValue(ServerPrice) || !Merchant->CanPayAmount(ServerPrice))
+	const FCoinValue ServerPrice = Merchant->GetItemPriceBuy(ItemId);
+	if (!Price.IsNonNegative() || !Merchant->CanPayAmount(ServerPrice))
 		return;
 
 	PlayerInterface->PlayerRemoveItem(TopLeft, OutSlot);
@@ -865,7 +865,7 @@ void UInventoryNetComponent::HandlePlayerRepairEquipment(EEquipmentSlot Slot, co
 
 	const FCoinValue ServerPrice = RepairInterface->CalculateRepairCost(Item->ItemID, CurrentDurability,
 	                                                                    Item->GetTotalDurability());
-	if (!Price.IsNonNegative() || !Price.HasSameValue(ServerPrice) || !PlayerInterface->PlayerCanPayAmount(ServerPrice))
+	if (!Price.IsNonNegative() || !PlayerInterface->PlayerCanPayAmount(ServerPrice))
 		return;
 
 	PlayerInterface->GetCoinComponent()->PayAndAdjust(ServerPrice);
@@ -912,7 +912,7 @@ void UInventoryNetComponent::HandlePlayerRepairAllEquipment(const FCoinValue& To
 		}
 	}
 
-	if (!TotalPrice.IsNonNegative() || !TotalPrice.HasSameValue(ServerPrice) || !PlayerInterface->PlayerCanPayAmount(ServerPrice))
+	if (!TotalPrice.IsNonNegative() || !PlayerInterface->PlayerCanPayAmount(ServerPrice))
 		return;
 
 	PlayerInterface->GetCoinComponent()->PayAndAdjust(ServerPrice);
@@ -1337,17 +1337,7 @@ bool UInventoryNetComponent::ValidatePlayerEquipItemFromLoot(int32 InItemId, EEq
 
 bool UInventoryNetComponent::ValidatePlayerBuyFromMerchant(int32 ItemId, const FCoinValue& Price)
 {
-	if (!MerchantActor || !PlayerInterface)
-		return false;
-
-	const IMerchantInterface* Merchant = Cast<IMerchantInterface>(MerchantActor);
-	if (!Merchant || !Merchant->HasItem(ItemId))
-		return false;
-
-	const FCoinValue ServerPrice = Merchant->GetItemPriceBuy(ItemId);
-	return Price.IsNonNegative()
-		&& Price.HasSameValue(ServerPrice)
-		&& PlayerInterface->PlayerCanPayAmount(ServerPrice);
+	return ItemId >= 0 && Price.IsNonNegative();
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -1355,87 +1345,21 @@ bool UInventoryNetComponent::ValidatePlayerBuyFromMerchant(int32 ItemId, const F
 bool UInventoryNetComponent::ValidatePlayerSellToMerchant(EBagSlot OutSlot, int32 ItemId, int32 TopLeft,
                                                             const FCoinValue& Price)
 {
-	if (!MerchantActor || !PlayerInterface)
-		return false;
-
-	const IMerchantInterface* Merchant = Cast<IMerchantInterface>(MerchantActor);
-	if (!Merchant)
-		return false;
-
-	const FCoinValue ServerPrice = Merchant->GetItemPriceSell(ItemId);
-	return Price.IsNonNegative()
-		&& Price.HasSameValue(ServerPrice)
-		&& Merchant->CanPayAmount(ServerPrice)
-		&& PlayerInterface->PlayerGetItem(TopLeft, OutSlot) == ItemId;
+	return ItemId >= 0 && TopLeft >= 0 && Price.IsNonNegative();
 }
 
 //----------------------------------------------------------------------------------------------------------------------
 
 bool UInventoryNetComponent::ValidatePlayerRepairEquipment(EEquipmentSlot Slot, const FCoinValue& Price)
 {
-	if (!RepairerActor)
-		return false;
-
-	IEquipmentInterface* Equipment = GetEquipmentInterface();
-	if (!Equipment)
-		return false;
-
-	const UInventoryItemEquipable* Item = Equipment->GetEquippedItem(Slot);
-	if (!Item)
-		return false;
-
-	const IRepairInterface* RepairInterface = Cast<IRepairInterface>(RepairerActor);
-	if (!RepairInterface)
-		return false;
-
-	float CurrentDurability = 0.0f;
-	if (!Equipment->GetEquipmentDurability(Slot, CurrentDurability)
-		|| CurrentDurability >= Item->GetTotalDurability())
-		return false;
-
-	const FCoinValue ServerPrice = RepairInterface->CalculateRepairCost(Item->ItemID, CurrentDurability,
-	                                                                    Item->GetTotalDurability());
-	return Price.IsNonNegative()
-		&& Price.HasSameValue(ServerPrice)
-		&& PlayerInterface
-		&& PlayerInterface->PlayerCanPayAmount(ServerPrice);
+	return Slot != EEquipmentSlot::Unknown && Price.IsNonNegative();
 }
 
 //----------------------------------------------------------------------------------------------------------------------
 
 bool UInventoryNetComponent::ValidatePlayerRepairAllEquipment(const FCoinValue& TotalPrice)
 {
-	if (!RepairerActor)
-		return false;
-
-	IEquipmentInterface* Equipment = GetEquipmentInterface();
-	if (!Equipment || !Equipment->GetEquipmentComponent() || !PlayerInterface)
-		return false;
-
-	const IRepairInterface* RepairInterface = Cast<IRepairInterface>(RepairerActor);
-	if (!RepairInterface)
-		return false;
-
-	FCoinValue ServerPrice{0, 0, 0, 0};
-	const TArray<const UInventoryItemEquipable*>& AllEquipment = Equipment->GetAllEquipment();
-	for (int32 i = 0; i < AllEquipment.Num(); ++i)
-	{
-		if (const UInventoryItemEquipable* Item = AllEquipment[i])
-		{
-			const EEquipmentSlot ItemSlot = static_cast<EEquipmentSlot>(i);
-			float CurrentDurability = 0.0f;
-			if (Equipment->GetEquipmentDurability(ItemSlot, CurrentDurability)
-				&& CurrentDurability < Item->GetTotalDurability())
-			{
-				ServerPrice += RepairInterface->CalculateRepairCost(Item->ItemID, CurrentDurability,
-				                                                    Item->GetTotalDurability());
-			}
-		}
-	}
-
-	return TotalPrice.IsNonNegative()
-		&& TotalPrice.HasSameValue(ServerPrice)
-		&& PlayerInterface->PlayerCanPayAmount(ServerPrice);
+	return TotalPrice.IsNonNegative();
 }
 
 //----------------------------------------------------------------------------------------------------------------------

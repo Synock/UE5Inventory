@@ -17,7 +17,7 @@ void URepairLineWidget::NativeConstruct()
 	// Bind repair button click event
 	if (RepairButton)
 	{
-		RepairButton->OnClicked.AddDynamic(this, &URepairLineWidget::OnRepairButtonClicked);
+		RepairButton->OnClicked.AddUniqueDynamic(this, &URepairLineWidget::OnRepairButtonClicked);
 	}
 }
 

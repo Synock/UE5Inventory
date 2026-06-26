@@ -31,6 +31,17 @@ void UMerchantComponent::BeginPlay()
 
 //----------------------------------------------------------------------------------------------------------------------
 
+void UMerchantComponent::OnRep_StaticPool()
+{
+#if WITH_AUTOMATION_WORKER
+	++StaticPoolRepNotifyCountForTests;
+#endif
+	MerchantPoolDispatcher.Broadcast();
+	UE_LOG(LogInventoryPlugin, Verbose, TEXT("OnRep_StaticPool %s"), *GetName());
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 void UMerchantComponent::OnRep_DynamicPool()
 {
 	MerchantPoolDispatcher.Broadcast();
@@ -123,6 +134,15 @@ bool UMerchantComponent::HasItem(int32 ItemID) const
 	}
 	return false;
 }
+
+//----------------------------------------------------------------------------------------------------------------------
+
+#if WITH_AUTOMATION_WORKER
+void UMerchantComponent::SetStaticMerchantPoolForTests(const TArray<int32>& Items)
+{
+	StaticMerchantPool = Items;
+}
+#endif
 
 //----------------------------------------------------------------------------------------------------------------------
 
