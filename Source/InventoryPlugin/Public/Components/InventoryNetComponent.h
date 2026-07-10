@@ -39,6 +39,7 @@ public:
 	UInventoryNetComponent();
 
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 	/** Cached reference to the owner's IInventoryPlayerInterface. Set in BeginPlay. */
@@ -64,6 +65,31 @@ public:
 	{
 		return ValidatePlayerRepairAllEquipment(TotalPrice);
 	}
+
+	bool ValidateLootActorForTests(AActor* InputLootedActor)
+	{
+		return ValidateLootActor(InputLootedActor);
+	}
+
+	bool ValidatePlayerLootItemForTests(int32 InTopLeft, EBagSlot InSlot, int32 InItemId, int32 OutTopLeft)
+	{
+		return ValidatePlayerLootItem(InTopLeft, InSlot, InItemId, OutTopLeft);
+	}
+
+	bool ValidatePlayerEquipItemFromLootForTests(int32 InItemId, EEquipmentSlot InSlot, int32 OutTopLeft)
+	{
+		return ValidatePlayerEquipItemFromLoot(InItemId, InSlot, OutTopLeft);
+	}
+
+	void HandleLootActorForTests(AActor* InputLootedActor) { HandleLootActor(InputLootedActor); }
+	void HandleStopLootingForTests() { HandleStopLooting(); }
+	void HandleEndPlayCleanupForTests() { HandleStopLooting(); }
+	void HandlePlayerLootItemForTests(int32 InTopLeft, EBagSlot InSlot, int32 InItemId, int32 OutTopLeft)
+	{
+		HandlePlayerLootItem(InTopLeft, InSlot, InItemId, OutTopLeft);
+	}
+	AActor* GetPreviousLootOwnerForTests() const { return PreviousLootOwner.Get(); }
+	int32 GetRejectedLootRequestCountForTests() const { return RejectedLootRequestCountForTests; }
 #endif
 
 	//==================================================================================================================
@@ -139,6 +165,10 @@ public:
 
 	UFUNCTION(Server, Reliable, Category = "Inventory|Loot")
 	void Server_PlayerAutoLootAll();
+
+	/** Clears a client-side transaction after the server softly rejects stale loot state. */
+	UFUNCTION(Client, Reliable, Category = "Inventory|Loot")
+	void Client_LootRequestRejected();
 
 	//==================================================================================================================
 	// Merchant RPCs
@@ -351,11 +381,23 @@ protected:
 	/** Get the TradeComponent from the owner, if any. */
 	UTradeComponent* GetTradeComponent() const;
 
+	/** True only while this component owns the target's exclusive loot session. */
+	bool OwnsActiveLootSession(const ILootableInterface* Lootable) const;
+
+	/** Softly reject stale mutable state without failing RPC validation and disconnecting the client. */
+	void RejectLootRequest();
+
 private:
 	UPROPERTY()
 	TScriptInterface<IInventoryPlayerInterface> CachedPlayerInterfaceObject;
 
 	IInventoryPlayerInterface* PlayerInterface = nullptr;
+
+	/** Actor owner to restore when the exclusive loot session ends. */
+	UPROPERTY(Transient)
+	TObjectPtr<AActor> PreviousLootOwner;
+
+#if WITH_AUTOMATION_WORKER
+	int32 RejectedLootRequestCountForTests = 0;
+#endif
 };
-
-

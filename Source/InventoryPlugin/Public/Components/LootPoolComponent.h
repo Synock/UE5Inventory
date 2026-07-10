@@ -2,6 +2,7 @@
 
 #include <CoreMinimal.h>
 #include <Components/ActorComponent.h>
+#include <Net/UnrealNetwork.h>
 #include "InventoryItem.h"
 #include "LootPoolComponent.generated.h"
 
@@ -18,7 +19,13 @@ public:
 	// Sets default values for this component's properties
 	ULootPoolComponent();
 
+#if WITH_AUTOMATION_WORKER
+	static ELifetimeCondition GetItemsReplicationConditionForTests() { return ItemsReplicationCondition; }
+#endif
+
 protected:
+	static constexpr ELifetimeCondition ItemsReplicationCondition = COND_OwnerOnly;
+
 	// Called when the game starts
 	virtual void BeginPlay() override;
 

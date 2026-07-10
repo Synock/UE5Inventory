@@ -61,6 +61,18 @@ void UInventoryNetComponent::BeginPlay()
 
 //----------------------------------------------------------------------------------------------------------------------
 
+void UInventoryNetComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (GetOwner() && GetOwner()->HasAuthority())
+	{
+		HandleStopLooting();
+	}
+
+	Super::EndPlay(EndPlayReason);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 void UInventoryNetComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
@@ -83,6 +95,27 @@ void UInventoryNetComponent::OnRep_RepairerActor()
 {
 }
 
+void UInventoryNetComponent::Client_LootRequestRejected_Implementation()
+{
+	if (!PlayerInterface)
+	{
+		PlayerInterface = Cast<IInventoryPlayerInterface>(GetOwner());
+	}
+
+	if (PlayerInterface)
+	{
+		PlayerInterface->ResetTransaction();
+	}
+
+	if (LootedActor)
+	{
+		if (ILootableInterface* Lootable = Cast<ILootableInterface>(LootedActor))
+		{
+			Lootable->GetLootPoolDelegate().Broadcast();
+		}
+	}
+}
+
 //----------------------------------------------------------------------------------------------------------------------
 // Helpers
 //----------------------------------------------------------------------------------------------------------------------
@@ -103,6 +136,33 @@ UTradeComponent* UInventoryNetComponent::GetTradeComponent() const
 		return Owner->FindComponentByClass<UTradeComponent>();
 	}
 	return nullptr;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+bool UInventoryNetComponent::OwnsActiveLootSession(const ILootableInterface* Lootable) const
+{
+	return Lootable
+		&& LootedActor
+		&& LootedActor->GetOwner() == GetOwner()
+		&& Lootable->GetIsBeingLooted();
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UInventoryNetComponent::RejectLootRequest()
+{
+#if WITH_AUTOMATION_WORKER
+	++RejectedLootRequestCountForTests;
+#endif
+
+	if (LootedActor)
+	{
+		LootedActor->FlushNetDormancy();
+		LootedActor->ForceNetUpdate();
+	}
+
+	Client_LootRequestRejected();
 }
 
 //======================================================================================================================
@@ -616,26 +676,73 @@ void UInventoryNetComponent::HandleDropItemFromEquipment(EEquipmentSlot Slot, FV
 
 void UInventoryNetComponent::HandleLootActor(AActor* InputLootedActor)
 {
-	if (!LootedActor)
+	if (LootedActor || !InputLootedActor || !GetOwner())
+		return;
+
+	ILootableInterface* LootInterface = Cast<ILootableInterface>(InputLootedActor);
+	if (!LootInterface || LootInterface->GetIsBeingLooted())
+		return;
+
+	AActor* Looter = PlayerInterface ? PlayerInterface->GetInventoryOwningActor() : GetOwner();
+	if (!Looter)
+		return;
+
+	PreviousLootOwner = InputLootedActor->GetOwner();
+	LootInterface->StartLooting(Looter);
+
+	// Custom lootables may reject the looter. Do not publish a session unless the target accepted it.
+	if (!LootInterface->GetIsBeingLooted())
 	{
-		if (ILootableInterface* LootInterface = Cast<ILootableInterface>(InputLootedActor))
-		{
-			LootedActor = InputLootedActor;
-			LootInterface->StartLooting(PlayerInterface ? PlayerInterface->GetInventoryOwningActor() : GetOwner());
-		}
+		if (InputLootedActor->GetOwner() != PreviousLootOwner)
+			InputLootedActor->SetOwner(PreviousLootOwner);
+		PreviousLootOwner = nullptr;
+		return;
 	}
+
+	InputLootedActor->FlushNetDormancy();
+	InputLootedActor->SetOwner(GetOwner());
+	InputLootedActor->ForceNetUpdate();
+	LootedActor = InputLootedActor;
+	GetOwner()->ForceNetUpdate();
 }
 
 //----------------------------------------------------------------------------------------------------------------------
 
 void UInventoryNetComponent::HandleStopLooting()
 {
-	if (LootedActor)
+	AActor* SessionActor = LootedActor.Get();
+	LootedActor = nullptr;
+
+	if (!SessionActor)
 	{
-		if (ILootableInterface* Lootable = Cast<ILootableInterface>(LootedActor))
-			Lootable->StopLooting(PlayerInterface ? PlayerInterface->GetInventoryOwningActor() : GetOwner());
-		LootedActor = nullptr;
+		PreviousLootOwner = nullptr;
+		return;
 	}
+
+	// If ownership changed unexpectedly, never unlock or retarget another player's session.
+	if (SessionActor->GetOwner() != GetOwner())
+	{
+		PreviousLootOwner = nullptr;
+		GetOwner()->ForceNetUpdate();
+		return;
+	}
+
+	AActor* Looter = PlayerInterface ? PlayerInterface->GetInventoryOwningActor() : GetOwner();
+	if (ILootableInterface* Lootable = Cast<ILootableInterface>(SessionActor))
+	{
+		Lootable->StopLooting(Looter);
+	}
+
+	if (IsValid(SessionActor))
+	{
+		SessionActor->FlushNetDormancy();
+		SessionActor->SetOwner(PreviousLootOwner);
+		SessionActor->ForceNetUpdate();
+	}
+
+	PreviousLootOwner = nullptr;
+	if (GetOwner())
+		GetOwner()->ForceNetUpdate();
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -643,11 +750,17 @@ void UInventoryNetComponent::HandleStopLooting()
 void UInventoryNetComponent::HandlePlayerLootItem(int32 InTopLeft, EBagSlot InSlot, int32 InItemId, int32 OutTopLeft)
 {
 	if (!PlayerInterface || !LootedActor)
+	{
+		RejectLootRequest();
 		return;
+	}
 
 	ILootableInterface* Loot = Cast<ILootableInterface>(LootedActor);
-	if (!Loot)
+	if (!OwnsActiveLootSession(Loot) || Loot->GetItemData(OutTopLeft) != InItemId)
+	{
+		RejectLootRequest();
 		return;
+	}
 
 	// Preserve durability from loot pool
 	float Durability = 100.0f;
@@ -665,6 +778,11 @@ void UInventoryNetComponent::HandlePlayerLootItem(int32 InTopLeft, EBagSlot InSl
 
 	Loot->RemoveItem(OutTopLeft);
 	PlayerInterface->PlayerAddItemWithDurability(InTopLeft, InSlot, InItemId, Durability);
+	if (LootedActor)
+	{
+		LootedActor->FlushNetDormancy();
+		LootedActor->ForceNetUpdate();
+	}
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -672,12 +790,18 @@ void UInventoryNetComponent::HandlePlayerLootItem(int32 InTopLeft, EBagSlot InSl
 void UInventoryNetComponent::HandlePlayerEquipItemFromLoot(int32 InItemId, EEquipmentSlot InSlot, int32 OutTopLeft)
 {
 	if (!LootedActor)
+	{
+		RejectLootRequest();
 		return;
+	}
 
 	ILootableInterface* Loot = Cast<ILootableInterface>(LootedActor);
 	IEquipmentInterface* Equipment = GetEquipmentInterface();
-	if (!Loot || !Equipment)
+	if (!OwnsActiveLootSession(Loot) || !Equipment || Loot->GetItemData(OutTopLeft) != InItemId)
+	{
+		RejectLootRequest();
 		return;
+	}
 
 	// Preserve durability from loot pool
 	float Durability = 100.0f;
@@ -695,6 +819,11 @@ void UInventoryNetComponent::HandlePlayerEquipItemFromLoot(int32 InItemId, EEqui
 
 	Loot->RemoveItem(OutTopLeft);
 	Equipment->EquipItemWithDurability(InSlot, InItemId, Durability);
+	if (LootedActor)
+	{
+		LootedActor->FlushNetDormancy();
+		LootedActor->ForceNetUpdate();
+	}
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -1302,35 +1431,28 @@ bool UInventoryNetComponent::ValidateDropItemFromEquipment(EEquipmentSlot Slot, 
 
 bool UInventoryNetComponent::ValidateLootActor(AActor* InputLootedActor)
 {
-	return InputLootedActor != nullptr && Cast<ILootableInterface>(InputLootedActor) != nullptr;
+	return IsValid(InputLootedActor) && Cast<ILootableInterface>(InputLootedActor) != nullptr;
 }
 
 //----------------------------------------------------------------------------------------------------------------------
 
 bool UInventoryNetComponent::ValidatePlayerLootItem(int32 InTopLeft, EBagSlot InSlot, int32 InItemId, int32 OutTopLeft)
 {
-	if (!LootedActor)
-		return false;
-
-	const ILootableInterface* Loot = Cast<ILootableInterface>(LootedActor);
-	if (!Loot)
-		return false;
-
-	return Loot->GetItemData(OutTopLeft) == InItemId;
+	return InTopLeft >= 0
+		&& OutTopLeft >= 0
+		&& InItemId > 0
+		&& InSlot > EBagSlot::Unknown
+		&& InSlot < EBagSlot::LastValidBag;
 }
 
 //----------------------------------------------------------------------------------------------------------------------
 
 bool UInventoryNetComponent::ValidatePlayerEquipItemFromLoot(int32 InItemId, EEquipmentSlot InSlot, int32 OutTopLeft)
 {
-	if (!LootedActor)
-		return false;
-
-	const ILootableInterface* Loot = Cast<ILootableInterface>(LootedActor);
-	if (!Loot)
-		return false;
-
-	return Loot->GetItemData(OutTopLeft) == InItemId;
+	return InItemId > 0
+		&& OutTopLeft >= 0
+		&& InSlot > EEquipmentSlot::Unknown
+		&& InSlot < EEquipmentSlot::Last;
 }
 
 //----------------------------------------------------------------------------------------------------------------------
