@@ -1,6 +1,6 @@
-# Unreal Engine 5 Inventory proof of concept
+# Unreal Engine 5 Replicated Inventory Plugin
 
-This repo is a proof of concept, grid based, fully replicated inventory and equipment system for unreal engine 5.
+A grid-based, fully replicated inventory and equipment plugin for Unreal Engine 5. It provides the core systems in C++ and exposes focused extension points for game-specific rules, UI, and presentation.
 
 You will find find the following feature included:
 * Grid based
@@ -17,11 +17,21 @@ You will find find the following feature included:
 * Durability system for equipment
 * Skeletal mesh equipment support
 
-Despite some effort to make this plugin a bit more generic, you'd better be off forking this repo and and tailoring it to you needs.
+The plugin is intended to be extended for your game's item definitions, visuals, and gameplay rules. Fork it or subclass the provided C++ extension points as appropriate for your project.
 
-## Integration tutorial:
+## Documentation and integration
 
-You can find a this plugin integrated and used, including an in depth explanation of the necessary integration steps in this repository : https://github.com/Synock/UE5PluginIntegration
+Start with the maintained local documentation:
+
+- [Integration Guide](./Docs/Integration_Guide.md) — installation, required game-side bridges, UI wiring, replication, and troubleshooting.
+- [Interface Implementation Guide](./Docs/Interface_Implementation_Guide.md) — required versus optional interface contracts.
+- [Component Architecture Guide](./Docs/Component_Architecture_Guide.md) — component responsibilities and extension points.
+- [Item System Guide](./Docs/Item_System_Guide.md) — creating and configuring item definitions.
+- [Replication System Guide](./Docs/Replication_System_Guide.md) — multiplayer synchronization details.
+
+The plugin's `UInventoryNetComponent` owns the inventory Server RPCs, so a consuming project does not need to recreate the previous set of RPC declarations and implementation stubs. The Integration Guide walks through the remaining game-side setup: item registry, PlayerController/Character components, and HUD window registration.
+
+For an older complete-project reference, see [UE5PluginIntegration](https://github.com/Synock/UE5PluginIntegration). Prefer the local guides above for the current API.
 
 ![Inventory Example](./Images/InventoryExample.png?raw=true "InventoryExample")
 

@@ -36,7 +36,7 @@ This section covers breaking changes when upgrading from the previous `master` b
 
 Previously, `IInventoryPlayerInterface` declared all `Server_*` methods as **pure virtual** functions (with `//UFUNCTION(Server, Reliable)` comments). You had to redeclare every one as a `UFUNCTION(Server, Reliable, WithValidation)` in your PlayerController and write both `_Implementation` and `_Validate` stubs.
 
-Now, a new `UInventoryNetComponent` ActorComponent owns all the Server RPCs with full default implementations and built-in anti-cheat validation. The `Server_*` methods on the interface are still present as **non-pure virtuals** that simply forward to the net component.
+Now, a new `UInventoryNetComponent` ActorComponent owns all Server RPCs. The `Server_*` methods on the interface are still present as **non-pure virtuals** that forward to the net component. Selected mutation RPCs use `WithValidation`; session-close and several workflow RPCs are reliable Server RPCs without a validation function. Review the declarations in `InventoryNetComponent.h` before treating the defaults as a complete game-specific anti-cheat policy.
 
 **What to do:**
 
@@ -63,7 +63,7 @@ Now, a new `UInventoryNetComponent` ActorComponent owns all the Server RPCs with
    
    This includes removing every `_Implementation()` and `_Validate()` function body for the above.
 
-4. **Move replicated interaction state** to the net component. `TransactionBoolean`, `MerchantActor`, `LootedActor`, and `RepairerActor` now live as replicated properties on `UInventoryNetComponent`. Your interface getter/setter implementations should delegate:
+4. **Move interaction state** to the net component. `MerchantActor`, `LootedActor`, and `RepairerActor` are owner-only replicated properties on `UInventoryNetComponent`. `TransactionBoolean` also lives there, but is local transaction-guard state and is **not replicated**. Your interface getter/setter implementations should delegate:
    ```cpp
    bool AYourPC::GetTransactionBoolean() { return InventoryNetComponent->TransactionBoolean; }
    void AYourPC::SetTransactionBoolean(bool V) { InventoryNetComponent->TransactionBoolean = V; }
@@ -77,14 +77,14 @@ Now, a new `UInventoryNetComponent` ActorComponent owns all the Server RPCs with
 
 ### 2. New Systems: Trade, Repair, Field Repair, Drop
 
-The plugin now includes full implementations for several systems that were previously left to the consumer:
+The plugin now includes implementations or RPC routing for several systems that were previously left to the consumer:
 
 | System | Components / Classes | Notes |
 |--------|---------------------|-------|
 | **Player Trading** | `UTradeComponent`, Trade RPCs on `UInventoryNetComponent`, `UI_TradeWidget` | Player-to-player trade with item + coin offers |
 | **NPC Repair** | `URepairComponent`, `IRepairInterface`, Repair RPCs on `UInventoryNetComponent`, `UI_RepairWidget` | NPC-based equipment repair with durability costs |
 | **Field Repair** | `UFieldRepairComponent`, `IFieldRepairInterface`, `UInventoryItemFieldRepair`, `UI_FieldRepairWidget` | Self-repair using consumable repair kits |
-| **Item Dropping** | `DropItemFromInventory()`, `DropItemFromEquipment()` wrappers + RPCs | Drop items from inventory or equipment into the world |
+| **Item Dropping** | `DropItemFromInventory()`, `DropItemFromEquipment()` wrappers + RPCs | Routing is provided, but a game-specific `HandleDropItemFrom*` override is required to spawn safely |
 
 If you had custom implementations for any of these, you can keep your logic by overriding the corresponding `Handle*` methods on your `UInventoryNetComponent` subclass.
 
@@ -138,13 +138,13 @@ These have default implementations returning `nullptr`, so no action required un
 
 ### 8. `IInventoryHUDInterface` — Events and Window Registry (**Major**)
 
-All `IInventoryHUDInterface` methods have been converted from `BlueprintImplementableEvent` (pure Blueprint) to `BlueprintNativeEvent` with full C++ default implementations. The defaults dispatch through a new window-registry pattern — no Blueprint HUD overrides are required for the new UI features to work.
+HUD display events have been converted from `BlueprintImplementableEvent` (pure Blueprint) to `BlueprintNativeEvent` with C++ default implementations. The defaults dispatch through a window-registry pattern. Blueprint event overrides are optional, but the game must still return a valid HUD object, retain registered windows, and explicitly connect replicated session state to the HUD when that behavior is desired.
 
 **What changed:**
 
 | Before | After |
 |--------|-------|
-| `BlueprintImplementableEvent` — must implement in Blueprint | `BlueprintNativeEvent` — C++ defaults work out of the box |
+| `BlueprintImplementableEvent` — must implement in Blueprint | `BlueprintNativeEvent` — C++ default implementation is available |
 | `HandleBag(EBagSlot, UBagWidget*)` — pure virtual | `HandleBag(EBagSlot, const TScriptInterface<IInventoryBagWindowInterface>&)` — NativeEvent with default |
 | No window registry | `Register*Window()` / `Get*Window()` pairs for each window type |
 | No lazy widget creation | `Get*WindowClass()` NativeEvents for on-demand instantiation |
@@ -188,8 +188,8 @@ These have default implementations and don't require changes unless you use rang
 - [ ] Add `UInventoryNetComponent` to PlayerController constructor
 - [ ] Implement `GetInventoryNetComponent()` pure virtual
 - [ ] Remove all `Server_*` UFUNCTION declarations and `_Implementation`/`_Validate` bodies from PlayerController
-- [ ] Delegate `TransactionBoolean`, `MerchantActor`, `LootedActor` getters/setters to net component
-- [ ] Add `DOREPLIFETIME` for `InventoryNetComponent` in `GetLifetimeReplicatedProps()`
+- [ ] Delegate `TransactionBoolean`, `MerchantActor`, and `LootedActor` getters/setters to the net component
+- [ ] Enable replication on each data component; do not add redundant replicated component-pointer properties for constructor-created default subobjects
 - [ ] Update `PlayerRemoveItem` overrides to return `float` instead of `void`
 - [ ] Update `FInventoryItemAdd` delegate bindings (now 4 params)
 - [ ] Optionally subclass `UInventoryNetComponent` for game-specific Handle/Validate overrides
@@ -225,6 +225,21 @@ The Inventory Plugin is a fully replicated, grid-based inventory and equipment s
 - Unreal Engine 5.0+
 - C++ project
 - Four framework classes: `GameInstance`, `GameMode`, `PlayerController`, `Character`
+
+### Integration Responsibility Matrix
+
+| System | Required consumer work | Plugin default |
+|--------|------------------------|----------------|
+| Core inventory | Implement the GameInstance, GameMode, and PlayerController interfaces; create and replicate the inventory, purse, and staging components | Grid storage, item movement, equip/unequip RPC handling |
+| Equipment | Implement `IEquipmentInterface`; create and replicate `UEquipmentComponent`; connect visual meshes | Equipment state and automatic bag/quiver activation on equip and deactivation on unequip |
+| HUD | Return a valid HUD interface/object from the PlayerController and retain registered window widgets | Dispatch and lazy creation for bag, loot, merchant, repair, and field-repair windows |
+| Bank | Create bank item/coin components and override `GetBankComponent()` / `GetBankCoin()` | Optional interface defaults return `nullptr` |
+| Keyring | Create a keyring component and override `GetKeyring()` | Optional interface default returns `nullptr` |
+| Player trade | Create `UTradeComponent`, override `GetLocalTradeComponent()`, and register a trade window | Replicated trade state and Server RPC handling; no lazy trade-window creation |
+| Repair | Provide repair actors/interfaces and the desired repair window | NPC and field-repair handlers plus lazy repair-window creation |
+| World dropping | Override both drop handlers in a net-component subclass and provide a safe spawn/rollback policy | Current defaults remove the item/equipment and log a warning; they do not spawn a world actor |
+
+> **Known code limitation — durability on default spawns:** `SpawnItemFromActor(..., Durability)` and `SpawnItemFromActorRaw(..., Durability)` currently accept a durability argument but do not pass it to the spawned `ADroppedItem`. Until the source implementation is corrected, custom drop code must explicitly call `SetDurability()` (or use a corrected game-side spawn function). Do not rely on the argument alone to preserve durability.
 
 ---
 
@@ -296,7 +311,7 @@ Character (IEquipmentInterface + IInventoryModularCharacterInterface)
     +-- UEquipmentComponent     (worn items + visual meshes)
 ```
 
-All state changes are server-authoritative. The `UInventoryNetComponent` owns every `UFUNCTION(Server, Reliable)` RPC for inventory operations (loot, equip, trade, merchant, repair, etc.). Data components replicate via `ReplicatedUsing` callbacks that fire delegates for UI updates.
+Inventory mutations are server-authoritative. The `UInventoryNetComponent` owns the Server RPCs for inventory operations (loot, equip, trade, merchant, repair, etc.). Selected RPCs use `WithValidation`; others rely on their handler guards. Data components replicate their own state via `ReplicatedUsing` callbacks that fire delegates for UI updates. The net component's `LootedActor`, `MerchantActor`, and `RepairerActor` references replicate owner-only; `TransactionBoolean` is local-only.
 
 ---
 
@@ -425,6 +440,8 @@ UTexture2D* UYourGameInstance::GetPlatinumCoinIconTexture() const { return Plati
 
 Your `GameMode` implements `IInventoryGameModeInterface`. The spawn methods (`SpawnItemFromActor`, `SpawnCoinsFromActor`, etc.) have **default implementations** in the interface - you only need to override `FetchItemFromID` and `RegisterItem`.
 
+This is sufficient for the basic built-in dropped-actor types. Override the spawn methods if the game needs custom actor subclasses or transactional persistence. The current item spawn defaults also ignore their `Durability` argument; see the known limitation above.
+
 **Header:**
 ```cpp
 #pragma once
@@ -469,7 +486,7 @@ void AYourGameMode::RegisterItem(UInventoryItemBase* NewItem)
 
 ### Step 3: PlayerController - Inventory Components and Net Component
 
-Your `PlayerController` implements `IInventoryPlayerInterface` and creates all inventory-related components, including the `UInventoryNetComponent` that owns every Server RPC.
+Your `PlayerController` implements `IInventoryPlayerInterface` and creates its inventory-related components, including the `UInventoryNetComponent` that owns the plugin's inventory Server RPCs.
 
 **Header:**
 ```cpp
@@ -484,6 +501,10 @@ class UInventoryNetComponent;
 class UCoinComponent;
 class UStagingAreaComponent;
 class UBankComponent;
+class UKeyringComponent;
+class UTradeComponent;
+class UUserWidget;
+class IInventoryHUDInterface;
 
 UCLASS()
 class YOURPROJECT_API AYourPlayerController : public APlayerController,
@@ -516,26 +537,42 @@ public:
     virtual UStagingAreaComponent* GetStagingAreaItems() override;
     virtual FOnWeightChanged& GetWeightChangedDelegate() override;
 
+    // Optional systems shown in this example. Their interface defaults return nullptr,
+    // so override the getters whenever the corresponding component is installed.
+    virtual UCoinComponent* GetBankCoin() const override;
+    virtual UBankComponent* GetBankComponent() const override;
+    virtual UKeyringComponent* GetKeyring() const override;
+    virtual UTradeComponent* GetLocalTradeComponent() const override;
+
 protected:
-    UPROPERTY(Replicated, BlueprintReadOnly, Category = "Inventory")
-    UInventoryNetComponent* InventoryNetComponent;
-    UPROPERTY(Replicated, BlueprintReadOnly, Category = "Inventory")
-    UInventoryComponent* Inventory;
-    UPROPERTY(Replicated, BlueprintReadOnly, Category = "Inventory")
-    UCoinComponent* CoinPurse;
-    UPROPERTY(Replicated, BlueprintReadOnly, Category = "Inventory")
-    UStagingAreaComponent* StagingAreaItems;
-    UPROPERTY(Replicated, BlueprintReadOnly, Category = "Inventory")
-    UCoinComponent* StagingAreaCoin;
-    UPROPERTY(Replicated, BlueprintReadOnly, Category = "Inventory")
-    UBankComponent* BankComponent;
-    UPROPERTY(Replicated, BlueprintReadOnly, Category = "Inventory")
-    UCoinComponent* BankCoin;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Inventory")
+    TObjectPtr<UInventoryNetComponent> InventoryNetComponent;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Inventory")
+    TObjectPtr<UInventoryComponent> Inventory;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Inventory")
+    TObjectPtr<UCoinComponent> CoinPurse;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Inventory")
+    TObjectPtr<UStagingAreaComponent> StagingAreaItems;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Inventory")
+    TObjectPtr<UCoinComponent> StagingAreaCoin;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Inventory")
+    TObjectPtr<UBankComponent> BankComponent;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Inventory")
+    TObjectPtr<UCoinComponent> BankCoin;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Inventory")
+    TObjectPtr<UKeyringComponent> KeyringComponent;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Inventory")
+    TObjectPtr<UTradeComponent> TradeComponent;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Inventory|UI")
+    TSubclassOf<UUserWidget> InventoryHUDClass;
+    UPROPERTY(Transient)
+    TObjectPtr<UUserWidget> InventoryHUD;
 
     UPROPERTY(BlueprintAssignable)
     FOnWeightChanged WeightDispatcher;
 
-    virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+    virtual void BeginPlay() override;
 };
 ```
 
@@ -547,11 +584,14 @@ protected:
 #include "Components/CoinComponent.h"
 #include "Components/StagingAreaComponent.h"
 #include "Components/BankComponent.h"
-#include "Net/UnrealNetwork.h"
+#include "Components/KeyringComponent.h"
+#include "Components/TradeComponent.h"
+#include "Interfaces/InventoryHUDInterface.h"
+#include "Blueprint/UserWidget.h"
 
 AYourPlayerController::AYourPlayerController()
 {
-    // Net component owns all Server RPCs and replicated interaction state
+    // Net component owns inventory Server RPCs, owner-only actor references, and local transaction state
     InventoryNetComponent = CreateDefaultSubobject<UInventoryNetComponent>(TEXT("InventoryNetComponent"));
 
     Inventory = CreateDefaultSubobject<UInventoryComponent>(TEXT("Inventory"));
@@ -577,19 +617,34 @@ AYourPlayerController::AYourPlayerController()
     BankCoin = CreateDefaultSubobject<UCoinComponent>(TEXT("BankCoin"));
     BankCoin->SetNetAddressable();
     BankCoin->SetIsReplicated(true);
+
+    KeyringComponent = CreateDefaultSubobject<UKeyringComponent>(TEXT("KeyringComponent"));
+    KeyringComponent->SetNetAddressable();
+    KeyringComponent->SetIsReplicated(true);
+
+    // UTradeComponent, like UInventoryNetComponent, enables replication by default.
+    TradeComponent = CreateDefaultSubobject<UTradeComponent>(TEXT("TradeComponent"));
 }
 
-void AYourPlayerController::GetLifetimeReplicatedProps(
-    TArray<FLifetimeProperty>& OutLifetimeProps) const
+void AYourPlayerController::BeginPlay()
 {
-    Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-    DOREPLIFETIME(AYourPlayerController, InventoryNetComponent);
-    DOREPLIFETIME(AYourPlayerController, Inventory);
-    DOREPLIFETIME(AYourPlayerController, CoinPurse);
-    DOREPLIFETIME(AYourPlayerController, StagingAreaItems);
-    DOREPLIFETIME(AYourPlayerController, StagingAreaCoin);
-    DOREPLIFETIME(AYourPlayerController, BankComponent);
-    DOREPLIFETIME(AYourPlayerController, BankCoin);
+    Super::BeginPlay();
+
+    // HUD widgets are local-only. The PlayerController getters below are the bridge used by
+    // plugin components and interface wrappers to dispatch UI events.
+    if (IsLocalController() && InventoryHUDClass)
+    {
+        InventoryHUD = CreateWidget<UUserWidget>(this, InventoryHUDClass);
+        if (InventoryHUD && InventoryHUD->GetClass()->ImplementsInterface(UInventoryHUDInterface::StaticClass()))
+        {
+            InventoryHUD->AddToViewport();
+        }
+        else
+        {
+            UE_LOG(LogTemp, Error, TEXT("InventoryHUDClass must implement IInventoryHUDInterface"));
+            InventoryHUD = nullptr;
+        }
+    }
 }
 
 // Interface getters - delegate to components
@@ -652,11 +707,29 @@ void AYourPlayerController::SetLootedActor(AActor* Actor)
 UCoinComponent* AYourPlayerController::GetStagingAreaCoin() { return StagingAreaCoin; }
 UStagingAreaComponent* AYourPlayerController::GetStagingAreaItems() { return StagingAreaItems; }
 FOnWeightChanged& AYourPlayerController::GetWeightChangedDelegate() { return WeightDispatcher; }
+
+IInventoryHUDInterface* AYourPlayerController::GetInventoryHUDInterface()
+{
+    return Cast<IInventoryHUDInterface>(InventoryHUD.Get());
+}
+
+UObject* AYourPlayerController::GetInventoryHUDObject()
+{
+    return InventoryHUD.Get();
+}
+
+UCoinComponent* AYourPlayerController::GetBankCoin() const { return BankCoin; }
+UBankComponent* AYourPlayerController::GetBankComponent() const { return BankComponent; }
+UKeyringComponent* AYourPlayerController::GetKeyring() const { return KeyringComponent; }
+UTradeComponent* AYourPlayerController::GetLocalTradeComponent() const { return TradeComponent; }
 ```
 
 **Key points:**
-- `TransactionBoolean`, `MerchantActor`, `LootedActor`, and `RepairerActor` live on `UInventoryNetComponent` as replicated properties. The interface getters delegate to the component.
+- `MerchantActor`, `LootedActor`, and `RepairerActor` live on `UInventoryNetComponent` as owner-only replicated properties. `TransactionBoolean` is stored there too, but is local-only. The PlayerController interface getters delegate to the component.
 - `UInventoryNetComponent` calls `SetIsReplicatedByDefault(true)` in its own constructor, so you do **not** need to call `SetNetAddressable()` or `SetIsReplicated(true)` on it.
+- Constructor-created replicated ActorComponents replicate their internal properties after `SetIsReplicated(true)` (or `SetIsReplicatedByDefault(true)`). Replicating the owning class's component pointer with `DOREPLIFETIME` is redundant for these default subobjects.
+- `GetInventoryHUDInterface()` and `GetInventoryHUDObject()` must refer to the same live UObject. Several plugin call paths dispatch directly through these getters.
+- If bank, keyring, or trade is omitted, do not create the component and leave its optional getter at the `nullptr` default. Do not create a component while forgetting to override its getter.
 
 ---
 
@@ -700,10 +773,10 @@ public:
     // See IInventoryModularCharacterInterface for the full list.
 
 protected:
-    UPROPERTY(Replicated, BlueprintReadOnly, Category = "Equipment")
-    UEquipmentComponent* Equipment;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Equipment")
+    TObjectPtr<UEquipmentComponent> Equipment;
 
-    virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+    virtual void BeginPlay() override;
 };
 ```
 
@@ -711,7 +784,6 @@ protected:
 ```cpp
 #include "YourCharacter.h"
 #include "Components/EquipmentComponent.h"
-#include "Net/UnrealNetwork.h"
 
 AYourCharacter::AYourCharacter(const FObjectInitializer& ObjectInitializer)
     : Super(ObjectInitializer)
@@ -727,20 +799,12 @@ void AYourCharacter::BeginPlay()
 {
     Super::BeginPlay();
 
-    // Connect the character's base skeletal mesh to the equipment component so it can
-    // attach weapon/sheath meshes.  On the authority (server) the equipment state is
-    // managed via replicated data; the visual mesh setup is only needed on clients.
-    if (!HasAuthority())
+    // Standalone and listen-server hosts also render equipment. Skip visual setup only
+    // on a dedicated server, which has no local scene to render.
+    if (GetNetMode() != NM_DedicatedServer)
     {
         Equipment->UpdateMasterMeshComponent(GetMesh());
     }
-}
-
-void AYourCharacter::GetLifetimeReplicatedProps(
-    TArray<FLifetimeProperty>& OutLifetimeProps) const
-{
-    Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-    DOREPLIFETIME(AYourCharacter, Equipment);
 }
 
 UEquipmentComponent* AYourCharacter::GetEquipmentComponent() { return Equipment; }
@@ -751,17 +815,23 @@ const UEquipmentComponent* AYourCharacter::GetEquipmentComponentConst() const { 
 
 ### Step 5: HUD — Window Registry
 
-Your HUD widget implements `IInventoryHUDInterface` and acts as the plugin's UI dispatch point. All `IInventoryHUDInterface` methods are `BlueprintNativeEvent` with C++ defaults — they work automatically as long as you implement the window registry accessors so the plugin can locate each window widget.
+Your HUD widget implements `IInventoryHUDInterface` and acts as the plugin's UI dispatch point. The display methods are `BlueprintNativeEvent`s with C++ defaults, but the registry accessors themselves default to empty/no-op implementations. Your HUD must retain and return registered windows for later hide, refresh, and reuse calls.
 
 #### How the dispatch model works
 
-Every window type has a dedicated interface the plugin dispatches through. When the plugin needs to open a window (e.g. `DisplayLootScreen`), it:
+Each displayed widget has an interface the plugin dispatches through. For a lazy-capable window such as loot, `DisplayLootScreen`:
 
 1. Calls `GetLootWindow()` on the HUD to retrieve the registered window.
 2. If none is registered and `GetLootWindowClass()` returns a valid class, it instantiates the widget lazily and registers it automatically.
 3. Calls `Execute_InitLootWindow` / `Execute_ShowLootWindow` on the window widget.
 
-Your responsibility is to (a) store the window widgets, (b) expose them through the registry accessors, and (c) ensure each widget class implements the corresponding interface.
+Your responsibility is to (a) store the window widgets in GC-tracked properties, (b) expose them through the registry accessors, and (c) ensure each widget class implements the corresponding interface.
+
+The lifecycle is not identical for every UI type:
+
+- **Lazy-created and registered:** bag, loot, merchant, repair, and field repair.
+- **Must be created and registered by the game:** main inventory, keyring, and trade.
+- **Created per display rather than kept in this registry:** item descriptions and books/notes.
 
 #### Window interface contracts
 
@@ -829,25 +899,41 @@ public:
         return Out;
     }
 
-    // Override to supply custom draggable wrapper classes for lazy creation
-    virtual TSubclassOf<UUserWidget> GetLootWindowClass_Implementation() const override       { return LootWindowClass; }
-    virtual TSubclassOf<UUserWidget> GetMerchantWindowClass_Implementation() const override   { return MerchantWindowClass; }
-    virtual TSubclassOf<UUserWidget> GetBagWindowClass_Implementation() const override        { return BagWindowClass; }
-    virtual TSubclassOf<UUserWidget> GetRepairWindowClass_Implementation() const override     { return RepairWindowClass; }
-    virtual TSubclassOf<UUserWidget> GetFieldRepairWidgetClass_Implementation() const override{ return FieldRepairWindowClass; }
+    // Use a custom wrapper when assigned; otherwise preserve the plugin's built-in default.
+    virtual TSubclassOf<UUserWidget> GetLootWindowClass_Implementation() const override
+        { return LootWindowClass ? LootWindowClass : IInventoryHUDInterface::GetLootWindowClass_Implementation(); }
+    virtual TSubclassOf<UUserWidget> GetMerchantWindowClass_Implementation() const override
+        { return MerchantWindowClass ? MerchantWindowClass : IInventoryHUDInterface::GetMerchantWindowClass_Implementation(); }
+    virtual TSubclassOf<UUserWidget> GetBagWindowClass_Implementation() const override
+        { return BagWindowClass ? BagWindowClass : IInventoryHUDInterface::GetBagWindowClass_Implementation(); }
+    virtual TSubclassOf<UUserWidget> GetRepairWindowClass_Implementation() const override
+        { return RepairWindowClass ? RepairWindowClass : IInventoryHUDInterface::GetRepairWindowClass_Implementation(); }
+    virtual TSubclassOf<UUserWidget> GetFieldRepairWidgetClass_Implementation() const override
+        { return FieldRepairWindowClass ? FieldRepairWindowClass : IInventoryHUDInterface::GetFieldRepairWidgetClass_Implementation(); }
 
 protected:
     // Window storage
+    UPROPERTY(Transient)
     TScriptInterface<IInventoryWindowInterface>         InventoryWindow;
+    UPROPERTY(Transient)
     TScriptInterface<IKeyringWindowInterface>           KeyringWindow;
+    UPROPERTY(Transient)
     TScriptInterface<IInventoryLootWindowInterface>     LootWindow;
+    UPROPERTY(Transient)
     TScriptInterface<IInventoryMerchantWindowInterface> MerchantWindow;
+    UPROPERTY(Transient)
     TScriptInterface<IInventoryRepairWindowInterface>   RepairWindow;
+    UPROPERTY(Transient)
     TScriptInterface<ITradeWindowInterface>             TradeWindow;
+    UPROPERTY(Transient)
     TScriptInterface<IFieldRepairWidgetInterface>       FieldRepairWindow;
+    UPROPERTY(Transient)
     TMap<EBagSlot, TScriptInterface<IInventoryBagWindowInterface>> BagWindowMap;
 
-    // Assign in the Blueprint subclass to enable lazy window creation
+    // Assign in the Blueprint subclass. Inventory is pre-created below; the other
+    // classes override plugin lazy-creation defaults when a game-specific wrapper is wanted.
+    UPROPERTY(EditDefaultsOnly, Category = "Inventory|Windows")
+    TSubclassOf<UUserWidget> InventoryWindowClass;
     UPROPERTY(EditDefaultsOnly, Category = "Inventory|Windows")
     TSubclassOf<UUserWidget> LootWindowClass;
     UPROPERTY(EditDefaultsOnly, Category = "Inventory|Windows")
@@ -871,20 +957,33 @@ void UYourHUDWidget::NativeConstruct()
     Super::NativeConstruct();
 
     // Pre-create the main inventory window
-    if (UUserWidget* W = CreateWidget<UUserWidget>(GetOwningPlayer(), InventoryWindowClass))
+    if (!InventoryWindow.GetObject() && InventoryWindowClass &&
+        InventoryWindowClass->ImplementsInterface(UInventoryWindowInterface::StaticClass()))
     {
-        W->AddToViewport();
-        RegisterInventoryWindow(TScriptInterface<IInventoryWindowInterface>(W));
+        if (UUserWidget* W = CreateWidget<UUserWidget>(GetOwningPlayer(), InventoryWindowClass))
+        {
+            W->AddToViewport();
+            RegisterInventoryWindow(TScriptInterface<IInventoryWindowInterface>(W));
+            IInventoryWindowInterface::Execute_HideInventoryWindow(W);
+        }
     }
 
     // Pre-create a bag window for each bag slot the player can equip
-    for (EBagSlot Slot : { EBagSlot::WaistBag1, EBagSlot::WaistBag2,
-                            EBagSlot::BackPack1, EBagSlot::BackPack2 })
+    if (BagWindowClass &&
+        BagWindowClass->ImplementsInterface(UInventoryBagWindowInterface::StaticClass()))
     {
-        if (UUserWidget* BagW = CreateWidget<UUserWidget>(GetOwningPlayer(), BagWindowClass))
+        for (EBagSlot Slot : { EBagSlot::WaistBag1, EBagSlot::WaistBag2,
+                              EBagSlot::BackPack1, EBagSlot::BackPack2 })
         {
-            BagW->AddToViewport();
-            RegisterBagWindowForSlot(Slot, TScriptInterface<IInventoryBagWindowInterface>(BagW));
+            if (GetBagWindowForSlot(Slot).GetObject())
+                continue;
+
+            if (UUserWidget* BagW = CreateWidget<UUserWidget>(GetOwningPlayer(), BagWindowClass))
+            {
+                BagW->AddToViewport();
+                RegisterBagWindowForSlot(Slot, TScriptInterface<IInventoryBagWindowInterface>(BagW));
+                IInventoryBagWindowInterface::Execute_HideBagWindow(BagW);
+            }
         }
     }
 
@@ -918,9 +1017,9 @@ public:
     virtual bool IsInventoryWindowVisible_Implementation() const override
         { return GetVisibility() != ESlateVisibility::Collapsed; }
     virtual void RefreshInventoryEquipments_Implementation() override
-        { if (EquipmentPanel) EquipmentPanel->RefreshAll(); }
+        { if (EquipmentPanel) EquipmentPanel->ForceRefresh(); }
     virtual void RefreshInventoryGrids_Implementation() override
-        { if (BagsPanel) BagsPanel->RefreshAll(); }
+        { if (BagsPanel) BagsPanel->Refresh(); }
 };
 ```
 
@@ -928,44 +1027,24 @@ public:
 
 ## Inventory Initialization
 
-### Component-Side: Initializing Bags in `BeginPlay()`
+### Component-Side: Bag Lifecycle
 
 Pockets (`Pocket1`, `Pocket2`) are **pre-initialized** at construction time (3×2 grid, `EItemSize::Medium`, validity = `true`) and require no explicit setup. Call `BagSet()` only when you want to override the defaults (e.g. a larger pocket size for a specific character class).
 
-All other bag slots start inactive and must be activated when the corresponding bag item is equipped.
+All other bag slots are constructed but start inactive. The default `IEquipmentInterface` flow activates them automatically when the corresponding bag item is equipped and deactivates them on unequip. For quivers, it also applies and clears the ammo-type restriction.
+
+If a character class needs non-default pockets, add the override to the existing PlayerController `BeginPlay()` from Step 3 (do not define a second `BeginPlay()`):
 
 ```cpp
-void AYourPlayerController::BeginPlay()
+if (HasAuthority() && Inventory)
 {
-    Super::BeginPlay();
-
-    if (HasAuthority() && Inventory)
-    {
-        // Pockets are pre-initialized — only call BagSet if you want non-default dimensions.
-        // Example: larger pockets for a particular class:
-        // Inventory->BagSet(EBagSlot::Pocket1, true, 4, 3, EItemSize::Giant, 1.0f);
-
-        // Bag slots start inactive — activated when a bag item is equipped
-        Inventory->BagSet(EBagSlot::WaistBag1, false, 0, 0, EItemSize::Tiny, 1.0f);
-        Inventory->BagSet(EBagSlot::WaistBag2, false, 0, 0, EItemSize::Tiny, 1.0f);
-        Inventory->BagSet(EBagSlot::BackPack1, false, 0, 0, EItemSize::Tiny, 1.0f);
-        Inventory->BagSet(EBagSlot::BackPack2, false, 0, 0, EItemSize::Tiny, 1.0f);
-    }
+    Inventory->BagSet(EBagSlot::Pocket1, true, 4, 3, EItemSize::Giant, 1.0f);
 }
 ```
 
-When a bag item is equipped, activate its corresponding inventory slot:
+Create and register the keyring and trade windows in the same guarded manner when those optional systems are enabled; neither has a lazy `Get*WindowClass()` path. The guards matter because `NativeConstruct()` may run again if a widget is removed and re-added.
 
-```cpp
-// After equipping a bag item, expand the inventory
-UInventoryItemBag* BagItem = Cast<UInventoryItemBag>(EquippedItem);
-if (BagItem && BagItem->IsBag())
-{
-    EBagSlot BagSlot = UInventoryComponent::GetBagSlotFromInventory(EquipmentSlot);
-    Inventory->BagSet(BagSlot, true, BagItem->GetBagWidth(), BagItem->GetBagHeight(),
-                      BagItem->GetBagSize(), BagItem->GetWeightReduction());
-}
-```
+Do **not** repeat `BagSet()` after a normal `IEquipmentInterface::EquipItem` call. `HandleEquipmentEffect()` already maps the equipment slot, configures the grid, converts the item's reduction value to the storage ratio with `Clamp(1 - GetWeightReduction(), 0, 1)`, and performs quiver-specific setup. A second manual call is redundant and can apply the wrong weight ratio. If you override `HandleEquipmentEffect()` or `HandleUnEquipmentEffect()`, call the base implementation to retain this lifecycle.
 
 ### Widget-Side: Initializing `UInventoryGridWidget`
 
@@ -1004,7 +1083,7 @@ LootGrid->InitData(LootableActor, EBagSlot::LootPool);
 
 ## UI Integration
 
-The plugin provides ready-made UMG widgets in `Plugins/UE5Inventory/Content/UI/`. Key widgets:
+The plugin provides ready-made UMG widgets under the `/InventoryPlugin/UI/` content mount. Key widgets:
 
 | Widget | Purpose | Implements interface |
 |--------|---------|---------------------|
@@ -1013,20 +1092,20 @@ The plugin provides ready-made UMG widgets in `Plugins/UE5Inventory/Content/UI/`
 | `UI_EquipmentSlot` | Single equipment slot | — |
 | `UI_Purse` | Currency display | — |
 | `UI_LootWidget` | Loot window | `IInventoryLootWindowInterface` |
-| `UI_MerchantSellWidget` | Merchant buy/sell (inner) | — |
+| `UI_MerchantSellwidget` | Merchant buy/sell / default merchant window | `IInventoryMerchantWindowInterface` |
 | `UI_MerchantItemList` | Merchant item list | — |
 | `UI_BankWidget` | Bank storage | — |
 | `UI_TradeWidget` | Player-to-player trade (inner) | — |
-| `UI_RepairWidget` | NPC repair (inner) | — |
+| `UI_RepairWidget` | NPC repair / default repair window | `IInventoryRepairWindowInterface` |
 | `UI_BookWidget` | Readable book display | `IInventoryBookWidgetInterface` |
 | `UI_KeyringWidget` | Keyring display | `IKeyringWindowInterface` |
 | `UI_FieldRepairWidget` | Field repair (inner) | `IFieldRepairWidgetInterface` |
 
-Widget logic that was previously in Blueprint event graphs has been migrated to C++. Customization is done by subclassing the C++ widget and overriding its virtual methods — not by editing the Blueprint graph.
+Core widget behavior is implemented in C++. Customize it by subclassing the C++ widget and overriding its virtual/`BlueprintNativeEvent` methods; Blueprint subclasses may still provide layout, bindings, animations, and NativeEvent overrides.
 
 ### Connecting the HUD
 
-The window registry you set up in [Step 5](#step-5-hud--window-registry) is what connects the plugin's C++ dispatch to your UI. Once registered, calls like `DisplayLootScreen`, `DisplayMerchantScreen`, and `DisplayBag` work automatically without any Blueprint override.
+The window registry from [Step 5](#step-5-hud--window-registry) connects the plugin's C++ dispatch to your UI. Once the PlayerController returns that HUD object and the HUD retains its registered windows, calls such as `DisplayLootScreen`, `DisplayMerchantScreen`, and `DisplayBag` use the C++ defaults without requiring Blueprint event-graph glue.
 
 Bind component delegates for data-driven UI updates:
 
@@ -1048,7 +1127,7 @@ When `DisplayLootScreen(LootActor)` is called, the C++ default:
 4. Calls `Execute_ShowLootWindow()`.
 5. Positions the window near the mouse cursor on first creation.
 
-The same four-step pattern applies to merchant, repair, trade, field repair, bag, and item description windows.
+Merchant, repair, field repair, and bag windows use the same registered/lazy-created pattern. Trade requires a pre-registered window. The main inventory and keyring also require registration. Item descriptions and books are created per display and are not stored in these registry accessors.
 
 ### `UInventoryGridWidget` — editor-friendly initialization
 
@@ -1073,17 +1152,20 @@ All inventory mutations happen on the server via `UInventoryNetComponent`'s Serv
 4. Server modifies component state (e.g., `UInventoryComponent`, `UEquipmentComponent`)
 5. `ReplicatedUsing` callback fires on clients -> delegates broadcast -> UI updates
 
+**Loot ownership contract:** `ULootPoolComponent::Items` is owner-only. After a custom lootable accepts `StartLooting(Looter)` and reports itself as being looted, `UInventoryNetComponent` temporarily assigns the loot actor to the looting PlayerController, flushes dormancy, and restores the previous owner when the session stops. Custom lootables must implement consistent `StartLooting` / `StopLooting` acceptance state; consuming game actors should not independently retarget ownership around this plugin-managed session.
+
 **Component setup checklist:**
 - `CreateDefaultSubobject<>()` in constructor for all components
 - `SetNetAddressable()` + `SetIsReplicated(true)` on data components (`UInventoryComponent`, `UCoinComponent`, etc.)
 - `UInventoryNetComponent` handles its own replication setup (`SetIsReplicatedByDefault(true)`)
-- `DOREPLIFETIME()` in `GetLifetimeReplicatedProps()` for all replicated component UPROPERTYs
+- Do not mark constructor-created component pointer properties as replicated merely to replicate the component. The component's own replication setting and its internal `GetLifetimeReplicatedProps()` control its state.
+- `LootedActor`, `MerchantActor`, and `RepairerActor` replicate owner-only from the net component. Their default `OnRep_*` functions are empty; override them (or drive the HUD through another explicit client-side path) if replicated session changes should open/close UI.
 
 ---
 
 ## Customizing Server Behavior
 
-`UInventoryNetComponent` owns every `UFUNCTION(Server, Reliable, WithValidation)` RPC. Each RPC dispatches to a pair of `virtual` methods:
+`UInventoryNetComponent` owns the inventory Server RPCs. Mutation RPCs that declare `WithValidation` dispatch through `Validate*()` and `Handle*()` methods; several workflow RPCs declare only `Server, Reliable` and dispatch directly to handlers.
 
 - **`Handle*()`** - Performs the actual inventory mutation. Override to add game-specific logic (chat messages, backend saves, lore tracking, etc.).
 - **`Validate*()`** - Runs anti-cheat checks before execution. Override to add extra validation; call `Super::Validate*()` to keep built-in checks.
@@ -1097,7 +1179,7 @@ If the default inventory behavior is sufficient, use `UInventoryNetComponent` di
 InventoryNetComponent = CreateDefaultSubobject<UInventoryNetComponent>(TEXT("InventoryNetComponent"));
 ```
 
-This gives you working loot, equip, trade, merchant, repair, staging, and key operations out of the box.
+This supplies the plugin's default inventory mutations, session state, and RPC routing. It does **not** provide a safe world-drop implementation: both default drop handlers remove the source item/equipment and log that no world actor was spawned. It also does not drive the HUD from replicated actor references because the three default `OnRep_*` methods are empty.
 
 ### Custom Behavior (Subclass)
 
@@ -1133,6 +1215,9 @@ protected:
 
 **Implementation pattern:**
 ```cpp
+#include "Actors/DroppedItem.h"
+#include "Interfaces/InventoryGameModeInterface.h"
+
 void UMyInventoryNetComponent::HandlePlayerLootItem(int32 InTopLeft, EBagSlot InSlot,
                                                      int32 InItemId, int32 OutTopLeft)
 {
@@ -1146,26 +1231,46 @@ void UMyInventoryNetComponent::HandlePlayerLootItem(int32 InTopLeft, EBagSlot In
 void UMyInventoryNetComponent::HandleDropItemFromInventory(int32 TopLeft, EBagSlot Slot,
                                                             FVector DropLocation)
 {
-    // Replace the default behavior with a game-specific one
+    // Replace the destructive plugin default with a game-specific spawn + rollback policy.
     IInventoryPlayerInterface* PlayerInv = GetPlayerInterface();
     if (!PlayerInv)
         return;
 
     const int32 ItemID = PlayerInv->PlayerGetItem(TopLeft, Slot);
-    PlayerInv->PlayerRemoveItem(TopLeft, Slot);
+    if (ItemID <= 0)
+        return;
 
-    // Spawn dropped item via GameMode
-    if (auto* GMI = Cast<IInventoryGameModeInterface>(GetWorld()->GetAuthGameMode()))
-        GMI->SpawnItemFromActor(GetOwner(), ItemID, DropLocation);
+    IInventoryGameModeInterface* GMI =
+        Cast<IInventoryGameModeInterface>(GetWorld()->GetAuthGameMode());
+    if (!GMI)
+        return;
+
+    // PlayerRemoveItem returns the stored durability. If spawning fails, restore the item
+    // to its original slot rather than silently deleting it.
+    const float Durability = PlayerInv->PlayerRemoveItem(TopLeft, Slot);
+    ADroppedItem* Spawned = GMI->SpawnItemFromActor(GetOwner(), ItemID, DropLocation,
+                                                    true, Durability);
+    if (!Spawned)
+    {
+        PlayerInv->PlayerAddItemWithDurability(TopLeft, Slot, ItemID, Durability);
+        return;
+    }
+
+    // Work around the current default GameMode implementation ignoring its Durability argument.
+    Spawned->SetDurability(Durability);
 }
 
 void UMyInventoryNetComponent::OnRep_LootedActor()
 {
+    Super::OnRep_LootedActor();
+
     // Drive your HUD from the replicated state change
     // LootedActor != nullptr -> show loot window
     // LootedActor == nullptr -> hide loot window
 }
 ```
+
+The rollback above assumes the original slot remains available during this synchronous handler. Production projects may prefer a single game-specific helper that validates the source item, spawns and initializes the actor with durability, removes the source only after successful initialization, and destroys the actor if removal cannot be committed. Apply the same policy to `HandleDropItemFromEquipment`.
 
 Then use your subclass in the PlayerController constructor:
 
@@ -1210,16 +1315,17 @@ UTradeComponent*           GetTradeComponent() const;     // Trade component fro
 ### Equipment Not Visible
 
 1. `EquipmentMesh` set on the item Data Asset? (must be `USkeletalMesh`)
-2. `Equipment->UpdateMasterMeshComponent(GetMesh())` called in Character `BeginPlay()` (client-side, i.e. inside a `!HasAuthority()` block)?
-3. Component replicated? Check `DOREPLIFETIME`
+2. `Equipment->UpdateMasterMeshComponent(GetMesh())` called in Character `BeginPlay()` on every rendering instance (standalone, listen-server host, and clients; skip only dedicated servers)?
+3. `UEquipmentComponent` replication enabled on the component?
 
 ### Replication Not Working
 
 1. `SetReplicates(true)` on owning actor
 2. `SetIsReplicated(true)` + `SetNetAddressable()` on data components
 3. `UInventoryNetComponent` created via `CreateDefaultSubobject` (handles its own replication)
-4. `DOREPLIFETIME()` in `GetLifetimeReplicatedProps()` for all replicated UPROPERTYs
-5. Making changes on server, not client
+4. Each component's internal replicated fields are registered in that component's `GetLifetimeReplicatedProps()`; redundant component-pointer replication is not required for default subobjects
+5. Mutations happen on the server
+6. For owner-only state, the owning actor/component has the expected network owner
 
 ### Loot/Merchant/Repair Windows Not Opening
 
@@ -1228,11 +1334,13 @@ The C++ defaults on `IInventoryHUDInterface` dispatch through registered window 
 1. **Window registered?** If `GetLootWindow()` / `GetMerchantWindow()` / `GetRepairWindow()` return empty, `Register*Window()` was never called after widget creation. Follow [Step 5](#step-5-hud--window-registry).
 2. **Widget class set?** If relying on lazy creation, override `GetLootWindowClass_Implementation()` etc. in your HUD C++ class to return a valid `TSubclassOf<UUserWidget>`.
 3. **Interface implemented?** The class returned by `Get*WindowClass()` must implement the corresponding window interface (e.g. `IInventoryLootWindowInterface`). Missing interface → plugin logs a warning and skips the call.
-4. **Prefer delegate-driven HUD driving?** Override `OnRep_LootedActor` in your `UInventoryNetComponent` subclass and call the HUD methods manually:
+4. **Replicated state is not driving the HUD?** The default `OnRep_LootedActor`, `OnRep_MerchantActor`, and `OnRep_RepairerActor` are no-ops. Override the relevant function in your `UInventoryNetComponent` subclass and call the HUD methods explicitly:
 
 ```cpp
 void UMyInventoryNetComponent::OnRep_LootedActor()
 {
+    Super::OnRep_LootedActor();
+
     APlayerController* PC = Cast<APlayerController>(GetOwner());
     IInventoryPlayerInterface* PI = Cast<IInventoryPlayerInterface>(PC);
     if (!PI) return;
@@ -1273,11 +1381,11 @@ If `FItemContainerLine` was previously defined in your project, add to `Config/D
 2. Create **components** in constructors:
    - `UInventoryNetComponent` (or your subclass) for Server RPCs — handles its own replication
    - Data components (`UInventoryComponent`, `UCoinComponent`, etc.) with `SetNetAddressable()` + `SetIsReplicated(true)`
-3. Register **`DOREPLIFETIME`** for all replicated component UPROPERTYs
+3. Let each replicated component register its own internal replicated fields; do not redundantly replicate default-subobject pointer properties
 4. Implement **`GetInventoryNetComponent()`** in your PlayerController to return the net component
-5. Delegate **`GetMerchantActor()`**, **`GetLootedActor()`**, **`GetTransactionBoolean()`** to the net component's replicated properties
+5. Delegate **`GetMerchantActor()`** and **`GetLootedActor()`** to the net component's owner-only replicated references, and **`GetTransactionBoolean()`** to its local transaction guard
 6. Create **items** as Data Assets, register via DataTable in GameInstance
-7. Initialize **bags** in `BeginPlay()` with `BagSet()`
+7. Use the pre-initialized pockets as-is or override their dimensions in `BeginPlay()`; equipment automatically manages equipped bag and quiver slots
 8. Implement the **HUD window registry** in your `IInventoryHUDInterface` class: storage fields, `Register*Window` / `Get*Window` accessors, `Get*WindowClass` overrides for lazy creation, and window interface implementations on each custom widget (see [Step 5](#step-5-hud--window-registry))
 9. Bind **component delegates** for data-driven UI updates
 10. Optionally **subclass** `UInventoryNetComponent` to override `Handle*`/`Validate*` for game-specific behavior
