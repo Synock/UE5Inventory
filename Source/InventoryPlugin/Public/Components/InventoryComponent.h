@@ -7,6 +7,7 @@
 #include "InventoryComponent.generated.h"
 
 class IInventoryItemAmmoInterface;
+class GridBagSolver;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnWeightChanged);
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnFullInventoryComponentChanged);
@@ -39,6 +40,12 @@ class INVENTORYPLUGIN_API UInventoryComponent : public UActorComponent
 	GENERATED_BODY()
 
 public:
+	static bool IsEmptyItemId(int32 ItemID) { return ItemID == INDEX_NONE; }
+	bool CanPlaceItemAt(EBagSlot BagSlot, const UInventoryItemBase* Item, int32 TopLeft) const;
+	bool ReserveItemFootprint(const FGuid& ReservationId, EBagSlot BagSlot,
+		const UInventoryItemBase* Item, int32 TopLeft);
+	void ReleaseItemFootprint(const FGuid& ReservationId);
+	bool HasItemFootprintReservation(const FGuid& ReservationId) const;
 	// Sets default values for this component's properties
 	UInventoryComponent();
 
@@ -187,4 +194,14 @@ public:
 
 	UFUNCTION(Blueprintable, Category="Inventory")
 	bool IsBagValid(EBagSlot InputSlot) const;
+
+private:
+	struct FItemFootprintReservation
+	{
+		EBagSlot BagSlot = EBagSlot::Unknown;
+		TArray<int32> Cells;
+	};
+
+	TMap<FGuid, FItemFootprintReservation> ItemFootprintReservations;
+	void ApplyReservations(EBagSlot BagSlot, GridBagSolver& Solver) const;
 };

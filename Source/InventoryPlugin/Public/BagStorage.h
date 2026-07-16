@@ -22,6 +22,7 @@ public:
 	GridBagSolver(int32 InputWidth, int32 InputHeight);
 
 	void RecordData(const UInventoryItemBase* Item, int32 TopLeft);
+	void RecordBlockedCell(int32 CellIndex);
 
 	bool IsRoomAvailable(const UInventoryItemBase* Item, int TopLeftIndex);
 
@@ -29,7 +30,7 @@ public:
 private:
 	int32 Width = 1;
 	int32 Height = 1;
-	TArray<const  UInventoryItemBase*> Grid;
+	TArray<bool> Grid;
 };
 
 /**

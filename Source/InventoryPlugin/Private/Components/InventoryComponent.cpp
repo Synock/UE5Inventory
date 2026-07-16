@@ -191,7 +191,15 @@ bool UInventoryComponent::UpdateItemDurability(EBagSlot BagSlot, int32 TopLeft, 
 
 void UInventoryComponent::AddItemAt_Implementation(EBagSlot ConsideredBag, int32 ItemID, int32 TopLeftIndex, float Durability)
 {
-	GetRelatedBag(ConsideredBag)->AddItemAt(ItemID, TopLeftIndex, Durability);
+	UBagStorage* Bag = GetRelatedBag(ConsideredBag);
+	const UInventoryItemBase* Item = UInventoryUtilities::GetItemFromID(ItemID, GetWorld());
+	if (!Bag || !Item || !CanPlaceItemAt(ConsideredBag, Item, TopLeftIndex))
+	{
+		UE_LOG(LogInventoryPlugin, Warning, TEXT("AddItemAt rejected invalid or occupied destination: bag=%d topLeft=%d item=%d"),
+			static_cast<int32>(ConsideredBag), TopLeftIndex, ItemID);
+		return;
+	}
+	Bag->AddItemAt(ItemID, TopLeftIndex, Durability);
 	InventoryItemAdd.Broadcast(ConsideredBag, ItemID, TopLeftIndex, Durability);
 }
 
@@ -335,6 +343,7 @@ EBagSlot UInventoryComponent::FindSuitableSlot(const UInventoryItemBase* Item, i
 				continue;
 
 			GridBagSolver Solver = Bag.Bag->GetSolver();
+			ApplyReservations(Bag.Slot, Solver);
 			OutputTopLeftID = Solver.GetFirstValidTopLeft(Item);
 
 			if (const IInventoryItemAmmoBagInterface* Quiver = Cast<IInventoryItemAmmoBagInterface>(Bag.Bag); Quiver)
@@ -354,6 +363,54 @@ EBagSlot UInventoryComponent::FindSuitableSlot(const UInventoryItemBase* Item, i
 	}
 
 	return EBagSlot::Unknown;
+}
+
+bool UInventoryComponent::CanPlaceItemAt(EBagSlot BagSlot, const UInventoryItemBase* Item, int32 TopLeft) const
+{
+	const UBagStorage* Bag = GetRelatedBagConst(BagSlot);
+	if (!Bag || !Bag->IsValidBag() || !Item || TopLeft < 0 || Item->ItemSize > Bag->GetMaxStoreSize())
+		return false;
+	GridBagSolver Solver = Bag->GetSolver();
+	ApplyReservations(BagSlot, Solver);
+	return Solver.IsRoomAvailable(Item, TopLeft);
+}
+
+bool UInventoryComponent::ReserveItemFootprint(const FGuid& ReservationId, EBagSlot BagSlot,
+	const UInventoryItemBase* Item, int32 TopLeft)
+{
+	if (!ReservationId.IsValid() || ItemFootprintReservations.Contains(ReservationId) ||
+		!CanPlaceItemAt(BagSlot, Item, TopLeft))
+		return false;
+	const UBagStorage* Bag = GetRelatedBagConst(BagSlot);
+	if (!Bag)
+		return false;
+	FItemFootprintReservation Reservation;
+	Reservation.BagSlot = BagSlot;
+	const int32 StartX = TopLeft % Bag->GetWidth();
+	const int32 StartY = TopLeft / Bag->GetWidth();
+	for (int32 Y = StartY; Y < StartY + Item->Height; ++Y)
+		for (int32 X = StartX; X < StartX + Item->Width; ++X)
+			Reservation.Cells.Add(X + Y * Bag->GetWidth());
+	ItemFootprintReservations.Add(ReservationId, MoveTemp(Reservation));
+	return true;
+}
+
+void UInventoryComponent::ReleaseItemFootprint(const FGuid& ReservationId)
+{
+	ItemFootprintReservations.Remove(ReservationId);
+}
+
+bool UInventoryComponent::HasItemFootprintReservation(const FGuid& ReservationId) const
+{
+	return ItemFootprintReservations.Contains(ReservationId);
+}
+
+void UInventoryComponent::ApplyReservations(EBagSlot BagSlot, GridBagSolver& Solver) const
+{
+	for (const TPair<FGuid, FItemFootprintReservation>& Pair : ItemFootprintReservations)
+		if (Pair.Value.BagSlot == BagSlot)
+			for (const int32 Cell : Pair.Value.Cells)
+				Solver.RecordBlockedCell(Cell);
 }
 
 //----------------------------------------------------------------------------------------------------------------------

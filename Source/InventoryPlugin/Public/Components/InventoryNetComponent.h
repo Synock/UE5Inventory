@@ -15,6 +15,7 @@ class UStagingAreaComponent;
 class UTradeComponent;
 class UInventoryItemBase;
 class UInventoryItemEquipable;
+class UInventoryDeliveryComponent;
 
 /**
  * @class UInventoryNetComponent
@@ -209,6 +210,12 @@ public:
 	UFUNCTION(Server, Reliable, Category = "Inventory|Staging")
 	void Server_CancelStagingArea();
 
+	UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory|Delivery")
+	void Server_ClaimPendingDelivery(FGuid DeliveryId);
+
+	UFUNCTION(Server, Reliable, Category = "Inventory|Delivery")
+	void Server_ClaimAllPendingDeliveries();
+
 	UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory|Staging")
 	void Server_TransferStagingToActor(AActor* TargetActor);
 
@@ -301,6 +308,8 @@ protected:
 
 	// -- Staging --
 	virtual void HandleCancelStagingArea();
+	virtual void HandleClaimPendingDelivery(FGuid DeliveryId);
+	virtual void HandleClaimAllPendingDeliveries();
 	virtual void HandleTransferStagingToActor(AActor* TargetActor);
 	virtual void HandleMoveEquipmentToStagingArea(int32 InItemId, EEquipmentSlot OutSlot);
 	virtual void HandleMoveInventoryItemToStagingArea(int32 InItemId, int32 OutTopLeft, EBagSlot OutSlot);
@@ -356,6 +365,7 @@ protected:
 
 	// -- Staging --
 	virtual bool ValidateTransferStagingToActor(AActor* TargetActor);
+	virtual bool ValidateClaimPendingDelivery(FGuid DeliveryId);
 	virtual bool ValidateMoveEquipmentToStagingArea(int32 InItemId, EEquipmentSlot OutSlot);
 	virtual bool ValidateMoveInventoryItemToStagingArea(int32 InItemId, int32 OutTopLeft, EBagSlot OutSlot);
 

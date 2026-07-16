@@ -38,4 +38,7 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void AddItemToStagingArea(const FMinimalItemStorage& ItemStorage);
+
+	/** Replaces the staging contents after a partial, lossless rollback. */
+	void SetStagingAreaItems(const TArray<FMinimalItemStorage>& Items);
 };

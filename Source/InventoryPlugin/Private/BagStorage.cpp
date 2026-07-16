@@ -9,7 +9,7 @@
 
 GridBagSolver::GridBagSolver(int32 InputWidth, int32 InputHeight): Width(InputWidth), Height(InputHeight)
 {
-	Grid.Init(nullptr, Width * Height);
+	Grid.Init(false, Width * Height);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -52,7 +52,7 @@ void GridBagSolver::RecordData(const UInventoryItemBase* Item, int32 TopLeft)
 			const int ID = x + y * Width;
 			if (ID >= 0 && ID < Grid.Num())
 			{
-				Grid[ID] = Item;
+				Grid[ID] = true;
 			}
 			else
 			{
@@ -62,6 +62,12 @@ void GridBagSolver::RecordData(const UInventoryItemBase* Item, int32 TopLeft)
 			}
 		}
 	}
+}
+
+void GridBagSolver::RecordBlockedCell(int32 CellIndex)
+{
+	if (Grid.IsValidIndex(CellIndex))
+		Grid[CellIndex] = true;
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -86,7 +92,7 @@ bool GridBagSolver::IsRoomAvailable(const UInventoryItemBase* Item, int TopLeftI
 			if (ID < 0 || ID >= Width * Height)
 				return false;
 
-			if (Grid[ID] != nullptr) //only look for empty stuff
+			if (Grid[ID]) //only look for empty stuff
 			{
 				return false;
 			}

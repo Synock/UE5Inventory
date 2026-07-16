@@ -13,6 +13,7 @@
 #include "InventoryPlayerInterface.generated.h"
 
 class UInventoryNetComponent;
+class UInventoryDeliveryComponent;
 class UKeyringComponent;
 class UBankComponent;
 class UTradeComponent;
@@ -208,6 +209,9 @@ public:
 	 * @return The staging area items as a UStagingAreaComponent object.
 	 */
 	virtual UStagingAreaComponent* GetStagingAreaItems() = 0;
+
+	/** Optional protected-delivery queue. Generic consumers may return nullptr. */
+	virtual UInventoryDeliveryComponent* GetInventoryDeliveryComponent() { return nullptr; }
 
 	/**
 	 * @brief Get the inventory net component that owns the Server RPCs.

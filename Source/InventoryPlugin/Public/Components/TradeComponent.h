@@ -352,6 +352,7 @@ private:
 	 * @param bReturnItems If true, returns items to owner's inventory (used on cancel). If false, items are not returned (used on successful trade).
 	 */
 	void ResetTradeState(bool bReturnItems = true);
+	bool ReturnEscrowedItem(const FTradeItemSlot& ItemSlot);
 
 	/**
 	 * @brief Broadcast a trade action notification to both trading parties
@@ -369,4 +370,3 @@ private:
 	 */
 	FString GetOwnerPlayerName() const;
 };
-

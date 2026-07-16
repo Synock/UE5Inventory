@@ -1,5 +1,24 @@
 # Inventory Plugin - Integration Guide
 
+## Protected pending deliveries
+
+`UInventoryDeliveryComponent` is an optional, queue for items that must not be
+discarded when normal bag placement fails. Attach it to the authoritative actor implementing
+`IInventoryPlayerInterface`, return it from `GetInventoryDeliveryComponent()`, and expose claims through that owner's
+`UInventoryNetComponent`.
+
+`TryDeliverOrQueue()` returns `Placed`, `Queued`, or `Rejected`. Capacity failure is `Queued`; clear escrow only after
+`Placed` or `Queued`. Consumers without a delivery component retain unresolved staging/trade escrow. The plugin
+replicates entries owner-only but provides no database, quest, mail, or game-specific source policy. Bind
+`DeliveryQueuedServer` / `DeliveryClaimedServer` in the consuming game, and override claim handlers when persistence
+must acknowledge a claim before local mutation.
+
+Pending deliveries are deliberately not an `EBagSlot` and expose no equip, sell, trade, activate, stage, or drop
+operations. `UPendingDeliveryWidget` supplies FIFO Claim and Claim All That Fit controls and collapses when empty.
+The queue uses fast-array replication. Claims reserve the complete grid footprint until the consuming game finishes
+its asynchronous acknowledgement, and inventory placement respects those reservations. The native widget has a
+functional fallback layout; games may supply a styled Blueprint subclass with the same optional bindings.
+
 ## Additional Documentation
 
 - **[Interface Implementation Guide](./Interface_Implementation_Guide.md)** - Detailed reference for all plugin interfaces

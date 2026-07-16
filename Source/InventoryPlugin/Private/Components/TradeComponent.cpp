@@ -12,6 +12,7 @@
 #include "Interfaces/TradeInterface.h"
 #include "InventoryPlugin.h"
 #include "Components/CoinComponent.h"
+#include "Components/InventoryDeliveryComponent.h"
 #include "InventoryPlugin.h"
 #include "Components/SphereComponent.h"
 #include "InventoryPlugin.h"
@@ -415,37 +416,8 @@ bool UTradeComponent::RemoveItemFromOffer(int32 SlotIndex)
 	const FTradeItemSlot& ItemSlot = OurOffer.Items[SlotIndex];
 	int32 RemovedItemID = ItemSlot.ItemID;
 
-	// Return item to inventory
-	IInventoryPlayerInterface* InventoryInterface = GetInventoryInterface();
-	if (InventoryInterface)
-	{
-		// Try to return to original location first
-		int32 ItemAtOriginalLocation = InventoryInterface->PlayerGetItem(ItemSlot.SourceTopLeft, ItemSlot.SourceBagSlot);
-
-		if (ItemAtOriginalLocation == 0) // Original location is empty
-		{
-			// Return to original location
-			InventoryInterface->PlayerAddItem(ItemSlot.SourceTopLeft, ItemSlot.SourceBagSlot, ItemSlot.ItemID);
-		}
-		else
-		{
-			// Original location occupied, find a new spot
-			int32 FreeSlot = -1;
-			UInventoryItemBase* Item = UInventoryUtilities::GetItemFromID(ItemSlot.ItemID, GetOwner()->GetWorld());
-			EBagSlot FreeBag = InventoryInterface->GetInventoryComponent()->FindSuitableSlot(Item, FreeSlot);
-
-			if (FreeBag != EBagSlot::Unknown && FreeSlot >= 0)
-			{
-				InventoryInterface->PlayerAddItem(FreeSlot, FreeBag, ItemSlot.ItemID);
-			}
-			else
-			{
-				UE_LOG(LogInventoryPlugin, Warning, TEXT("TradeComponent: Could not find space to return item %d when removing from trade"), ItemSlot.ItemID);
-				// Item is stuck in limbo - consider dropping it or keeping it in trade
-				// For now, we'll still remove it from offer but log the warning
-			}
-		}
-	}
+	if (!ReturnEscrowedItem(ItemSlot))
+		return false;
 
 	OurOffer.Items.RemoveAt(SlotIndex);
 
@@ -847,46 +819,21 @@ void UTradeComponent::ResetTradeState(bool bReturnItems)
 		TradeRangeSphere = nullptr;
 	}
 
-	// Return all items in our offer back to inventory (only if trade was canceled, not completed)
+	// Return every escrowed item or retain unresolved entries. Never discard the only copy.
 	if (bReturnItems)
 	{
-		IInventoryPlayerInterface* InventoryInterface = GetInventoryInterface();
-		if (InventoryInterface && OurOffer.Items.Num() > 0)
+		TArray<FTradeItemSlot> UnresolvedItems;
+		for (const FTradeItemSlot& ItemSlot : OurOffer.Items)
 		{
-			for (const FTradeItemSlot& ItemSlot : OurOffer.Items)
-			{
-				// Try to return to original location first
-				int32 ItemAtOriginalLocation = InventoryInterface->PlayerGetItem(ItemSlot.SourceTopLeft, ItemSlot.SourceBagSlot);
-
-				if (ItemAtOriginalLocation == 0) // Original location is empty
-				{
-					// Return to original location
-					InventoryInterface->PlayerAddItem(ItemSlot.SourceTopLeft, ItemSlot.SourceBagSlot, ItemSlot.ItemID);
-				}
-				else
-				{
-					// Original location occupied, find a new spot
-					int32 FreeSlot = -1;
-					UInventoryItemBase* Item = UInventoryUtilities::GetItemFromID(ItemSlot.ItemID, GetOwner()->GetWorld());
-					EBagSlot FreeBag = InventoryInterface->GetInventoryComponent()->FindSuitableSlot(Item, FreeSlot);
-
-					if (FreeBag != EBagSlot::Unknown && FreeSlot >= 0)
-					{
-						InventoryInterface->PlayerAddItem(FreeSlot, FreeBag, ItemSlot.ItemID);
-					}
-					else
-					{
-						UE_LOG(LogInventoryPlugin, Warning, TEXT("TradeComponent: Could not find space to return item %d when canceling trade"), ItemSlot.ItemID);
-						// Item lost - this is a critical error but should be very rare
-						// In production, might want to queue this for later or drop on ground
-					}
-				}
-			}
+			if (!ReturnEscrowedItem(ItemSlot))
+				UnresolvedItems.Add(ItemSlot);
 		}
+		OurOffer.Items = MoveTemp(UnresolvedItems);
 	}
 
 	TradePartner = nullptr;
-	OurOffer.Reset();
+	if (!bReturnItems || OurOffer.Items.IsEmpty())
+		OurOffer.Reset();
 	TheirOffer.Reset();
 	bIsTrading = false;
 
@@ -909,6 +856,33 @@ void UTradeComponent::ResetTradeState(bool bReturnItems)
 
 	// Reset coin tracking
 	PreviousCoinValue = FCoinValue();
+}
+
+bool UTradeComponent::ReturnEscrowedItem(const FTradeItemSlot& ItemSlot)
+{
+	IInventoryPlayerInterface* InventoryInterface = GetInventoryInterface();
+	if (!InventoryInterface)
+		return false;
+
+	if (UInventoryComponent::IsEmptyItemId(
+		InventoryInterface->PlayerGetItem(ItemSlot.SourceTopLeft, ItemSlot.SourceBagSlot)))
+	{
+		InventoryInterface->PlayerAddItemWithDurability(ItemSlot.SourceTopLeft, ItemSlot.SourceBagSlot,
+			ItemSlot.ItemID, ItemSlot.Durability);
+		return true;
+	}
+
+	UInventoryDeliveryComponent* DeliveryComponent = InventoryInterface->GetInventoryDeliveryComponent();
+	if (!DeliveryComponent)
+		return false;
+
+	FInventoryDeliveryRequest Request;
+	Request.ItemID = ItemSlot.ItemID;
+	Request.Durability = ItemSlot.Durability;
+	Request.Reason = EInventoryDeliveryReason::TradeReturn;
+	Request.PreferredBag = ItemSlot.SourceBagSlot;
+	Request.PreferredTopLeft = ItemSlot.SourceTopLeft;
+	return DeliveryComponent->TryDeliverOrQueue(Request) != EInventoryDeliveryOutcome::Rejected;
 }
 
 //----------------------------------------------------------------------------------------------------------------------

@@ -36,6 +36,12 @@ void UStagingAreaComponent::AddItemToStagingArea(const FMinimalItemStorage& Item
 	StagingAreaItems.Add(ItemStorage);
 }
 
+void UStagingAreaComponent::SetStagingAreaItems(const TArray<FMinimalItemStorage>& Items)
+{
+	StagingAreaItems = Items;
+	StagingAreaDispatcher.Broadcast();
+}
+
 //----------------------------------------------------------------------------------------------------------------------
 
 void UStagingAreaComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const

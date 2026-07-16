@@ -10,6 +10,7 @@
 #include "Components/EquipmentComponent.h"
 #include "InventoryPlugin.h"
 #include "Components/InventoryComponent.h"
+#include "Components/InventoryDeliveryComponent.h"
 #include "InventoryPlugin.h"
 #include "Components/LootPoolComponent.h"
 #include "InventoryPlugin.h"
@@ -408,6 +409,21 @@ bool UInventoryNetComponent::Server_PlayerRepairAllEquipment_Validate(const FCoi
 void UInventoryNetComponent::Server_CancelStagingArea_Implementation()
 {
 	HandleCancelStagingArea();
+}
+
+void UInventoryNetComponent::Server_ClaimPendingDelivery_Implementation(FGuid DeliveryId)
+{
+	HandleClaimPendingDelivery(DeliveryId);
+}
+
+bool UInventoryNetComponent::Server_ClaimPendingDelivery_Validate(FGuid DeliveryId)
+{
+	return ValidateClaimPendingDelivery(DeliveryId);
+}
+
+void UInventoryNetComponent::Server_ClaimAllPendingDeliveries_Implementation()
+{
+	HandleClaimAllPendingDeliveries();
 }
 
 void UInventoryNetComponent::Server_TransferStagingToActor_Implementation(AActor* TargetActor)
@@ -1084,31 +1100,57 @@ void UInventoryNetComponent::HandleCancelStagingArea()
 
 	if (StagingItems)
 	{
+		TArray<FMinimalItemStorage> UnresolvedItems;
 		for (const FMinimalItemStorage& ItemStorage : StagingItems->GetStagingAreaItems())
 		{
-			EEquipmentSlot TriedSlot = EEquipmentSlot::Unknown;
-			EBagSlot TriedBag = EBagSlot::Unknown;
-			int32 InTopLeft = -1;
-
-			if (!PlayerInterface->PlayerTryAutoLootFunction(ItemStorage.ItemID, TriedSlot, InTopLeft, TriedBag))
+			UInventoryDeliveryComponent* DeliveryComponent = PlayerInterface->GetInventoryDeliveryComponent();
+			if (!DeliveryComponent)
 			{
-				UE_LOG(LogInventoryPlugin, Error, TEXT("UInventoryNetComponent: Cannot put item %d back from staging"),
-				       ItemStorage.ItemID);
+				UnresolvedItems.Add(ItemStorage);
 				continue;
 			}
 
-			IEquipmentInterface* Equipment = GetEquipmentInterface();
-			if (TriedSlot != EEquipmentSlot::Unknown && Equipment)
-			{
-				Equipment->EquipItemWithDurability(TriedSlot, ItemStorage.ItemID, ItemStorage.Durability);
-			}
-			else if (TriedBag != EBagSlot::Unknown)
-			{
-				PlayerInterface->PlayerAddItemWithDurability(InTopLeft, TriedBag, ItemStorage.ItemID,
-				                                            ItemStorage.Durability);
-			}
+			FInventoryDeliveryRequest Request;
+			Request.ItemID = ItemStorage.ItemID;
+			Request.Durability = ItemStorage.Durability;
+			Request.Reason = EInventoryDeliveryReason::StagingReturn;
+			Request.bAllowAutoEquip = true;
+			if (DeliveryComponent->TryDeliverOrQueue(Request) == EInventoryDeliveryOutcome::Rejected)
+				UnresolvedItems.Add(ItemStorage);
 		}
-		StagingItems->ClearStagingArea();
+		StagingItems->SetStagingAreaItems(UnresolvedItems);
+	}
+}
+
+void UInventoryNetComponent::HandleClaimPendingDelivery(FGuid DeliveryId)
+{
+	if (!PlayerInterface)
+		return;
+	if (UInventoryDeliveryComponent* DeliveryComponent = PlayerInterface->GetInventoryDeliveryComponent())
+	{
+		const FPendingInventoryDelivery* Delivery = DeliveryComponent->FindDelivery(DeliveryId);
+		EBagSlot Bag = EBagSlot::Unknown;
+		int32 TopLeft = -1;
+		if (Delivery && DeliveryComponent->FindBagDestination(*Delivery, Bag, TopLeft))
+			DeliveryComponent->CommitClaim(DeliveryId, Bag, TopLeft);
+	}
+}
+
+void UInventoryNetComponent::HandleClaimAllPendingDeliveries()
+{
+	if (!PlayerInterface)
+		return;
+	UInventoryDeliveryComponent* DeliveryComponent = PlayerInterface->GetInventoryDeliveryComponent();
+	if (!DeliveryComponent)
+		return;
+
+	const TArray<FPendingInventoryDelivery> Snapshot = DeliveryComponent->GetPendingDeliveries();
+	for (const FPendingInventoryDelivery& Delivery : Snapshot)
+	{
+		EBagSlot Bag = EBagSlot::Unknown;
+		int32 TopLeft = -1;
+		if (DeliveryComponent->FindBagDestination(Delivery, Bag, TopLeft))
+			DeliveryComponent->CommitClaim(Delivery.DeliveryId, Bag, TopLeft);
 	}
 }
 
@@ -1489,6 +1531,11 @@ bool UInventoryNetComponent::ValidatePlayerRepairAllEquipment(const FCoinValue& 
 bool UInventoryNetComponent::ValidateTransferStagingToActor(AActor* TargetActor)
 {
 	return TargetActor != nullptr;
+}
+
+bool UInventoryNetComponent::ValidateClaimPendingDelivery(FGuid DeliveryId)
+{
+	return PlayerInterface && DeliveryId.IsValid() && PlayerInterface->GetInventoryDeliveryComponent();
 }
 
 //----------------------------------------------------------------------------------------------------------------------
