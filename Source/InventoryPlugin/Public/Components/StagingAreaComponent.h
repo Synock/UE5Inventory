@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "InventoryItem.h"
+#include "InventoryEscrow.h"
 #include "StagingAreaComponent.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnStagingAreaChangedDelegate);
@@ -21,7 +21,7 @@ protected:
 	virtual void BeginPlay() override;
 
 	UPROPERTY(ReplicatedUsing=OnRep_StagingAreaItems, BlueprintReadWrite, Category = "Inventory|Staging")
-	TArray<FMinimalItemStorage> StagingAreaItems;
+	TArray<FInventoryEscrowItem> StagingAreaItems;
 
 public:
 	UPROPERTY(BlueprintAssignable, Category="Inventory|Staging")
@@ -31,14 +31,18 @@ public:
 	void OnRep_StagingAreaItems();
 
 	UFUNCTION(BlueprintCallable)
-	const TArray<FMinimalItemStorage>& GetStagingAreaItems() const { return StagingAreaItems; }
+	const TArray<FInventoryEscrowItem>& GetStagingAreaItems() const { return StagingAreaItems; }
+
+	static constexpr int32 MaxStagedItems = 8;
+	bool HasCapacity() const { return StagingAreaItems.Num() < MaxStagedItems; }
+	float GetEscrowWeight() const;
 
 	UFUNCTION(BlueprintCallable)
 	void ClearStagingArea();
 
 	UFUNCTION(BlueprintCallable)
-	void AddItemToStagingArea(const FMinimalItemStorage& ItemStorage);
+	bool AddItemToStagingArea(const FInventoryEscrowItem& ItemStorage);
 
 	/** Replaces the staging contents after a partial, lossless rollback. */
-	void SetStagingAreaItems(const TArray<FMinimalItemStorage>& Items);
+	void SetStagingAreaItems(const TArray<FInventoryEscrowItem>& Items);
 };

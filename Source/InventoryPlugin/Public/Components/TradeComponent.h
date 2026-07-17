@@ -13,6 +13,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnTradeStateChangedDelegate);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnTradeItemsChangedDelegate);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnTradeCoinChangedDelegate);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnTradeAcceptanceChangedDelegate);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnTradeEscrowChangedDelegate);
 
 // Delegates for trade action notifications (for chat messages)
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnTradeItemAddedDelegate, FString, PlayerName, class UInventoryItemBase*, Item, bool, bIsOurOffer);
@@ -43,10 +44,18 @@ struct FTradeItemSlot
 	UPROPERTY(BlueprintReadOnly, Category = "Trade")
 	float Durability = 100.0f;
 
+	UPROPERTY(BlueprintReadOnly, Category = "Trade")
+	FGuid ReservationId;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Trade")
+	float EffectiveWeight = 0.0f;
+
 	FTradeItemSlot() = default;
 
-	FTradeItemSlot(int32 InItemID, EBagSlot InBagSlot, int32 InTopLeft, float InDurability)
-		: ItemID(InItemID), SourceBagSlot(InBagSlot), SourceTopLeft(InTopLeft), Durability(InDurability)
+	FTradeItemSlot(int32 InItemID, EBagSlot InBagSlot, int32 InTopLeft, float InDurability,
+		FGuid InReservationId = FGuid(), float InEffectiveWeight = 0.0f)
+		: ItemID(InItemID), SourceBagSlot(InBagSlot), SourceTopLeft(InTopLeft), Durability(InDurability),
+		  ReservationId(InReservationId), EffectiveWeight(InEffectiveWeight)
 	{
 	}
 
@@ -182,6 +191,9 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Trade")
 	FOnTradeAcceptanceChangedDelegate OnAcceptanceChanged;
 
+	UPROPERTY(BlueprintAssignable, Category = "Trade")
+	FOnTradeEscrowChangedDelegate OnEscrowChanged;
+
 	//------------------------------------------------------------------------------------------------------------------
 	// Trade Action Notification Delegates (for chat messages)
 	//------------------------------------------------------------------------------------------------------------------
@@ -236,6 +248,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Trade")
 	FCoinValue GetTheirCoinOffer() const { return TheirOffer.CoinOffer; }
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Trade")
+	float GetEscrowWeight() const;
 
 	//------------------------------------------------------------------------------------------------------------------
 	// Server-Only Functions (Called by PlayerController RPCs)
@@ -353,6 +368,8 @@ private:
 	 */
 	void ResetTradeState(bool bReturnItems = true);
 	bool ReturnEscrowedItem(const FTradeItemSlot& ItemSlot);
+	void ReleaseOfferReservations();
+	bool RestoreOfferReservations();
 
 	/**
 	 * @brief Broadcast a trade action notification to both trading parties

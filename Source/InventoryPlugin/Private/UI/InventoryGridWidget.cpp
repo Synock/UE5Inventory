@@ -10,12 +10,14 @@
 #include "Components/Border.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Components/InventoryComponent.h"
+#include "Components/InventoryNetComponent.h"
 #include "Components/LootPoolComponent.h"
 #include "Interfaces/InventoryPlayerInterface.h"
 #include "Interfaces/LootableInterface.h"
 #include "Items/Interfaces/InventoryItemBagInterface.h"
 #include "Items/Interfaces/InventoryItemAmmoBagInterface.h"
 #include "Items/Interfaces/InventoryItemAmmoInterface.h"
+#include "UI/PendingDeliveryDragDropOperation.h"
 
 //----------------------------------------------------------------------------------------------------------------------
 // Validation Helper Methods
@@ -826,7 +828,8 @@ void UInventoryGridWidget::NativeOnDragEnter(const FGeometry& InGeometry, const 
 {
 	Super::NativeOnDragEnter(InGeometry, InDragDropEvent, InOperation);
 
-	if (InOperation && Cast<UItemWidget>(InOperation->Payload))
+	if (InOperation && (Cast<UItemWidget>(InOperation->Payload) ||
+		Cast<UPendingDeliveryDragDropOperation>(InOperation)))
 	{
 		DrawDropLocation = true;
 	}
@@ -853,6 +856,23 @@ bool UInventoryGridWidget::NativeOnDrop(const FGeometry& InGeometry, const FDrag
 
 	if (InOperation)
 	{
+		if (UPendingDeliveryDragDropOperation* DeliveryOperation =
+			Cast<UPendingDeliveryDragDropOperation>(InOperation))
+		{
+			const UInventoryItemBase* DeliveryItem = DeliveryOperation->Item;
+			const bool bCanPlace = DeliveryItem && IsValidGridIndex(DraggedItemTopLeftID) &&
+				IsRoomAvailable(DeliveryItem, DraggedItemTopLeftID);
+			if (bCanPlace)
+			{
+				if (IInventoryPlayerInterface* Player = GetInventoryPlayerInterface())
+					if (UInventoryNetComponent* Net = Player->GetInventoryNetComponent())
+						Net->Server_ClaimPendingDeliveryAt(DeliveryOperation->DeliveryId,
+							FInventoryDeliveryDestination::MakeBag(BagID, DraggedItemTopLeftID));
+			}
+			DraggedItemTopLeftID = INDEX_NONE;
+			DrawDropLocation = false;
+			return bCanPlace;
+		}
 		if (UItemWidget* Item = Cast<UItemWidget>(InOperation->Payload))
 		{
 			return HandleItemDrop(Item);
@@ -869,6 +889,16 @@ bool UInventoryGridWidget::NativeOnDragOver(const FGeometry& InGeometry, const F
 {
 	if (InOperation)
 	{
+		if (const UPendingDeliveryDragDropOperation* DeliveryOperation =
+			Cast<UPendingDeliveryDragDropOperation>(InOperation))
+		{
+			if (!DeliveryOperation->Item)
+				return false;
+			const FVector2D LocalPos = InGeometry.AbsoluteToLocal(InDragDropEvent.GetScreenSpacePosition());
+			DraggedItemTopLeftID = GetActualTopLeftCorner(static_cast<float>(LocalPos.X),
+				static_cast<float>(LocalPos.Y), DeliveryOperation->Item->Width, DeliveryOperation->Item->Height);
+			return IsValidGridIndex(DraggedItemTopLeftID);
+		}
 		if (UItemWidget* Item = Cast<UItemWidget>(InOperation->Payload))
 		{
 			const FVector2D LocalPos = InGeometry.AbsoluteToLocal(InDragDropEvent.GetScreenSpacePosition());
@@ -927,16 +957,19 @@ void UInventoryGridWidget::DrawBackground(FPaintContext& Context, const FVector2
 	if (!DragOp)
 		return;
 
-	UItemWidget* Item = Cast<UItemWidget>(DragOp->Payload);
-	if (!Item || !Item->GetReferencedItem())
+	const UItemWidget* ItemWidget = Cast<UItemWidget>(DragOp->Payload);
+	const UPendingDeliveryDragDropOperation* DeliveryOperation = Cast<UPendingDeliveryDragDropOperation>(DragOp);
+	const UInventoryItemBase* Item = ItemWidget ? ItemWidget->GetReferencedItem() :
+		(DeliveryOperation ? DeliveryOperation->Item.Get() : nullptr);
+	if (!Item)
 		return;
 
 	const float ColX = static_cast<float>(DraggedItemTopLeftID % Width) * TileSize;
 	const float RowY = static_cast<float>(DraggedItemTopLeftID / Width) * TileSize;
 	const FVector2D DrawPosition = LocalTopLeft + FVector2D(ColX, RowY);
-	const FVector2D DrawSize = GetItemScreenFootprint(Item);
+	const FVector2D DrawSize(Item->Width * TileSize, Item->Height * TileSize);
 
-	const bool bCanPlace = CanAcceptDrop && IsRoomAvailable(Item->GetReferencedItem(), DraggedItemTopLeftID);
+	const bool bCanPlace = CanAcceptDrop && IsRoomAvailable(Item, DraggedItemTopLeftID);
 	const FLinearColor& Tint = bCanPlace ? DropColorValid : DropColorInvalid;
 
 	UWidgetBlueprintLibrary::DrawBox(Context, DrawPosition, DrawSize, DropHighlightBrush, Tint);

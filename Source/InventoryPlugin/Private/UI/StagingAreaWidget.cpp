@@ -46,11 +46,11 @@ void UStagingAreaWidget::Refresh()
 		return;
 	}
 
-	const TArray<FMinimalItemStorage>& StagingItems = StagingComponent->GetStagingAreaItems();
+	const TArray<FInventoryEscrowItem>& StagingItems = StagingComponent->GetStagingAreaItems();
 
 	// Update slots with staged items
 	int32 SlotIndex = 0;
-	for (const FMinimalItemStorage& StagingItemStorage : StagingItems)
+	for (const FInventoryEscrowItem& StagingItemStorage : StagingItems)
 	{
 		if (SlotIndex >= MaxStagingSlots)
 			break;

@@ -405,6 +405,28 @@ bool UInventoryComponent::HasItemFootprintReservation(const FGuid& ReservationId
 	return ItemFootprintReservations.Contains(ReservationId);
 }
 
+bool UInventoryComponent::HasReservationsInBag(EBagSlot BagSlot) const
+{
+	for (const TPair<FGuid, FItemFootprintReservation>& Pair : ItemFootprintReservations)
+		if (Pair.Value.BagSlot == BagSlot)
+			return true;
+	return false;
+}
+
+bool UInventoryComponent::IsCellReserved(EBagSlot BagSlot, int32 Cell, const FGuid& IgnoredReservation) const
+{
+	for (const TPair<FGuid, FItemFootprintReservation>& Pair : ItemFootprintReservations)
+		if (Pair.Key != IgnoredReservation && Pair.Value.BagSlot == BagSlot && Pair.Value.Cells.Contains(Cell))
+			return true;
+	return false;
+}
+
+float UInventoryComponent::GetEffectiveItemWeight(EBagSlot BagSlot, const UInventoryItemBase* Item) const
+{
+	const UBagStorage* Bag = GetRelatedBagConst(BagSlot);
+	return Item && Bag ? Item->GetWeight() * Bag->GetWeightReductionRatio() : 0.0f;
+}
+
 void UInventoryComponent::ApplyReservations(EBagSlot BagSlot, GridBagSolver& Solver) const
 {
 	for (const TPair<FGuid, FItemFootprintReservation>& Pair : ItemFootprintReservations)
@@ -572,8 +594,15 @@ TScriptInterface<IInventoryItemAmmoInterface> UInventoryComponent::RemoveAmmoFro
 
 bool UInventoryComponent::CanReceiveAllItems(TArray<UInventoryItemBase*> ItemArray)
 {
-	if (ItemArray.Num() == 0)
-		return true;
+	TArray<FInventoryDeliveryDestination> Placements;
+	return FindPlacementsForItems(ItemArray, Placements);
+}
+
+bool UInventoryComponent::FindPlacementsForItems(const TArray<UInventoryItemBase*>& ItemArray,
+	TArray<FInventoryDeliveryDestination>& OutPlacements) const
+{
+	OutPlacements.Reset();
+	OutPlacements.Reserve(ItemArray.Num());
 
 	// Lazily create solvers only when we need them for a specific bag
 	TMap<EBagSlot, GridBagSolver> TempSolvers;
@@ -582,7 +611,7 @@ bool UInventoryComponent::CanReceiveAllItems(TArray<UInventoryItemBase*> ItemArr
 	for (UInventoryItemBase* Item : ItemArray)
 	{
 		if (!Item)
-			continue;
+			return false;
 
 		bool bItemPlaced = false;
 
@@ -616,6 +645,7 @@ bool UInventoryComponent::CanReceiveAllItems(TArray<UInventoryItemBase*> ItemArr
 			{
 				// First time accessing this bag - create solver with current state
 				GridBagSolver NewSolver = BagData.Bag->GetSolver();
+				ApplyReservations(BagData.Slot, NewSolver);
 				TempSolvers.Add(BagData.Slot, NewSolver);
 				TempSolver = TempSolvers.Find(BagData.Slot);
 			}
@@ -626,6 +656,7 @@ bool UInventoryComponent::CanReceiveAllItems(TArray<UInventoryItemBase*> ItemArr
 			{
 				// Item can be placed here, record it in the temporary solver
 				TempSolver->RecordData(Item, TopLeftID);
+				OutPlacements.Add(FInventoryDeliveryDestination::MakeBag(BagData.Slot, TopLeftID));
 				bItemPlaced = true;
 				break;
 			}
@@ -633,7 +664,10 @@ bool UInventoryComponent::CanReceiveAllItems(TArray<UInventoryItemBase*> ItemArr
 
 		// If this item couldn't be placed anywhere, we can't receive all items
 		if (!bItemPlaced)
+		{
+			OutPlacements.Reset();
 			return false;
+		}
 	}
 
 	// All items were successfully placed in the simulation

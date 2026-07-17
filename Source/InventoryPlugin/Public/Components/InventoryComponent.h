@@ -3,6 +3,7 @@
 #include <CoreMinimal.h>
 #include <Components/ActorComponent.h>
 #include "InventoryItem.h"
+#include "InventoryDelivery.h"
 #include "Items/InventoryItemBase.h"
 #include "InventoryComponent.generated.h"
 
@@ -46,6 +47,9 @@ public:
 		const UInventoryItemBase* Item, int32 TopLeft);
 	void ReleaseItemFootprint(const FGuid& ReservationId);
 	bool HasItemFootprintReservation(const FGuid& ReservationId) const;
+	bool HasReservationsInBag(EBagSlot BagSlot) const;
+	bool IsCellReserved(EBagSlot BagSlot, int32 Cell, const FGuid& IgnoredReservation = FGuid()) const;
+	float GetEffectiveItemWeight(EBagSlot BagSlot, const UInventoryItemBase* Item) const;
 	// Sets default values for this component's properties
 	UInventoryComponent();
 
@@ -90,6 +94,8 @@ public:
 	// Check if we can receive all items in the array
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Bag")
 	bool CanReceiveAllItems(TArray<UInventoryItemBase*> ItemArray);
+	bool FindPlacementsForItems(const TArray<UInventoryItemBase*>& ItemArray,
+		TArray<FInventoryDeliveryDestination>& OutPlacements) const;
 
 	UPROPERTY(BlueprintAssignable, Category = "Inventory") //this is public because its a dispatcher
 	FOnFullInventoryComponentChanged FullInventoryDispatcher;

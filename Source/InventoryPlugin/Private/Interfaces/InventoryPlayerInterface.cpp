@@ -3,7 +3,10 @@
 #include "InventoryUtilities.h"
 #include "Components/BankComponent.h"
 #include "Components/InventoryNetComponent.h"
+#include "Components/InventoryDeliveryComponent.h"
 #include "Components/KeyringComponent.h"
+#include "Components/StagingAreaComponent.h"
+#include "Components/TradeComponent.h"
 #include "Interfaces/EquipmentInterface.h"
 #include "Interfaces/MerchantInterface.h"
 #include "GameFramework/Actor.h"
@@ -104,7 +107,9 @@ bool IInventoryPlayerInterface::CanUnequipBag(EEquipmentSlot Slot) const
 		Slot != EEquipmentSlot::BackPack1 && Slot != EEquipmentSlot::BackPack2)
 		return true;
 
-	return GetInventoryComponentConst()->GetBagConst(UInventoryComponent::GetBagSlotFromInventory(Slot)).Num() == 0;
+	const EBagSlot BagSlot = UInventoryComponent::GetBagSlotFromInventory(Slot);
+	return GetInventoryComponentConst()->GetBagConst(BagSlot).Num() == 0 &&
+		!GetInventoryComponentConst()->HasReservationsInBag(BagSlot);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -531,8 +536,22 @@ void IInventoryPlayerInterface::PlayerRepairAllEquipment(const FCoinValue& Total
 
 float IInventoryPlayerInterface::GetTotalWeight()
 {
-	return GetInventoryComponent()->GetTotalWeight() + GetEquipmentForInventory()->GetTotalWeight() +
-		GetCoinComponent()->GetTotalWeight();
+	float Weight = 0.0f;
+	if (const UInventoryComponent* Inventory = GetInventoryComponent())
+		Weight += Inventory->GetTotalWeight();
+	if (const IEquipmentInterface* Equipment = GetEquipmentForInventory())
+		Weight += Equipment->GetTotalWeight();
+	if (UCoinComponent* Coin = GetCoinComponent())
+		Weight += Coin->GetTotalWeight();
+	if (const UStagingAreaComponent* Staging = GetStagingAreaItems())
+		Weight += Staging->GetEscrowWeight();
+	if (UCoinComponent* StagingCoin = GetStagingAreaCoin())
+		Weight += StagingCoin->GetTotalWeight();
+	if (const UTradeComponent* Trade = GetLocalTradeComponent())
+		Weight += Trade->GetEscrowWeight();
+	if (const UInventoryDeliveryComponent* Deliveries = GetInventoryDeliveryComponent())
+		Weight += Deliveries->GetPendingDeliveryWeight();
+	return Weight;
 }
 
 //----------------------------------------------------------------------------------------------------------------------

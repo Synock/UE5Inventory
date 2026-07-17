@@ -1,4 +1,5 @@
 #include "Components/TradeComponent.h"
+#include "Components/TradeReturnRouting.h"
 #include "InventoryPlugin.h"
 
 #include "InventoryUtilities.h"
@@ -12,6 +13,7 @@
 #include "Interfaces/TradeInterface.h"
 #include "InventoryPlugin.h"
 #include "Components/CoinComponent.h"
+#include "Components/InventoryComponent.h"
 #include "Components/InventoryDeliveryComponent.h"
 #include "InventoryPlugin.h"
 #include "Components/SphereComponent.h"
@@ -149,6 +151,7 @@ void UTradeComponent::OnOurCoinOfferChanged()
 		Server_NotifyCoinOfferChanged();
 		return;
 	}
+	OnEscrowChanged.Broadcast();
 
 	// On server: process the change
 	// Get current coin value
@@ -369,6 +372,10 @@ bool UTradeComponent::AddItemToOffer(int32 ItemID, EBagSlot BagSlot, int32 TopLe
 	int32 ActualItemID = InventoryInterface->PlayerGetItem(TopLeft, BagSlot);
 	if (ActualItemID != ItemID)
 		return false;
+	UInventoryComponent* Inventory = InventoryInterface->GetInventoryComponent();
+	const UInventoryItemBase* ItemDefinition = UInventoryUtilities::GetItemFromID(ItemID, GetOwner()->GetWorld());
+	if (!Inventory || !ItemDefinition)
+		return false;
 
 	// Check if already in offer
 	for (const FTradeItemSlot& ExistingSlot : OurOffer.Items)
@@ -377,9 +384,17 @@ bool UTradeComponent::AddItemToOffer(int32 ItemID, EBagSlot BagSlot, int32 TopLe
 			return false; // Already offered
 	}
 
-	float ItemDurability = InventoryInterface->PlayerRemoveItem(TopLeft, BagSlot);
+	const float EffectiveWeight = Inventory->GetEffectiveItemWeight(BagSlot, ItemDefinition);
+	const float ItemDurability = InventoryInterface->PlayerRemoveItem(TopLeft, BagSlot);
+	const FGuid ReservationId = FGuid::NewGuid();
+	if (!Inventory->ReserveItemFootprint(ReservationId, BagSlot, ItemDefinition, TopLeft))
+	{
+		InventoryInterface->PlayerAddItemWithDurability(TopLeft, BagSlot, ItemID, ItemDurability);
+		return false;
+	}
 	// Add to offer
-	OurOffer.Items.Add(FTradeItemSlot(ItemID, BagSlot, TopLeft, ItemDurability));
+	OurOffer.Items.Add(FTradeItemSlot(ItemID, BagSlot, TopLeft, ItemDurability, ReservationId, EffectiveWeight));
+	OnEscrowChanged.Broadcast();
 
 	// Reset acceptance when offer changes
 	OurOffer.bAccepted = false;
@@ -420,6 +435,7 @@ bool UTradeComponent::RemoveItemFromOffer(int32 SlotIndex)
 		return false;
 
 	OurOffer.Items.RemoveAt(SlotIndex);
+	OnEscrowChanged.Broadcast();
 
 	// Reset acceptance when offer changes
 	OurOffer.bAccepted = false;
@@ -553,6 +569,11 @@ bool UTradeComponent::ExecuteTrade()
 	if (!OurInventory || !TheirInventory)
 		return false;
 
+	// Outgoing items already occupy their source capacity through reservations. During a successful exchange those
+	// cells become available, so release both sides only for the synchronous plan/commit window.
+	ReleaseOfferReservations();
+	PartnerComponent->ReleaseOfferReservations();
+
 	// Build array of items we're receiving from them
 	TArray<UInventoryItemBase*> TheirItems;
 	for (const FTradeItemSlot& ItemSlot : TheirOffer.Items)
@@ -571,40 +592,81 @@ bool UTradeComponent::ExecuteTrade()
 			OurItems.Add(Item);
 	}
 
-	// Validate we can receive their items
-	if (!OurInventory->GetInventoryComponent()->CanReceiveAllItems(TheirItems))
-		return false;
+	TArray<FInventoryDeliveryDestination> OurIncomingPlacements;
+	TArray<FInventoryDeliveryDestination> TheirIncomingPlacements;
+	const auto RejectForCapacity = [this, PartnerComponent]()
+	{
+		RestoreOfferReservations();
+		PartnerComponent->RestoreOfferReservations();
+		OurOffer.bAccepted = false;
+		PartnerComponent->OurOffer.bAccepted = false;
+		PartnerComponent->UpdatePartnerOffer(OurOffer);
+		UpdatePartnerOffer(PartnerComponent->OurOffer);
+		const FString Message = TEXT("Trade could not complete: one player does not have enough inventory space.");
+		if (APlayerController* PC = Cast<APlayerController>(GetOwner()))
+			OnTradeCancelled.Broadcast(PC, Message);
+		if (APlayerController* PartnerPC = Cast<APlayerController>(PartnerComponent->GetOwner()))
+			PartnerComponent->OnTradeCancelled.Broadcast(PartnerPC, Message);
+	};
 
-	// Validate they can receive our items
-	if (!TheirInventory->GetInventoryComponent()->CanReceiveAllItems(OurItems))
+	if (!OurInventory->GetInventoryComponent()->FindPlacementsForItems(TheirItems, OurIncomingPlacements) ||
+		!TheirInventory->GetInventoryComponent()->FindPlacementsForItems(OurItems, TheirIncomingPlacements))
+	{
+		RejectForCapacity();
 		return false;
+	}
 
 	//------------------------------------------------------------------------------------------------------------------
 	// Execute the trade atomically
 	//------------------------------------------------------------------------------------------------------------------
 
 	// 1. Give our items to partner (items are already removed from our inventory)
-	for (const FTradeItemSlot& ItemSlot : OurOffer.Items)
+	bool bPlacementCommitted = true;
+	for (int32 Index = 0; Index < OurOffer.Items.Num(); ++Index)
 	{
-		// Add to their inventory (need to find a free slot)
-		int32 FreeSlot = -1;
-
-		// Try to find free space in their bags
-		EBagSlot FreeBag = TheirInventory->GetInventoryComponent()->FindSuitableSlot(
-			UInventoryUtilities::GetItemFromID(ItemSlot.ItemID, GetOwner()->GetWorld()), FreeSlot);
-
-		TheirInventory->PlayerAddItem(FreeSlot, FreeBag, ItemSlot.ItemID);
+		const FTradeItemSlot& ItemSlot = OurOffer.Items[Index];
+		const FInventoryDeliveryDestination& Destination = TheirIncomingPlacements[Index];
+		TheirInventory->PlayerAddItemWithDurability(Destination.TopLeft, Destination.Bag,
+			ItemSlot.ItemID, ItemSlot.Durability);
+		if (TheirInventory->PlayerGetItem(Destination.TopLeft, Destination.Bag) != ItemSlot.ItemID)
+		{
+			bPlacementCommitted = false;
+			break;
+		}
 	}
 
 	// 2. Give their items to us (items are already removed from their inventory)
-	for (const FTradeItemSlot& ItemSlot : TheirOffer.Items)
+	for (int32 Index = 0; bPlacementCommitted && Index < TheirOffer.Items.Num(); ++Index)
 	{
-		int32 FreeSlot = -1;
-		// Try to find free space in our bags
-		EBagSlot FreeBag = OurInventory->GetInventoryComponent()->FindSuitableSlot(
-			UInventoryUtilities::GetItemFromID(ItemSlot.ItemID, GetOwner()->GetWorld()), FreeSlot);
-		// Add to our inventory
-		OurInventory->PlayerAddItem(FreeSlot, FreeBag, ItemSlot.ItemID);
+		const FTradeItemSlot& ItemSlot = TheirOffer.Items[Index];
+		const FInventoryDeliveryDestination& Destination = OurIncomingPlacements[Index];
+		OurInventory->PlayerAddItemWithDurability(Destination.TopLeft, Destination.Bag,
+			ItemSlot.ItemID, ItemSlot.Durability);
+		if (OurInventory->PlayerGetItem(Destination.TopLeft, Destination.Bag) != ItemSlot.ItemID)
+		{
+			bPlacementCommitted = false;
+			break;
+		}
+	}
+
+	if (!bPlacementCommitted)
+	{
+		// Remove only entries that match this transaction's precomputed empty destinations, then restore the two
+		// escrow reservation sets. Coins have not moved yet, so rollback is complete and idempotent.
+		for (int32 Index = 0; Index < OurOffer.Items.Num(); ++Index)
+		{
+			const FInventoryDeliveryDestination& Destination = TheirIncomingPlacements[Index];
+			if (TheirInventory->PlayerGetItem(Destination.TopLeft, Destination.Bag) == OurOffer.Items[Index].ItemID)
+				TheirInventory->PlayerRemoveItem(Destination.TopLeft, Destination.Bag);
+		}
+		for (int32 Index = 0; Index < TheirOffer.Items.Num(); ++Index)
+		{
+			const FInventoryDeliveryDestination& Destination = OurIncomingPlacements[Index];
+			if (OurInventory->PlayerGetItem(Destination.TopLeft, Destination.Bag) == TheirOffer.Items[Index].ItemID)
+				OurInventory->PlayerRemoveItem(Destination.TopLeft, Destination.Bag);
+		}
+		RejectForCapacity();
+		return false;
 	}
 
 	// 3. Transfer coins
@@ -645,7 +707,7 @@ bool UTradeComponent::ValidateOurItems() const
 	// Just validate that all items in our offer are valid (non-zero ItemID)
 	for (const FTradeItemSlot& ItemSlot : OurOffer.Items)
 	{
-		if (ItemSlot.ItemID <= 0)
+		if (ItemSlot.ItemID <= 0 || !UInventoryUtilities::GetItemFromID(ItemSlot.ItemID, GetWorld()))
 			return false;
 	}
 
@@ -834,6 +896,7 @@ void UTradeComponent::ResetTradeState(bool bReturnItems)
 	TradePartner = nullptr;
 	if (!bReturnItems || OurOffer.Items.IsEmpty())
 		OurOffer.Reset();
+	OnEscrowChanged.Broadcast();
 	TheirOffer.Reset();
 	bIsTrading = false;
 
@@ -864,25 +927,70 @@ bool UTradeComponent::ReturnEscrowedItem(const FTradeItemSlot& ItemSlot)
 	if (!InventoryInterface)
 		return false;
 
-	if (UInventoryComponent::IsEmptyItemId(
-		InventoryInterface->PlayerGetItem(ItemSlot.SourceTopLeft, ItemSlot.SourceBagSlot)))
+	UInventoryComponent* Inventory = InventoryInterface->GetInventoryComponent();
+	const UInventoryItemBase* Item = UInventoryUtilities::GetItemFromID(ItemSlot.ItemID, GetWorld());
+	if (!Inventory || !Item)
+		return false;
+
+	Inventory->ReleaseItemFootprint(ItemSlot.ReservationId);
+	if (Inventory->CanPlaceItemAt(ItemSlot.SourceBagSlot, Item, ItemSlot.SourceTopLeft))
 	{
 		InventoryInterface->PlayerAddItemWithDurability(ItemSlot.SourceTopLeft, ItemSlot.SourceBagSlot,
 			ItemSlot.ItemID, ItemSlot.Durability);
-		return true;
+		if (InventoryInterface->PlayerGetItem(ItemSlot.SourceTopLeft, ItemSlot.SourceBagSlot) == ItemSlot.ItemID)
+			return true;
 	}
-
 	UInventoryDeliveryComponent* DeliveryComponent = InventoryInterface->GetInventoryDeliveryComponent();
 	if (!DeliveryComponent)
+	{
+		Inventory->ReserveItemFootprint(ItemSlot.ReservationId, ItemSlot.SourceBagSlot, Item,
+			ItemSlot.SourceTopLeft);
 		return false;
+	}
 
-	FInventoryDeliveryRequest Request;
-	Request.ItemID = ItemSlot.ItemID;
-	Request.Durability = ItemSlot.Durability;
-	Request.Reason = EInventoryDeliveryReason::TradeReturn;
-	Request.PreferredBag = ItemSlot.SourceBagSlot;
-	Request.PreferredTopLeft = ItemSlot.SourceTopLeft;
-	return DeliveryComponent->TryDeliverOrQueue(Request) != EInventoryDeliveryOutcome::Rejected;
+	const bool bQueued = InventoryPlugin::TradeReturn::Route(ItemSlot,
+		[DeliveryComponent](FInventoryDeliveryRequest Request)
+		{
+			return DeliveryComponent->TryDeliverOrQueue(MoveTemp(Request));
+		});
+	if (!bQueued)
+		Inventory->ReserveItemFootprint(ItemSlot.ReservationId, ItemSlot.SourceBagSlot, Item,
+			ItemSlot.SourceTopLeft);
+	return bQueued;
+}
+
+void UTradeComponent::ReleaseOfferReservations()
+{
+	if (IInventoryPlayerInterface* InventoryInterface = GetInventoryInterface())
+		if (UInventoryComponent* Inventory = InventoryInterface->GetInventoryComponent())
+			for (const FTradeItemSlot& Slot : OurOffer.Items)
+				Inventory->ReleaseItemFootprint(Slot.ReservationId);
+}
+
+bool UTradeComponent::RestoreOfferReservations()
+{
+	IInventoryPlayerInterface* InventoryInterface = GetInventoryInterface();
+	UInventoryComponent* Inventory = InventoryInterface ? InventoryInterface->GetInventoryComponent() : nullptr;
+	if (!Inventory)
+		return false;
+	bool bAllRestored = true;
+	for (const FTradeItemSlot& Slot : OurOffer.Items)
+	{
+		const UInventoryItemBase* Item = UInventoryUtilities::GetItemFromID(Slot.ItemID, GetWorld());
+		bAllRestored &= Item && Inventory->ReserveItemFootprint(Slot.ReservationId, Slot.SourceBagSlot, Item,
+			Slot.SourceTopLeft);
+	}
+	return bAllRestored;
+}
+
+float UTradeComponent::GetEscrowWeight() const
+{
+	float Weight = 0.0f;
+	for (const FTradeItemSlot& Slot : OurOffer.Items)
+		Weight += FMath::Max(0.0f, Slot.EffectiveWeight);
+	if (OurCoinOffer)
+		Weight += OurCoinOffer->GetTotalWeight();
+	return Weight;
 }
 
 //----------------------------------------------------------------------------------------------------------------------

@@ -27,19 +27,32 @@ void UStagingAreaComponent::OnRep_StagingAreaItems()
 void UStagingAreaComponent::ClearStagingArea()
 {
 	StagingAreaItems.Empty();
+	StagingAreaDispatcher.Broadcast();
 }
 
 //----------------------------------------------------------------------------------------------------------------------
 
-void UStagingAreaComponent::AddItemToStagingArea(const FMinimalItemStorage& ItemStorage)
+bool UStagingAreaComponent::AddItemToStagingArea(const FInventoryEscrowItem& ItemStorage)
 {
+	if (!ItemStorage.IsValid() || !HasCapacity())
+		return false;
 	StagingAreaItems.Add(ItemStorage);
+	StagingAreaDispatcher.Broadcast();
+	return true;
 }
 
-void UStagingAreaComponent::SetStagingAreaItems(const TArray<FMinimalItemStorage>& Items)
+void UStagingAreaComponent::SetStagingAreaItems(const TArray<FInventoryEscrowItem>& Items)
 {
 	StagingAreaItems = Items;
 	StagingAreaDispatcher.Broadcast();
+}
+
+float UStagingAreaComponent::GetEscrowWeight() const
+{
+	float Weight = 0.0f;
+	for (const FInventoryEscrowItem& Item : StagingAreaItems)
+		Weight += FMath::Max(0.0f, Item.EffectiveWeight);
+	return Weight;
 }
 
 //----------------------------------------------------------------------------------------------------------------------

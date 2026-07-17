@@ -213,6 +213,9 @@ public:
 	UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory|Delivery")
 	void Server_ClaimPendingDelivery(FGuid DeliveryId);
 
+	UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory|Delivery")
+	void Server_ClaimPendingDeliveryAt(FGuid DeliveryId, FInventoryDeliveryDestination Destination);
+
 	UFUNCTION(Server, Reliable, Category = "Inventory|Delivery")
 	void Server_ClaimAllPendingDeliveries();
 
@@ -309,6 +312,7 @@ protected:
 	// -- Staging --
 	virtual void HandleCancelStagingArea();
 	virtual void HandleClaimPendingDelivery(FGuid DeliveryId);
+	virtual void HandleClaimPendingDeliveryAt(FGuid DeliveryId, FInventoryDeliveryDestination Destination);
 	virtual void HandleClaimAllPendingDeliveries();
 	virtual void HandleTransferStagingToActor(AActor* TargetActor);
 	virtual void HandleMoveEquipmentToStagingArea(int32 InItemId, EEquipmentSlot OutSlot);
@@ -366,6 +370,8 @@ protected:
 	// -- Staging --
 	virtual bool ValidateTransferStagingToActor(AActor* TargetActor);
 	virtual bool ValidateClaimPendingDelivery(FGuid DeliveryId);
+	virtual bool ValidateClaimPendingDeliveryAt(FGuid DeliveryId,
+		const FInventoryDeliveryDestination& Destination);
 	virtual bool ValidateMoveEquipmentToStagingArea(int32 InItemId, EEquipmentSlot OutSlot);
 	virtual bool ValidateMoveInventoryItemToStagingArea(int32 InItemId, int32 OutTopLeft, EBagSlot OutSlot);
 

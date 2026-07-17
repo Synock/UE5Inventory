@@ -15,6 +15,7 @@
 #include "Components/LootPoolComponent.h"
 #include "InventoryPlugin.h"
 #include "Components/StagingAreaComponent.h"
+#include "Components/StagingReturnRouting.h"
 #include "InventoryPlugin.h"
 #include "Components/TradeComponent.h"
 #include "InventoryPlugin.h"
@@ -66,6 +67,7 @@ void UInventoryNetComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	if (GetOwner() && GetOwner()->HasAuthority())
 	{
+		HandleCancelStagingArea();
 		HandleStopLooting();
 	}
 
@@ -424,6 +426,18 @@ bool UInventoryNetComponent::Server_ClaimPendingDelivery_Validate(FGuid Delivery
 void UInventoryNetComponent::Server_ClaimAllPendingDeliveries_Implementation()
 {
 	HandleClaimAllPendingDeliveries();
+}
+
+void UInventoryNetComponent::Server_ClaimPendingDeliveryAt_Implementation(FGuid DeliveryId,
+	FInventoryDeliveryDestination Destination)
+{
+	HandleClaimPendingDeliveryAt(DeliveryId, Destination);
+}
+
+bool UInventoryNetComponent::Server_ClaimPendingDeliveryAt_Validate(FGuid DeliveryId,
+	FInventoryDeliveryDestination Destination)
+{
+	return ValidateClaimPendingDeliveryAt(DeliveryId, Destination);
 }
 
 void UInventoryNetComponent::Server_TransferStagingToActor_Implementation(AActor* TargetActor)
@@ -1092,7 +1106,7 @@ void UInventoryNetComponent::HandleCancelStagingArea()
 	UCoinComponent* StagingCoin = PlayerInterface->GetStagingAreaCoin();
 	UStagingAreaComponent* StagingItems = PlayerInterface->GetStagingAreaItems();
 
-	if (StagingCoin)
+	if (StagingCoin && PlayerInterface->GetCoinComponent())
 	{
 		PlayerInterface->GetCoinComponent()->AddCoins(StagingCoin->GetPurseContent());
 		StagingCoin->ClearPurse();
@@ -1100,23 +1114,82 @@ void UInventoryNetComponent::HandleCancelStagingArea()
 
 	if (StagingItems)
 	{
-		TArray<FMinimalItemStorage> UnresolvedItems;
-		for (const FMinimalItemStorage& ItemStorage : StagingItems->GetStagingAreaItems())
+		TArray<FInventoryEscrowItem> UnresolvedItems;
+		for (const FInventoryEscrowItem& ItemStorage : StagingItems->GetStagingAreaItems())
 		{
+			const UInventoryItemBase* Item = UInventoryUtilities::GetItemFromID(ItemStorage.ItemID, GetWorld());
+			const auto ReestablishReservation = [this, &ItemStorage, Item]()
+			{
+				if (!Item)
+					return;
+				if (ItemStorage.Source.Kind == EInventoryDeliveryDestinationKind::Bag)
+				{
+					if (UInventoryComponent* Inventory = PlayerInterface->GetInventoryComponent())
+						Inventory->ReserveItemFootprint(ItemStorage.ReservationId, ItemStorage.Source.Bag, Item,
+							ItemStorage.Source.TopLeft);
+				}
+				else if (const UInventoryItemEquipable* Equipable = Cast<UInventoryItemEquipable>(Item);
+					Equipable && ItemStorage.Source.Kind == EInventoryDeliveryDestinationKind::Equipment)
+				{
+					if (IEquipmentInterface* Equipment = GetEquipmentInterface())
+						if (UEquipmentComponent* Component = Equipment->GetEquipmentComponent())
+							Component->ReservePendingDelivery(ItemStorage.ReservationId, Equipable,
+								ItemStorage.Source.EquipmentSlot);
+				}
+			};
+			bool bRestored = false;
+			if (Item && ItemStorage.Source.Kind == EInventoryDeliveryDestinationKind::Bag)
+			{
+				if (UInventoryComponent* Inventory = PlayerInterface->GetInventoryComponent())
+				{
+					Inventory->ReleaseItemFootprint(ItemStorage.ReservationId);
+					if (Inventory->CanPlaceItemAt(ItemStorage.Source.Bag, Item, ItemStorage.Source.TopLeft))
+					{
+						PlayerInterface->PlayerAddItemWithDurability(ItemStorage.Source.TopLeft,
+							ItemStorage.Source.Bag, ItemStorage.ItemID, ItemStorage.Durability);
+						bRestored = PlayerInterface->PlayerGetItem(ItemStorage.Source.TopLeft,
+							ItemStorage.Source.Bag) == ItemStorage.ItemID;
+					}
+				}
+			}
+			else if (const UInventoryItemEquipable* Equipable = Cast<UInventoryItemEquipable>(Item);
+				Equipable && ItemStorage.Source.Kind == EInventoryDeliveryDestinationKind::Equipment)
+			{
+				if (IEquipmentInterface* Equipment = GetEquipmentInterface())
+				{
+					UEquipmentComponent* EquipmentComponent = Equipment->GetEquipmentComponent();
+					if (EquipmentComponent)
+						EquipmentComponent->ReleasePendingDeliveryReservation(ItemStorage.ReservationId);
+					if (EquipmentComponent && EquipmentComponent->CanEquipItemAt(Equipable,
+						ItemStorage.Source.EquipmentSlot))
+					{
+						Equipment->EquipItemWithDurability(ItemStorage.Source.EquipmentSlot,
+							ItemStorage.ItemID, ItemStorage.Durability);
+						bRestored = Equipment->GetEquippedItem(ItemStorage.Source.EquipmentSlot) == Equipable;
+					}
+				}
+			}
+
+			if (bRestored)
+				continue;
+
 			UInventoryDeliveryComponent* DeliveryComponent = PlayerInterface->GetInventoryDeliveryComponent();
 			if (!DeliveryComponent)
 			{
+				ReestablishReservation();
 				UnresolvedItems.Add(ItemStorage);
 				continue;
 			}
 
-			FInventoryDeliveryRequest Request;
-			Request.ItemID = ItemStorage.ItemID;
-			Request.Durability = ItemStorage.Durability;
-			Request.Reason = EInventoryDeliveryReason::StagingReturn;
-			Request.bAllowAutoEquip = true;
-			if (DeliveryComponent->TryDeliverOrQueue(Request) == EInventoryDeliveryOutcome::Rejected)
+			if (!InventoryPlugin::StagingReturn::Route(ItemStorage,
+				[DeliveryComponent](const FInventoryDeliveryRequest& Request)
+				{
+					return DeliveryComponent->TryDeliverOrQueue(Request);
+				}))
+			{
+				ReestablishReservation();
 				UnresolvedItems.Add(ItemStorage);
+			}
 		}
 		StagingItems->SetStagingAreaItems(UnresolvedItems);
 	}
@@ -1124,16 +1197,17 @@ void UInventoryNetComponent::HandleCancelStagingArea()
 
 void UInventoryNetComponent::HandleClaimPendingDelivery(FGuid DeliveryId)
 {
+	HandleClaimPendingDeliveryAt(DeliveryId, FInventoryDeliveryDestination());
+}
+
+void UInventoryNetComponent::HandleClaimPendingDeliveryAt(FGuid DeliveryId,
+	FInventoryDeliveryDestination Destination)
+{
 	if (!PlayerInterface)
 		return;
 	if (UInventoryDeliveryComponent* DeliveryComponent = PlayerInterface->GetInventoryDeliveryComponent())
-	{
-		const FPendingInventoryDelivery* Delivery = DeliveryComponent->FindDelivery(DeliveryId);
-		EBagSlot Bag = EBagSlot::Unknown;
-		int32 TopLeft = -1;
-		if (Delivery && DeliveryComponent->FindBagDestination(*Delivery, Bag, TopLeft))
-			DeliveryComponent->CommitClaim(DeliveryId, Bag, TopLeft);
-	}
+		if (DeliveryComponent->ReserveDestination(DeliveryId, Destination))
+			DeliveryComponent->CommitClaim(DeliveryId, Destination);
 }
 
 void UInventoryNetComponent::HandleClaimAllPendingDeliveries()
@@ -1178,18 +1252,27 @@ void UInventoryNetComponent::HandleMoveEquipmentToStagingArea(int32 InItemId, EE
 	if (!Equipment || !StagingItems)
 		return;
 
-	float ItemDurability = 100.0f;
-	if (UEquipmentComponent* EquipComp = Equipment->GetEquipmentComponent())
-		EquipComp->GetEquipmentDurability(OutSlot, ItemDurability);
+	if (!StagingItems->HasCapacity())
+		return;
+	const UInventoryItemEquipable* Item = Equipment->GetEquippedItem(OutSlot);
+	UEquipmentComponent* EquipComp = Equipment->GetEquipmentComponent();
+	if (!Item || !EquipComp)
+		return;
 
-	FMinimalItemStorage ItemStorage;
-	ItemStorage.ItemID = InItemId;
-	ItemStorage.TopLeftID = 0;
-	ItemStorage.Durability = ItemDurability;
-	ItemStorage.bIsLocked = false;
+	FInventoryEscrowItem Escrow;
+	Escrow.ItemID = InItemId;
+	Escrow.Source = FInventoryDeliveryDestination::MakeEquipment(OutSlot);
+	Escrow.ReservationId = FGuid::NewGuid();
+	Escrow.EffectiveWeight = FMath::Max(0.0f, Item->GetWeight());
+	EquipComp->GetEquipmentDurability(OutSlot, Escrow.Durability);
 
-	StagingItems->AddItemToStagingArea(ItemStorage);
 	Equipment->UnequipItem(OutSlot);
+	if (!EquipComp->ReservePendingDelivery(Escrow.ReservationId, Item, OutSlot) ||
+		!StagingItems->AddItemToStagingArea(Escrow))
+	{
+		EquipComp->ReleasePendingDeliveryReservation(Escrow.ReservationId);
+		Equipment->EquipItemWithDurability(OutSlot, InItemId, Escrow.Durability);
+	}
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -1200,12 +1283,13 @@ void UInventoryNetComponent::HandleMoveInventoryItemToStagingArea(int32 InItemId
 		return;
 
 	UStagingAreaComponent* StagingItems = PlayerInterface->GetStagingAreaItems();
-	if (!StagingItems)
+	UInventoryComponent* InventoryComp = PlayerInterface->GetInventoryComponent();
+	if (!StagingItems || !InventoryComp || !StagingItems->HasCapacity())
 		return;
 
 	// Get current durability from inventory before moving
 	float ItemDurability = 100.0f;
-	if (UInventoryComponent* InventoryComp = PlayerInterface->GetInventoryComponent())
+	if (InventoryComp)
 	{
 		const TArray<FMinimalItemStorage>& BagContents = InventoryComp->GetBagConst(OutSlot);
 		for (const FMinimalItemStorage& Item : BagContents)
@@ -1218,14 +1302,24 @@ void UInventoryNetComponent::HandleMoveInventoryItemToStagingArea(int32 InItemId
 		}
 	}
 
-	FMinimalItemStorage ItemStorage;
-	ItemStorage.ItemID = InItemId;
-	ItemStorage.TopLeftID = 0;
-	ItemStorage.Durability = ItemDurability;
-	ItemStorage.bIsLocked = false;
+	const UInventoryItemBase* Item = UInventoryUtilities::GetItemFromID(InItemId, GetWorld());
+	if (!Item)
+		return;
 
-	StagingItems->AddItemToStagingArea(ItemStorage);
+	FInventoryEscrowItem Escrow;
+	Escrow.ItemID = InItemId;
+	Escrow.Durability = ItemDurability;
+	Escrow.Source = FInventoryDeliveryDestination::MakeBag(OutSlot, OutTopLeft);
+	Escrow.ReservationId = FGuid::NewGuid();
+	Escrow.EffectiveWeight = InventoryComp->GetEffectiveItemWeight(OutSlot, Item);
+
 	PlayerInterface->PlayerRemoveItem(OutTopLeft, OutSlot);
+	if (!InventoryComp->ReserveItemFootprint(Escrow.ReservationId, OutSlot, Item, OutTopLeft) ||
+		!StagingItems->AddItemToStagingArea(Escrow))
+	{
+		InventoryComp->ReleaseItemFootprint(Escrow.ReservationId);
+		PlayerInterface->PlayerAddItemWithDurability(OutTopLeft, OutSlot, InItemId, ItemDurability);
+	}
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -1346,10 +1440,15 @@ bool UInventoryNetComponent::ValidatePlayerUnequipItem(int32 InTopLeft, EBagSlot
 
 	if (Cast<IInventoryItemBagInterface>(ConsideredItem))
 	{
-		if (PlayerInterface->GetInventoryComponent()->GetBagConst(
-			UInventoryComponent::GetBagSlotFromInventory(OutSlot)).Num() > 0)
+		const EBagSlot BagSlot = UInventoryComponent::GetBagSlotFromInventory(OutSlot);
+		if (PlayerInterface->GetInventoryComponent()->GetBagConst(BagSlot).Num() > 0 ||
+			PlayerInterface->GetInventoryComponent()->HasReservationsInBag(BagSlot))
 			return false;
 	}
+	if (Equipment->GetEquipmentComponent()->IsEquipmentSlotReserved(OutSlot))
+		return false;
+	if (!PlayerInterface->GetInventoryComponent()->CanPlaceItemAt(InSlot, ConsideredItem, InTopLeft))
+		return false;
 
 	return ConsideredItem->ItemID == InItemId;
 }
@@ -1372,12 +1471,10 @@ bool UInventoryNetComponent::ValidatePlayerEquipItemFromInventory(int32 InItemId
 	if (!Equipment)
 		return false;
 
-	if (Equipment->GetEquippedItem(InSlot) != nullptr)
-		return false;
-
 	const UInventoryItemEquipable* LocalItem = Cast<UInventoryItemEquipable>(
 		UInventoryUtilities::GetItemFromID(InItemId, GetWorld()));
-	return LocalItem && LocalItem->ItemID > 0;
+	return LocalItem && LocalItem->ItemID > 0 &&
+		Equipment->GetEquipmentComponent()->CanEquipItemAt(LocalItem, InSlot);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -1390,6 +1487,9 @@ bool UInventoryNetComponent::ValidatePlayerSwapEquipment(int32 DroppedItemId, EE
 		return false;
 
 	if (DroppedInSlot == EEquipmentSlot::Unknown || DraggedOutSlot == EEquipmentSlot::Unknown)
+		return false;
+	if (Equipment->GetEquipmentComponent()->IsEquipmentSlotReserved(DroppedInSlot) ||
+		Equipment->GetEquipmentComponent()->IsEquipmentSlotReserved(DraggedOutSlot))
 		return false;
 
 	const UInventoryItemEquipable* DraggedItem = Equipment->GetEquippedItem(DraggedOutSlot);
@@ -1466,7 +1566,17 @@ bool UInventoryNetComponent::ValidateDropItemFromEquipment(EEquipmentSlot Slot, 
 	if (!Equipment)
 		return false;
 
-	return Equipment->GetEquippedItem(Slot) != nullptr;
+	const UInventoryItemEquipable* Item = Equipment->GetEquippedItem(Slot);
+	if (!Item || Equipment->GetEquipmentComponent()->IsEquipmentSlotReserved(Slot))
+		return false;
+	if (Cast<IInventoryItemBagInterface>(Item) && PlayerInterface)
+	{
+		const EBagSlot BagSlot = UInventoryComponent::GetBagSlotFromInventory(Slot);
+		if (PlayerInterface->GetInventoryComponent()->GetBagConst(BagSlot).Num() > 0 ||
+			PlayerInterface->GetInventoryComponent()->HasReservationsInBag(BagSlot))
+			return false;
+	}
+	return true;
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -1538,6 +1648,20 @@ bool UInventoryNetComponent::ValidateClaimPendingDelivery(FGuid DeliveryId)
 	return PlayerInterface && DeliveryId.IsValid() && PlayerInterface->GetInventoryDeliveryComponent();
 }
 
+bool UInventoryNetComponent::ValidateClaimPendingDeliveryAt(FGuid DeliveryId,
+	const FInventoryDeliveryDestination& Destination)
+{
+	if (!ValidateClaimPendingDelivery(DeliveryId))
+		return false;
+	if (Destination.Kind == EInventoryDeliveryDestinationKind::Bag)
+		return Destination.Bag > EBagSlot::Unknown && Destination.Bag < EBagSlot::LastValidBag &&
+			Destination.TopLeft >= 0 && Destination.TopLeft <= 4095;
+	if (Destination.Kind == EInventoryDeliveryDestinationKind::Equipment)
+		return Destination.EquipmentSlot > EEquipmentSlot::Unknown &&
+			Destination.EquipmentSlot < EEquipmentSlot::Last;
+	return false;
+}
+
 //----------------------------------------------------------------------------------------------------------------------
 
 bool UInventoryNetComponent::ValidateMoveEquipmentToStagingArea(int32 InItemId, EEquipmentSlot OutSlot)
@@ -1547,7 +1671,8 @@ bool UInventoryNetComponent::ValidateMoveEquipmentToStagingArea(int32 InItemId, 
 		return false;
 
 	const UInventoryItemEquipable* Item = Equipment->GetEquippedItem(OutSlot);
-	return Item && Item->ItemID == InItemId;
+	return Item && Item->ItemID == InItemId &&
+		!Equipment->GetEquipmentComponent()->IsEquipmentSlotReserved(OutSlot);
 }
 
 //----------------------------------------------------------------------------------------------------------------------

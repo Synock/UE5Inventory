@@ -134,6 +134,7 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Bag")
 	float GetBagWeight() const { return BagWeight * WeightReductionRatio; }
+	float GetWeightReductionRatio() const { return WeightReductionRatio; }
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Bag")
 	float GetBagSlotUsage() const;

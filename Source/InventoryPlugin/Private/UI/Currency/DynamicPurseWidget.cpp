@@ -55,28 +55,25 @@ void UDynamicPurseWidget::InitWidget(UCoinComponent* Owner)
 
 void UDynamicPurseWidget::Refresh()
 {
-	if (!PursePointer)
-		return;
-
 	// Update each currency widget with current values
 	if (CopperCurrencyWidget)
 	{
-		CopperCurrencyWidget->UpdateCoinValue(PursePointer->GetCP());
+		CopperCurrencyWidget->UpdateCoinValue(PursePointer ? PursePointer->GetCP() : 0);
 	}
 
 	if (SilverCurrencyWidget)
 	{
-		SilverCurrencyWidget->UpdateCoinValue(PursePointer->GetSP());
+		SilverCurrencyWidget->UpdateCoinValue(PursePointer ? PursePointer->GetSP() : 0);
 	}
 
 	if (GoldCurrencyWidget)
 	{
-		GoldCurrencyWidget->UpdateCoinValue(PursePointer->GetGP());
+		GoldCurrencyWidget->UpdateCoinValue(PursePointer ? PursePointer->GetGP() : 0);
 	}
 
 	if (PlatinumCurrencyWidget)
 	{
-		PlatinumCurrencyWidget->UpdateCoinValue(PursePointer->GetPP());
+		PlatinumCurrencyWidget->UpdateCoinValue(PursePointer ? PursePointer->GetPP() : 0);
 	}
 }
 

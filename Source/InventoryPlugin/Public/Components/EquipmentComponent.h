@@ -79,6 +79,9 @@ protected:
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "Inventory|Equipment|Lock")
 	TMap<EEquipmentSlot, bool> EquipmentLockStates;
 
+	/** Server-only equipment cells reserved while a pending delivery is committed externally. */
+	TMap<FGuid, TArray<EEquipmentSlot>> PendingDeliveryReservations;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Light")
 	UChildActorComponent* SecondaryLightSource;
 
@@ -302,6 +305,16 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Equipment")
 	bool IsSlotEmpty(EEquipmentSlot InSlot);
+
+	/** Validate the complete equipment footprint, including multi-slot occupancy and reservations. */
+	bool CanEquipItemAt(const UInventoryItemEquipable* Item, EEquipmentSlot InSlot,
+		const FGuid& IgnoredReservation = FGuid()) const;
+
+	/** Reserve every equipment cell occupied by Item until its delivery claim completes. */
+	bool ReservePendingDelivery(const FGuid& DeliveryId, const UInventoryItemEquipable* Item, EEquipmentSlot InSlot);
+	void ReleasePendingDeliveryReservation(const FGuid& DeliveryId);
+	bool HasPendingDeliveryReservation(const FGuid& DeliveryId) const;
+	bool IsEquipmentSlotReserved(EEquipmentSlot InSlot, const FGuid& IgnoredReservation = FGuid()) const;
 
 	/**
 	 *

@@ -3,11 +3,13 @@
 #include "UI/ItemWidget.h"
 #include "InventoryUtilities.h"
 #include "Components/EquipmentComponent.h"
+#include "Components/InventoryNetComponent.h"
 #include "Interfaces/InventoryPlayerInterface.h"
 #include "GenericPlatform/GenericPlatformMath.h"
 #include "Items/Interfaces/InventoryItemBagInterface.h"
 #include "Items/InventoryItemBase.h"
 #include "UI/InventoryEquipmentWidget.h"
+#include "UI/PendingDeliveryDragDropOperation.h"
 
 //----------------------------------------------------------------------------------------------------------------------
 
@@ -43,6 +45,37 @@ void UEquipmentSlotWidget::NativeOnDragCancelled(const FDragDropEvent& InDragDro
 {
 	Super::NativeOnDragCancelled(InDragDropEvent, InOperation);
 	StopDrag();
+}
+
+bool UEquipmentSlotWidget::NativeOnDragOver(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent,
+	UDragDropOperation* InOperation)
+{
+	if (const UPendingDeliveryDragDropOperation* DeliveryOperation =
+		Cast<UPendingDeliveryDragDropOperation>(InOperation))
+		return DeliveryOperation->Item && CanEquipItem(DeliveryOperation->Item);
+	return Super::NativeOnDragOver(InGeometry, InDragDropEvent, InOperation);
+}
+
+bool UEquipmentSlotWidget::NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent,
+	UDragDropOperation* InOperation)
+{
+	if (const UPendingDeliveryDragDropOperation* DeliveryOperation =
+		Cast<UPendingDeliveryDragDropOperation>(InOperation))
+	{
+		if (!DeliveryOperation->Item || !CanEquipItem(DeliveryOperation->Item))
+			return false;
+		if (IInventoryPlayerInterface* Player = GetInventoryPlayerInterface())
+		{
+			if (UInventoryNetComponent* Net = Player->GetInventoryNetComponent())
+			{
+				Net->Server_ClaimPendingDeliveryAt(DeliveryOperation->DeliveryId,
+					FInventoryDeliveryDestination::MakeEquipment(SlotID));
+				return true;
+			}
+		}
+		return false;
+	}
+	return Super::NativeOnDrop(InGeometry, InDragDropEvent, InOperation);
 }
 
 //----------------------------------------------------------------------------------------------------------------------

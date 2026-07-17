@@ -863,7 +863,7 @@ void UEquipmentComponent::OnRep_EquipmentDurability()
 
 void UEquipmentComponent::EquipItem(const UInventoryItemEquipable* Item, EEquipmentSlot InSlot)
 {
-	if (Equipment[static_cast<int>(InSlot)] == nullptr)
+	if (CanEquipItemAt(Item, InSlot))
 	{
 		Equipment[static_cast<int>(InSlot)] = Item;
 
@@ -893,7 +893,7 @@ void UEquipmentComponent::EquipItem(const UInventoryItemEquipable* Item, EEquipm
 
 void UEquipmentComponent::EquipItemWithDurability(const UInventoryItemEquipable* Item, EEquipmentSlot InSlot, float Durability)
 {
-	if (Equipment[static_cast<int>(InSlot)] == nullptr)
+	if (CanEquipItemAt(Item, InSlot))
 	{
 		Equipment[static_cast<int>(InSlot)] = Item;
 
@@ -917,6 +917,82 @@ void UEquipmentComponent::EquipItemWithDurability(const UInventoryItemEquipable*
 				UpdateSingleOverlayMesh(InSlot, OverlayMesh, Item->EquipmentMeshMaterialOverride);
 		}
 	}
+}
+
+bool UEquipmentComponent::IsEquipmentSlotReserved(EEquipmentSlot InSlot, const FGuid& IgnoredReservation) const
+{
+	for (const TPair<FGuid, TArray<EEquipmentSlot>>& Reservation : PendingDeliveryReservations)
+	{
+		if (Reservation.Key != IgnoredReservation && Reservation.Value.Contains(InSlot))
+			return true;
+	}
+	return false;
+}
+
+bool UEquipmentComponent::CanEquipItemAt(const UInventoryItemEquipable* Item, EEquipmentSlot InSlot,
+	const FGuid& IgnoredReservation) const
+{
+	const int32 SlotIndex = static_cast<int32>(InSlot);
+	if (!Item || InSlot == EEquipmentSlot::Unknown || InSlot >= EEquipmentSlot::Last ||
+		!Equipment.IsValidIndex(SlotIndex))
+		return false;
+
+	const uint32 TargetBit = 1u << static_cast<uint32>(SlotIndex);
+	if ((static_cast<uint32>(Item->EquipableSlotBitMask) & TargetBit) == 0)
+		return false;
+	if (Item->MultiSlotItem && (InSlot == EEquipmentSlot::WaistBag2 || InSlot == EEquipmentSlot::BackPack2))
+		return false;
+
+	TArray<EEquipmentSlot> RequiredSlots{InSlot};
+	if (Item->MultiSlotItem)
+	{
+		for (int32 Index = static_cast<int32>(EEquipmentSlot::Unknown) + 1;
+			Index < static_cast<int32>(EEquipmentSlot::Last); ++Index)
+		{
+			if ((static_cast<uint32>(Item->EquipableSlotBitMask) & (1u << static_cast<uint32>(Index))) != 0)
+				RequiredSlots.AddUnique(static_cast<EEquipmentSlot>(Index));
+		}
+	}
+
+	for (const EEquipmentSlot RequiredSlot : RequiredSlots)
+	{
+		const int32 RequiredIndex = static_cast<int32>(RequiredSlot);
+		if (!Equipment.IsValidIndex(RequiredIndex) || Equipment[RequiredIndex] != nullptr ||
+			IsEquipmentSlotReserved(RequiredSlot, IgnoredReservation))
+			return false;
+	}
+	return true;
+}
+
+bool UEquipmentComponent::ReservePendingDelivery(const FGuid& DeliveryId, const UInventoryItemEquipable* Item,
+	EEquipmentSlot InSlot)
+{
+	if (!DeliveryId.IsValid() || PendingDeliveryReservations.Contains(DeliveryId) ||
+		!CanEquipItemAt(Item, InSlot, DeliveryId))
+		return false;
+
+	TArray<EEquipmentSlot>& Slots = PendingDeliveryReservations.Add(DeliveryId);
+	Slots.Add(InSlot);
+	if (Item->MultiSlotItem)
+	{
+		for (int32 Index = static_cast<int32>(EEquipmentSlot::Unknown) + 1;
+			Index < static_cast<int32>(EEquipmentSlot::Last); ++Index)
+		{
+			if ((static_cast<uint32>(Item->EquipableSlotBitMask) & (1u << static_cast<uint32>(Index))) != 0)
+				Slots.AddUnique(static_cast<EEquipmentSlot>(Index));
+		}
+	}
+	return true;
+}
+
+void UEquipmentComponent::ReleasePendingDeliveryReservation(const FGuid& DeliveryId)
+{
+	PendingDeliveryReservations.Remove(DeliveryId);
+}
+
+bool UEquipmentComponent::HasPendingDeliveryReservation(const FGuid& DeliveryId) const
+{
+	return PendingDeliveryReservations.Contains(DeliveryId);
 }
 
 //----------------------------------------------------------------------------------------------------------------------

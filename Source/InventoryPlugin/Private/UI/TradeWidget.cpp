@@ -160,10 +160,11 @@ void UTradeWidget::CloseTrade()
 	}
 
 	// Clear coin displays
-	if (OurCoinOffer && OurCoinOffer->GetPursePointer())
+	if (OurCoinOffer)
 	{
-		// Reset to zero by editing the coin component
-		OurCoinOffer->GetPursePointer()->EditCoinContent(0, 0, 0, 0);
+		// This widget is client-side; detach and clear its display without attempting
+		// to mutate the server-authoritative trade-offer purse.
+		OurCoinOffer->InitWidget(nullptr);
 	}
 
 	if (TheirCoinOffer)
@@ -490,4 +491,3 @@ IInventoryPlayerInterface* UTradeWidget::GetInventoryInterface() const
 	APlayerController* PC = GetOwningPlayer();
 	return Cast<IInventoryPlayerInterface>(PC);
 }
-
