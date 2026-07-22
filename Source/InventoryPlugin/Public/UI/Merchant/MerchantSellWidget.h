@@ -120,6 +120,10 @@ protected:
 	/** Pending post-transaction refresh. Cleared when the merchant session closes. */
 	FTimerHandle TransactionRefreshTimer;
 
+#if WITH_AUTOMATION_WORKER
+	int32 RefreshCountForTests = 0;
+#endif
+
 	//------------------------------------------------------------------------------------------------------------------
 	// Internal Functions
 	//------------------------------------------------------------------------------------------------------------------
@@ -217,6 +221,12 @@ public:
 
 #if WITH_AUTOMATION_WORKER
 	bool MerchantCanSellForTests(int32 ItemID) const { return MerchantCanSell(ItemID); }
+	int32 GetRefreshCountForTests() const { return RefreshCountForTests; }
+	UMerchantItemListWidget* GetItemListForTests() const { return ItemList; }
+	void SetItemListForTests(UMerchantItemListWidget* InItemList) { ItemList = InItemList; }
+	int32 GetDynamicStartIDForTests() const { return DynamicStartID; }
+	int32 GetSelectedItemIdForTests() const { return SelectedItemId; }
+	EMerchantWindowMode GetMerchantModeForTests() const { return MerchantMode; }
 	void SetMerchantSessionStateForTests(int32 ItemID, int32 TopLeft, EBagSlot OriginBag, EMerchantWindowMode Mode)
 	{
 		SelectedItemId = ItemID;

@@ -146,10 +146,10 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCoinValueMulRatioAboveOneTest,
 
 bool FCoinValueMulRatioAboveOneTest::RunTest(const FString& Parameters)
 {
-	// Doubling 100 copper should give ≥200 copper (bias rounds up)
+	// Doubling 100 copper should give exactly 200 copper.
 	FCoinValue V(100, 0, 0, 0);
 	V *= 2.0f;
-	TestEqual(TEXT("ToFloat after *2"), V.ToFloat(), 201.f); // adds 0.5 then ceil
+	TestEqual(TEXT("ToFloat after *2"), V.ToFloat(), 200.f);
 	return true;
 }
 
@@ -179,6 +179,20 @@ bool FCoinValueMulZeroTest::RunTest(const FString& Parameters)
 	FCoinValue V(500, 10, 5, 2);
 	V *= 0.0f;
 	TestTrue(TEXT("After *0 should be empty"), V.IsEmpty());
+	return true;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCoinValueMulEmptyValueStaysEmptyTest,
+	"InventoryPlugin.CoinValue.OperatorMul.EmptyValueStaysEmpty",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FCoinValueMulEmptyValueStaysEmptyTest::RunTest(const FString& Parameters)
+{
+	FCoinValue V(0, 0, 0, 0);
+	V *= 1.1f;
+	TestTrue(TEXT("Markup on an empty value should stay empty"), V.IsEmpty());
 	return true;
 }
 

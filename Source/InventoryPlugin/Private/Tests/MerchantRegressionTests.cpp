@@ -4,7 +4,9 @@
 
 #include "Components/CoinComponent.h"
 #include "Components/InventoryNetComponent.h"
+#include "Components/ListView.h"
 #include "Components/MerchantComponent.h"
+#include "UI/Merchant/MerchantItemListWidget.h"
 #include "UI/Merchant/MerchantSellWidget.h"
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -165,15 +167,70 @@ bool FMerchantStaticPoolRepNotifyTest::RunTest(const FString& Parameters)
 		return false;
 	}
 
+	UMerchantSellWidget* Widget = NewObject<UMerchantSellWidget>(GetTransientPackage());
+	if (!Widget)
+	{
+		AddError(TEXT("Failed to create merchant sell widget"));
+		return false;
+	}
+
+	MerchantComponent->MerchantPoolDispatcher.AddDynamic(Widget, &UMerchantSellWidget::Refresh);
 	MerchantComponent->SetStaticMerchantPoolForTests({100, 200});
 	MerchantComponent->OnRep_StaticPool();
 
 	TestEqual(TEXT("Static pool replication must notify listeners so an already-open merchant UI refreshes"),
 		MerchantComponent->GetStaticPoolRepNotifyCountForTests(), 1);
+	TestEqual(TEXT("A bound merchant sell widget must receive the static-pool refresh notification"),
+		Widget->GetRefreshCountForTests(), 1);
 	TestEqual(TEXT("Static pool contents remain available after the replication notification"),
 		MerchantComponent->GetStaticItemsConst().Num(), 2);
 	TestEqual(TEXT("Static pool preserves the replicated item ids"),
 		MerchantComponent->GetStaticItemsConst()[1], 200);
+
+	return true;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+// Merchant item list selection
+//----------------------------------------------------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMerchantItemListSelectionBroadcastsTest,
+	"InventoryPlugin.Merchant.Regression.ItemListSelectionBroadcasts",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FMerchantItemListSelectionBroadcastsTest::RunTest(const FString& Parameters)
+{
+	UMerchantItemListWidget* ListWidget = NewObject<UMerchantItemListWidget>(GetTransientPackage());
+	UListView* ListView = NewObject<UListView>(ListWidget);
+	if (!ListWidget || !ListView)
+	{
+		AddError(TEXT("Failed to create merchant item list test widgets"));
+		return false;
+	}
+
+	ListWidget->SetItemListViewForTests(ListView);
+
+	FMerchantItemDataStruct Row;
+	Row.Id = 7000;
+	Row.Name = TEXT("Water Flask");
+	Row.Quantity = -1;
+	ListWidget->AddDataToList(Row);
+
+	TestEqual(TEXT("Native item list should add one row to the bound ListView"),
+		ListWidget->GetListItemCountForTests(), 1);
+
+	const TArray<UObject*> Items = ListView->GetListItems();
+	TestEqual(TEXT("ListView should expose the generated row object"),
+		Items.Num(), 1);
+	if (Items.Num() != 1)
+	{
+		return false;
+	}
+
+	ListWidget->HandleListItemSelectionChangedForTests(Items[0]);
+
+	TestEqual(TEXT("Forwarding a selected merchant list row should emit the merchant item ID"),
+		ListWidget->GetLastSelectionItemIDForTests(), 7000);
 
 	return true;
 }

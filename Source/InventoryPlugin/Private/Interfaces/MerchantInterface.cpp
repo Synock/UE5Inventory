@@ -71,7 +71,12 @@ bool IMerchantInterface::CanPayAmount(const FCoinValue& CoinValue) const
 FCoinValue IMerchantInterface::AdjustPriceBuy(const FCoinValue& CoinValue) const
 {
 	FCoinValue Value = AdjustPriceForInflation(CoinValue);
+	const int64 InflatedBaseValue = Value.ToCopperValue();
 	Value *= GetMerchantRatio();
+	if (InflatedBaseValue > 0 && Value.ToCopperValue() >= InflatedBaseValue)
+	{
+		Value = FCoinValue(static_cast<float>(InflatedBaseValue - 1));
+	}
 	return Value;
 }
 
@@ -80,7 +85,12 @@ FCoinValue IMerchantInterface::AdjustPriceBuy(const FCoinValue& CoinValue) const
 FCoinValue IMerchantInterface::AdjustPriceSell(const FCoinValue& CoinValue) const
 {
 	FCoinValue Value = AdjustPriceForInflation(CoinValue);
+	const int64 InflatedBaseValue = Value.ToCopperValue();
 	Value *= (2.0 - GetMerchantRatio());
+	if (InflatedBaseValue > 0 && Value.ToCopperValue() <= InflatedBaseValue)
+	{
+		Value = FCoinValue(static_cast<float>(InflatedBaseValue + 1));
+	}
 	return Value;
 }
 

@@ -19,6 +19,9 @@ class INVENTORYPLUGIN_API UMerchantItemListWidget : public UUserWidget
 	GENERATED_BODY()
 
 protected:
+	virtual void NativeConstruct() override;
+	virtual void NativeDestruct() override;
+
 	/** Bind a UListView named "ItemListView" in the Blueprint for automatic C++ management. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "Merchant|List|UI")
 	UListView* ItemListView = nullptr;
@@ -26,6 +29,14 @@ protected:
 	/** Index in the list at which dynamic (sell) entries begin. */
 	UPROPERTY(BlueprintReadOnly, Category = "Merchant|List")
 	int32 DynamicStartIndex = 0;
+
+#if WITH_AUTOMATION_WORKER
+	int32 LastSelectionItemIDForTests = 0;
+#endif
+
+	void BindListViewSelection();
+	void UnbindListViewSelection();
+	void HandleListItemSelectionChanged(UObject* SelectedItem);
 
 public:
 	/**
@@ -70,4 +81,16 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
 	void RemoveElementsFrom(int32 DynamicStartID);
 	virtual void RemoveElementsFrom_Implementation(int32 DynamicStartID);
+
+#if WITH_AUTOMATION_WORKER
+	void SetItemListViewForTests(UListView* InItemListView)
+	{
+		ItemListView = InItemListView;
+		BindListViewSelection();
+	}
+	UListView* GetItemListViewForTests() const { return ItemListView; }
+	int32 GetListItemCountForTests() const { return ItemListView ? ItemListView->GetNumItems() : 0; }
+	int32 GetLastSelectionItemIDForTests() const { return LastSelectionItemIDForTests; }
+	void HandleListItemSelectionChangedForTests(UObject* SelectedItem) { HandleListItemSelectionChanged(SelectedItem); }
+#endif
 };

@@ -4,6 +4,18 @@
 #include "Components/Widget.h"
 #include "InventoryPlugin.h"
 
+namespace
+{
+void ApplyOptionalPageTitle(UTextBlock* TitleBlock, const FText& Title)
+{
+	if (!TitleBlock)
+		return;
+
+	TitleBlock->SetText(Title);
+	TitleBlock->SetVisibility(Title.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::SelfHitTestInvisible);
+}
+}
+
 void UInventoryBookWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
@@ -28,8 +40,8 @@ void UInventoryBookWidget::SetText_Implementation(const FText& Content)
 	else
 		UE_LOG(LogInventoryPlugin, Warning, TEXT("UInventoryBookWidget::SetText — TextBlock is null. Ensure a URichTextBlock named 'TextBlock' exists in the Blueprint."));
 
-	if (RightPageTitleBlock)
-		RightPageTitleBlock->SetVisibility(ESlateVisibility::Hidden);
+	ApplyOptionalPageTitle(PageTitleBlock, FText::GetEmpty());
+	ApplyOptionalPageTitle(RightPageTitleBlock, FText::GetEmpty());
 	ApplySpreadLayout(/*bSinglePageMode=*/true);
 }
 
@@ -59,8 +71,7 @@ void UInventoryBookWidget::ShowSpread(int32 LeftIndex)
 		const FBookPage& Left = CachedPages[LeftIndex];
 		if (TextBlock)
 			TextBlock->SetText(Left.Content);
-		if (PageTitleBlock)
-			PageTitleBlock->SetText(Left.Title);
+		ApplyOptionalPageTitle(PageTitleBlock, Left.Title);
 	}
 
 	// Right page — only when more than one page exists and a right block is bound
@@ -70,11 +81,7 @@ void UInventoryBookWidget::ShowSpread(int32 LeftIndex)
 		RightTextBlock->SetText(bHasRight ? CachedPages[LeftIndex + 1].Content : FText::GetEmpty());
 		RightTextBlock->SetVisibility(bHasRight ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Hidden);
 	}
-	if (RightPageTitleBlock)
-	{
-		RightPageTitleBlock->SetText(bHasRight ? CachedPages[LeftIndex + 1].Title : FText::GetEmpty());
-		RightPageTitleBlock->SetVisibility(bHasRight ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Hidden);
-	}
+	ApplyOptionalPageTitle(RightPageTitleBlock, bHasRight ? CachedPages[LeftIndex + 1].Title : FText::GetEmpty());
 
 	// Per-side page numbers
 	if (LeftPageCountBlock)

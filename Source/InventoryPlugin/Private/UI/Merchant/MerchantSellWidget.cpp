@@ -34,19 +34,26 @@ void UMerchantSellWidget::OnDoneButtonClicked()
 
 void UMerchantSellWidget::InitListFromStatic(UMerchantItemListWidget* InputListWidget)
 {
+	if (!InputListWidget)
+		return;
+
 	InputListWidget->ClearList();
-	for (auto& Data : GetStaticDataDisplayable())
+	const TArray<FMerchantItemDataStruct> StaticData = GetStaticDataDisplayable();
+	for (const FMerchantItemDataStruct& Data : StaticData)
 	{
 		InputListWidget->AddDataToList(Data);
 	}
-	DynamicStartID = GetStaticDataDisplayable().Num() - 1;
+	DynamicStartID = StaticData.Num();
 }
 
 //----------------------------------------------------------------------------------------------------------------------
 
 void UMerchantSellWidget::InitListFromDynamic(UMerchantItemListWidget* InputListWidget)
 {
-	for (auto& Data : GetDynamicDataDisplayable())
+	if (!InputListWidget)
+		return;
+
+	for (const FMerchantItemDataStruct& Data : GetDynamicDataDisplayable())
 	{
 		InputListWidget->AddDataToList(Data);
 	}
@@ -107,6 +114,8 @@ void UMerchantSellWidget::HandleBuyClick()
 	}
 
 	const FCoinValue TransactionValue = GetSelectedItemPrice();
+	if (TransactionValue.IsEmpty())
+		return;
 
 	if (!PC->PlayerCanPayAmount(TransactionValue))
 	{
@@ -138,6 +147,8 @@ void UMerchantSellWidget::HandleSellClick()
 		return;
 
 	const FCoinValue TransactionValue = GetSelectedItemPrice();
+	if (TransactionValue.IsEmpty())
+		return;
 
 	if (!MerchantActor->CanPayAmount(TransactionValue))
 	{
@@ -461,7 +472,9 @@ void UMerchantSellWidget::InitMerchantData(AActor* InputMerchantActor)
 void UMerchantSellWidget::DeInitMerchantData()
 {
 	if (UWorld* World = GetWorld())
+	{
 		World->GetTimerManager().ClearTimer(TransactionRefreshTimer);
+	}
 
 	if (MerchantActor)
 	{
@@ -496,6 +509,10 @@ void UMerchantSellWidget::DeInitMerchantData()
 
 void UMerchantSellWidget::Refresh()
 {
+#if WITH_AUTOMATION_WORKER
+	++RefreshCountForTests;
+#endif
+
 	if (!MerchantActor)
 	{
 		HideItemPreview();
@@ -568,6 +585,11 @@ void UMerchantSellWidget::AssignSellData(int32 ItemID, int32 TopLeft, EBagSlot O
 			}
 
 			const FCoinValue OfferPrice = GetSelectedItemPrice();
+			if (OfferPrice.IsEmpty())
+			{
+				return;
+			}
+
 			OnMerchantOffersPriceQuote(MerchantActor->GetMerchantName(), Item->Name, OfferPrice);
 		}
 	}
@@ -597,6 +619,11 @@ void UMerchantSellWidget::OnItemListSelectionChanged(int32 ItemID)
 		if (Item)
 		{
 			const FCoinValue SalePrice = GetSelectedItemPrice();
+			if (SalePrice.IsEmpty())
+			{
+				return;
+			}
+
 			OnMerchantOffersItemForSale(MerchantActor->GetMerchantName(), Item->Name, SalePrice);
 		}
 	}

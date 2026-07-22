@@ -40,14 +40,11 @@ FCoinValue& FCoinValue::operator+=(const FCoinValue& OtherCoinValue)
 
 FCoinValue& FCoinValue::operator*=(float Ratio)
 {
-	float FVal = ToFloat();
-	FVal *= Ratio;
-	if (Ratio >= 1.0f)
-		FVal += 0.5f;
-	else
-		FVal -= 0.5f;
-
-	*this = FCoinValue(FMath::CeilToFloat(FMath::Max(FVal, 0.f)));
+	const float ScaledValue = FMath::Max(ToFloat() * Ratio, 0.f);
+	const float RoundedValue = Ratio > 1.0f
+		                           ? FMath::CeilToFloat(ScaledValue)
+		                           : FMath::FloorToFloat(ScaledValue);
+	*this = FCoinValue(RoundedValue);
 	return *this;
 }
 
