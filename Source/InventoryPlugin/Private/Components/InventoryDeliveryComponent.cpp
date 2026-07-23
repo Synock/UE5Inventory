@@ -143,16 +143,33 @@ bool UInventoryDeliveryComponent::ReserveDestination(const FGuid& DeliveryId,
 	if (!Delivery || !PlayerInterface)
 		return false;
 
-	if (InOutDestination.Kind == EInventoryDeliveryDestinationKind::Automatic)
-	{
-		if (!FindBagDestination(*Delivery, InOutDestination.Bag, InOutDestination.TopLeft))
-			return false;
-		InOutDestination.Kind = EInventoryDeliveryDestinationKind::Bag;
-	}
-
 	const UInventoryItemBase* Item = UInventoryUtilities::GetItemFromID(Delivery->ItemID, GetWorld());
 	if (!Item)
 		return false;
+
+	if (InOutDestination.Kind == EInventoryDeliveryDestinationKind::Automatic)
+	{
+		EEquipmentSlot EquipmentSlot = EEquipmentSlot::Unknown;
+		if (PlayerInterface->PlayerTryAutoEquip(Delivery->ItemID, EquipmentSlot) &&
+			EquipmentSlot != EEquipmentSlot::Unknown)
+		{
+			const UInventoryItemEquipable* Equipable = Cast<UInventoryItemEquipable>(Item);
+			IEquipmentInterface* EquipmentInterface = PlayerInterface->GetEquipmentForInventory();
+			UEquipmentComponent* Equipment = EquipmentInterface ? EquipmentInterface->GetEquipmentComponent() : nullptr;
+			if (Equipment && Equipable && Equipment->ReservePendingDelivery(DeliveryId, Equipable, EquipmentSlot))
+			{
+				InOutDestination = FInventoryDeliveryDestination::MakeEquipment(EquipmentSlot);
+				return true;
+			}
+		}
+
+		if (!FindBagDestination(*Delivery, InOutDestination.Bag, InOutDestination.TopLeft))
+			return false;
+		InOutDestination.Kind = EInventoryDeliveryDestinationKind::Bag;
+		UInventoryComponent* Inventory = PlayerInterface->GetInventoryComponent();
+		return Inventory && Inventory->ReserveItemFootprint(DeliveryId, InOutDestination.Bag, Item,
+			InOutDestination.TopLeft);
+	}
 
 	if (InOutDestination.Kind == EInventoryDeliveryDestinationKind::Bag)
 	{

@@ -1221,10 +1221,9 @@ void UInventoryNetComponent::HandleClaimAllPendingDeliveries()
 	const TArray<FPendingInventoryDelivery> Snapshot = DeliveryComponent->GetPendingDeliveries();
 	for (const FPendingInventoryDelivery& Delivery : Snapshot)
 	{
-		EBagSlot Bag = EBagSlot::Unknown;
-		int32 TopLeft = -1;
-		if (DeliveryComponent->FindBagDestination(Delivery, Bag, TopLeft))
-			DeliveryComponent->CommitClaim(Delivery.DeliveryId, Bag, TopLeft);
+		FInventoryDeliveryDestination Destination;
+		if (DeliveryComponent->ReserveDestination(Delivery.DeliveryId, Destination))
+			DeliveryComponent->CommitClaim(Delivery.DeliveryId, Destination);
 	}
 }
 

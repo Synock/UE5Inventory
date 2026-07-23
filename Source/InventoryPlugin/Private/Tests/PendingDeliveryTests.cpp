@@ -218,6 +218,8 @@ bool FPendingDeliveryEquipmentReservationTest::RunTest(const FString& Parameters
 		Equipment->ReservePendingDelivery(Reservation, HeadItem, EEquipmentSlot::Head));
 	TestTrue(TEXT("The target equipment slot is reserved"),
 		Equipment->IsEquipmentSlotReserved(EEquipmentSlot::Head));
+	TestEqual(TEXT("Auto equipment selection skips a reserved single-slot item"),
+		Equipment->FindSuitableSlot(HeadItem), EEquipmentSlot::Unknown);
 	TestFalse(TEXT("A second claim cannot race the reservation"),
 		Equipment->ReservePendingDelivery(FGuid::NewGuid(), HeadItem, EEquipmentSlot::Head));
 	Equipment->ReleasePendingDeliveryReservation(Reservation);
@@ -232,11 +234,28 @@ bool FPendingDeliveryEquipmentReservationTest::RunTest(const FString& Parameters
 		Equipment->GetEquipmentDurability(EEquipmentSlot::Head, Durability));
 	TestEqual(TEXT("Equipment claim preserves exact durability"), Durability, 42.5f);
 
+	UEquipmentComponent* RingEquipment = NewObject<UEquipmentComponent>(Owner);
+	UInventoryItemEquipable* RingItem = NewObject<UInventoryItemEquipable>();
+	RingItem->EquipableSlotBitMask = (1 << static_cast<uint8>(EEquipmentSlot::FingerL)) |
+		(1 << static_cast<uint8>(EEquipmentSlot::FingerR));
+	const FGuid RingReservation = FGuid::NewGuid();
+	TestTrue(TEXT("A delivery can reserve the first legal duplicate equipment slot"),
+		RingEquipment->ReservePendingDelivery(RingReservation, RingItem, EEquipmentSlot::FingerL));
+	TestEqual(TEXT("Auto equipment selection falls through to the next legal duplicate slot"),
+		RingEquipment->FindSuitableSlot(RingItem), EEquipmentSlot::FingerR);
+	const FGuid SecondRingReservation = FGuid::NewGuid();
+	TestTrue(TEXT("The second duplicate equipment slot can also be reserved"),
+		RingEquipment->ReservePendingDelivery(SecondRingReservation, RingItem, EEquipmentSlot::FingerR));
+	TestEqual(TEXT("Auto equipment selection reports no fit when all legal duplicate slots are reserved"),
+		RingEquipment->FindSuitableSlot(RingItem), EEquipmentSlot::Unknown);
+
 	UEquipmentComponent* MultiSlotEquipment = NewObject<UEquipmentComponent>(Owner);
 	UInventoryItemEquipable* MultiSlotBag = NewObject<UInventoryItemEquipable>();
 	MultiSlotBag->MultiSlotItem = true;
 	MultiSlotBag->EquipableSlotBitMask = (1 << static_cast<uint8>(EEquipmentSlot::WaistBag1)) |
 		(1 << static_cast<uint8>(EEquipmentSlot::WaistBag2));
+	TestEqual(TEXT("Auto equipment selection chooses the primary slot for an open multi-slot item"),
+		MultiSlotEquipment->FindSuitableSlot(MultiSlotBag), EEquipmentSlot::WaistBag1);
 	const FGuid MultiReservation = FGuid::NewGuid();
 	TestTrue(TEXT("A multi-slot delivery reserves its complete equipment footprint"),
 		MultiSlotEquipment->ReservePendingDelivery(MultiReservation, MultiSlotBag, EEquipmentSlot::WaistBag1));
@@ -244,6 +263,8 @@ bool FPendingDeliveryEquipmentReservationTest::RunTest(const FString& Parameters
 		MultiSlotEquipment->IsEquipmentSlotReserved(EEquipmentSlot::WaistBag2));
 	TestFalse(TEXT("A multi-slot item cannot target its secondary visual slot"),
 		MultiSlotEquipment->CanEquipItemAt(MultiSlotBag, EEquipmentSlot::WaistBag2, MultiReservation));
+	TestEqual(TEXT("Auto equipment selection reports no fit for a reserved multi-slot item"),
+		MultiSlotEquipment->FindSuitableSlot(MultiSlotBag), EEquipmentSlot::Unknown);
 	return true;
 }
 
