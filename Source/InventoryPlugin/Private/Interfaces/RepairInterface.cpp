@@ -3,6 +3,18 @@
 #include "InventoryUtilities.h"
 #include "Items/InventoryItemEquipable.h"
 
+bool IRepairInterface::CanRepairItem(const UInventoryItemEquipable* ItemData, FText& OutReason) const
+{
+	if (!ItemData)
+	{
+		OutReason = FText::FromString(TEXT("No item selected."));
+		return false;
+	}
+
+	OutReason = FText::GetEmpty();
+	return true;
+}
+
 FCoinValue IRepairInterface::CalculateRepairCost(int32 ItemID, float CurrentDurability, float MaxDurability) const
 {
 	const URepairComponent* RepairComp = GetRepairComponentConst();
@@ -36,6 +48,12 @@ FCoinValue IRepairInterface::CalculateRepairAllCost(TArray<UInventoryItemEquipab
 	{
 		if (const UInventoryItemEquipable* Item = Equipment[i])
 		{
+			FText Reason;
+			if (!CanRepairItem(Item, Reason))
+			{
+				continue;
+			}
+
 			const float CurrentDurability = EquipmentDurability[i];
 			const float MaxDurability = Item->GetTotalDurability();
 

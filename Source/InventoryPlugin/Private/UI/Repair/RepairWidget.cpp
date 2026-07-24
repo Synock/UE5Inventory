@@ -75,6 +75,12 @@ void URepairWidget::BuildRepairableItemList()
 	{
 		if (const UInventoryItemEquipable* Item = AllEquipment[i])
 		{
+			FText RepairRejectionReason;
+			if (!RepairerActor->CanRepairItem(Item, RepairRejectionReason))
+			{
+				continue;
+			}
+
 			const EEquipmentSlot EquipmentSlot = static_cast<EEquipmentSlot>(i);
 			float CurrentDurability = 0.0f;
 

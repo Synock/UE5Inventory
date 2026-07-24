@@ -1105,11 +1105,18 @@ void UInventoryNetComponent::HandleCancelStagingArea()
 
 	UCoinComponent* StagingCoin = PlayerInterface->GetStagingAreaCoin();
 	UStagingAreaComponent* StagingItems = PlayerInterface->GetStagingAreaItems();
+	UCoinComponent* PlayerCoin = PlayerInterface->GetCoinComponent();
 
-	if (StagingCoin && PlayerInterface->GetCoinComponent())
+	if (StagingCoin && PlayerCoin)
 	{
-		PlayerInterface->GetCoinComponent()->AddCoins(StagingCoin->GetPurseContent());
+		PlayerCoin->AddCoins(StagingCoin->GetPurseContent());
 		StagingCoin->ClearPurse();
+	}
+	else if (StagingCoin)
+	{
+		UE_LOG(LogInventoryPlugin, Verbose,
+		       TEXT("HandleCancelStagingArea skipped staging coin refund because player coin component is unavailable on %s"),
+		       *GetNameSafe(GetOwner()));
 	}
 
 	if (StagingItems)

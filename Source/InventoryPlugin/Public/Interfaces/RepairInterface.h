@@ -70,6 +70,15 @@ public:
 	virtual URepairComponent* GetRepairComponentConst() const = 0;
 
 	/**
+	 * @brief Check whether this repairer can repair a specific equipped item.
+	 *
+	 * Default repairers accept every equipable item. Game projects can override this
+	 * to expose narrower services, and both UI pricing and server repair handlers
+	 * should honor the same check.
+	 */
+	virtual bool CanRepairItem(const UInventoryItemEquipable* ItemData, FText& OutReason) const;
+
+	/**
 	 * @brief Calculate repair cost for a specific item.
 	 *
 	 * @param ItemID The ID of the item to repair
