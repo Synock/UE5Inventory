@@ -13,6 +13,49 @@
 #include "Items/InventoryItemEquipable.h"
 #include "Items/Interfaces/InventoryItemAmmoBagInterface.h"
 
+namespace
+{
+	TSet<FString> LoggedMissingEquipmentSockets;
+
+	bool AttachComponentToEquipmentSocketIfAvailable(USceneComponent* Component,
+	                                                 USkeletalMeshComponent* PlayerMesh,
+	                                                 FName SocketName,
+	                                                 const AActor* Owner)
+	{
+		if (!Component || !PlayerMesh || !PlayerMesh->GetSkeletalMeshAsset())
+		{
+			return false;
+		}
+
+		if (!PlayerMesh->DoesSocketExist(SocketName))
+		{
+			const FString LogKey = FString::Printf(TEXT("%s:%s:%s"),
+				Owner ? *Owner->GetClass()->GetPathName() : TEXT("UnknownOwner"),
+				*PlayerMesh->GetSkeletalMeshAsset()->GetName(),
+				*SocketName.ToString());
+			if (!LoggedMissingEquipmentSockets.Contains(LogKey))
+			{
+				LoggedMissingEquipmentSockets.Add(LogKey);
+				UE_LOG(LogInventoryPlugin, Verbose,
+				       TEXT("%s cannot attach equipment component '%s' to mesh socket '%s' because mesh '%s' does not define it."),
+				       Owner ? *Owner->GetName() : TEXT("UnknownOwner"),
+				       *Component->GetName(),
+				       *SocketName.ToString(),
+				       *PlayerMesh->GetSkeletalMeshAsset()->GetName());
+			}
+			return false;
+		}
+
+		if (Component->GetAttachParent() == PlayerMesh && Component->GetAttachSocketName() == SocketName)
+		{
+			return true;
+		}
+
+		const FAttachmentTransformRules AttachmentTransformRules(EAttachmentRule::SnapToTarget, true);
+		return Component->AttachToComponent(PlayerMesh, AttachmentTransformRules, SocketName);
+	}
+}
+
 //----------------------------------------------------------------------------------------------------------------------
 
 UStaticMeshComponent* UEquipmentComponent::GetMeshComponentFromSocket(EEquipmentSocket Socket) const
@@ -674,6 +717,74 @@ void UEquipmentComponent::UpdateSingleOverlayMesh(EEquipmentSlot Slot, USkeletal
 
 //----------------------------------------------------------------------------------------------------------------------
 
+bool UEquipmentComponent::AttachEquipmentComponentsToOwnerMeshIfReady()
+{
+	ACharacter* Parent = Cast<ACharacter>(GetOwner());
+	if (!Parent)
+	{
+		return false;
+	}
+
+	USkeletalMeshComponent* PlayerMesh = Parent->GetMesh();
+	if (!PlayerMesh || !PlayerMesh->GetSkeletalMeshAsset())
+	{
+		return false;
+	}
+
+	if (!PrimaryWeaponComponent)
+	{
+		return false;
+	}
+
+	bool bAttachedAnyComponent = false;
+	bAttachedAnyComponent |= AttachComponentToEquipmentSocketIfAvailable(PrimaryWeaponComponent, PlayerMesh, FName("SOCKET_RightHandWeapon"), Parent);
+	bAttachedAnyComponent |= AttachComponentToEquipmentSocketIfAvailable(SecondaryWeaponComponent, PlayerMesh, FName("SOCKET_LeftHandWeapon"), Parent);
+	bAttachedAnyComponent |= AttachComponentToEquipmentSocketIfAvailable(AmmoComponent, PlayerMesh, FName("SOCKET_AmmoBag"), Parent);
+	bAttachedAnyComponent |= AttachComponentToEquipmentSocketIfAvailable(AmmoVariableComponent, PlayerMesh, FName("SOCKET_AmmoBag"), Parent);
+	bAttachedAnyComponent |= AttachComponentToEquipmentSocketIfAvailable(PrimaryWeaponSheath, PlayerMesh, FName("PrimarySheath"), Parent);
+	bAttachedAnyComponent |= AttachComponentToEquipmentSocketIfAvailable(SecondaryWeaponSheath, PlayerMesh, FName("SecondarySheath"), Parent);
+	bAttachedAnyComponent |= AttachComponentToEquipmentSocketIfAvailable(BackWeaponSheath, PlayerMesh, FName("BackSheath"), Parent);
+	bAttachedAnyComponent |= AttachComponentToEquipmentSocketIfAvailable(RangedWeaponSheath, PlayerMesh, FName("LowerBackSheath"), Parent);
+
+	bAttachedAnyComponent |= AttachComponentToEquipmentSocketIfAvailable(WaistBag1Component, PlayerMesh, FName("SOCKET_WaistBag1"), Parent);
+	bAttachedAnyComponent |= AttachComponentToEquipmentSocketIfAvailable(WaistBag2Component, PlayerMesh, FName("SOCKET_WaistBag2"), Parent);
+	bAttachedAnyComponent |= AttachComponentToEquipmentSocketIfAvailable(ShoulderBag1Component, PlayerMesh, FName("SOCKET_ShoulderBag1"), Parent);
+	bAttachedAnyComponent |= AttachComponentToEquipmentSocketIfAvailable(ShoulderBag2Component, PlayerMesh, FName("SOCKET_ShoulderBag2"), Parent);
+	bAttachedAnyComponent |= AttachComponentToEquipmentSocketIfAvailable(BackpackComponent, PlayerMesh, FName("SOCKET_Backpack"), Parent);
+
+	bAttachedAnyComponent |= AttachComponentToEquipmentSocketIfAvailable(RingLComponent, PlayerMesh, FName("RingL"), Parent);
+	bAttachedAnyComponent |= AttachComponentToEquipmentSocketIfAvailable(RingRComponent, PlayerMesh, FName("RingR"), Parent);
+
+	bAttachedAnyComponent |= AttachComponentToEquipmentSocketIfAvailable(EarringLComponent, PlayerMesh, FName("EarR"), Parent);
+	bAttachedAnyComponent |= AttachComponentToEquipmentSocketIfAvailable(EarringRComponent, PlayerMesh, FName("EarL"), Parent);
+
+	bAttachedAnyComponent |= AttachComponentToEquipmentSocketIfAvailable(WristLComponent, PlayerMesh, FName("WristL"), Parent);
+	bAttachedAnyComponent |= AttachComponentToEquipmentSocketIfAvailable(WristRComponent, PlayerMesh, FName("WristR"), Parent);
+
+	for (auto&& [MeshPointer, MeshComponent] : VariableMeshesMap)
+	{
+		if (!MeshComponent)
+		{
+			continue;
+		}
+
+		const FAttachmentTransformRules TransformRules(EAttachmentRule::SnapToTarget,
+		                                               EAttachmentRule::SnapToTarget,
+		                                               EAttachmentRule::SnapToTarget, true);
+		MeshComponent->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
+		MeshComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
+		if (MeshComponent->GetAttachParent() != PlayerMesh)
+		{
+			bAttachedAnyComponent |= MeshComponent->AttachToComponent(PlayerMesh, TransformRules);
+		}
+		MeshComponent->SetLeaderPoseComponent(PlayerMesh);
+	}
+
+	return bAttachedAnyComponent;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 // Called when the game starts
 void UEquipmentComponent::BeginPlay()
 {
@@ -684,60 +795,9 @@ void UEquipmentComponent::BeginPlay()
 		return;
 	}
 
-	ACharacter* Parent = Cast<ACharacter>(GetOwner());
-	if (!Parent)
-	{
-		return;
-	}
-	USkeletalMeshComponent* PlayerMesh = Parent->GetMesh();
-
-	if (!PlayerMesh)
-	{
-		return;
-	}
-
 	if (!PrimaryWeaponComponent)
 	{
 		return;
-	}
-
-	FAttachmentTransformRules AttachmentTransformRules(EAttachmentRule::SnapToTarget, true);
-
-	PrimaryWeaponComponent->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("SOCKET_RightHandWeapon"));
-	SecondaryWeaponComponent->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("SOCKET_LeftHandWeapon"));
-	AmmoComponent->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("SOCKET_AmmoBag"));
-	AmmoVariableComponent->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("SOCKET_AmmoBag"));
-	PrimaryWeaponSheath->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("PrimarySheath"));
-	SecondaryWeaponSheath->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("SecondarySheath"));
-	BackWeaponSheath->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("BackSheath"));
-	RangedWeaponSheath->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("LowerBackSheath"));
-
-
-	WaistBag1Component->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("SOCKET_WaistBag1"));
-	WaistBag2Component->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("SOCKET_WaistBag2"));
-	ShoulderBag1Component->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("SOCKET_ShoulderBag1"));
-	ShoulderBag2Component->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("SOCKET_ShoulderBag2"));
-	BackpackComponent->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("SOCKET_Backpack"));
-
-	RingLComponent->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("RingL"));
-	RingRComponent->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("RingR"));
-
-	EarringLComponent->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("EarR"));
-	EarringRComponent->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("EarL"));
-
-	WristLComponent->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("WristL"));
-	WristRComponent->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("WristR"));
-
-	//Disable camera collision for EVERY piece of equipment
-	for (auto&& [MeshPointer, MeshComponent] : VariableMeshesMap)
-	{
-		const FAttachmentTransformRules TransformRules2(EAttachmentRule::SnapToTarget,
-		                                                EAttachmentRule::SnapToTarget,
-		                                                EAttachmentRule::SnapToTarget, true);
-		MeshComponent->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
-		MeshComponent->SetCollisionResponseToChannel(ECC_Pawn,   ECR_Ignore);
-		MeshComponent->AttachToComponent(PlayerMesh, TransformRules2);
-		MeshComponent->SetLeaderPoseComponent(Cast<ACharacter>(GetOwner())->GetMesh());
 	}
 
 	PrimaryWeaponComponent->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
@@ -753,6 +813,8 @@ void UEquipmentComponent::BeginPlay()
 	WaistBag1Component->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
 	WaistBag2Component->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
 	BackpackComponent->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
+
+	AttachEquipmentComponentsToOwnerMeshIfReady();
 
 	// Enforce refresh of skeletal mesh equipment that may otherwise be preloaded and ignored
 	if (auto PrimaryWeapon = GetItemAtSlot(EEquipmentSlot::Primary))
@@ -1354,8 +1416,11 @@ FVector UEquipmentComponent::GetWeaponTipLocation() const
 	// No weapon drawn — fall back to the character's right-hand socket
 	if (const ACharacter* Owner = Cast<ACharacter>(GetOwner()))
 	{
-		if (const USkeletalMeshComponent* Mesh = Owner->GetMesh())
+		if (const USkeletalMeshComponent* Mesh = Owner->GetMesh();
+			Mesh && Mesh->GetSkeletalMeshAsset() && Mesh->DoesSocketExist(FName("SOCKET_RightHandWeapon")))
+		{
 			return Mesh->GetSocketLocation(FName("SOCKET_RightHandWeapon"));
+		}
 	}
 
 	return FVector::ZeroVector;
@@ -1384,8 +1449,11 @@ FVector UEquipmentComponent::GetDefenseContactLocation() const
 	// Nothing in the off-hand — use the left-hand socket as best approximation
 	if (const ACharacter* Owner = Cast<ACharacter>(GetOwner()))
 	{
-		if (const USkeletalMeshComponent* Mesh = Owner->GetMesh())
+		if (const USkeletalMeshComponent* Mesh = Owner->GetMesh();
+			Mesh && Mesh->GetSkeletalMeshAsset() && Mesh->DoesSocketExist(FName("SOCKET_LeftHandWeapon")))
+		{
 			return Mesh->GetSocketLocation(FName("SOCKET_LeftHandWeapon"));
+		}
 	}
 
 	return FVector::ZeroVector;
