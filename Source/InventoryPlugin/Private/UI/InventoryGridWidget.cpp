@@ -326,7 +326,16 @@ void UInventoryGridWidget::InitData(AActor* Owner, EBagSlot InputBagSlot, int32 
 		return;
 	}
 
-	PC->GetInventoryComponent()->FullInventoryDispatcher.AddUniqueDynamic(
+	UInventoryComponent* InventoryComponent = PC->GetInventoryComponent();
+	if (!InventoryComponent)
+	{
+		UE_LOG(LogInventoryPlugin, Warning,
+		       TEXT("InitData: InventoryComponent is not ready for bag %d — initialization deferred"),
+		       static_cast<int32>(InputBagSlot));
+		return;
+	}
+
+	InventoryComponent->FullInventoryDispatcher.AddUniqueDynamic(
 		this, &UInventoryGridWidget::ResetTransaction);
 
 	//these are internal bags of the inventory
@@ -340,7 +349,7 @@ void UInventoryGridWidget::InitData(AActor* Owner, EBagSlot InputBagSlot, int32 
 
 		if (InputWidth <= 0 || InputHeight <= 0)
 		{
-			if (const UBagStorage* BagData = PC->GetInventoryComponent()->GetRelatedBagConst(BagID))
+			if (const UBagStorage* BagData = InventoryComponent->GetRelatedBagConst(BagID))
 			{
 				ActualWidth = BagData->GetWidth();
 				ActualHeight = BagData->GetHeight();
@@ -348,7 +357,7 @@ void UInventoryGridWidget::InitData(AActor* Owner, EBagSlot InputBagSlot, int32 
 		}
 
 		ResizeBagArea(ActualWidth, ActualHeight);
-		PC->GetInventoryComponent()->FullInventoryDispatcher.AddUniqueDynamic(this, &UInventoryGridWidget::Refresh);
+		InventoryComponent->FullInventoryDispatcher.AddUniqueDynamic(this, &UInventoryGridWidget::Refresh);
 	}
 	else if (BagID == EBagSlot::LootPool)
 	{
@@ -392,7 +401,7 @@ void UInventoryGridWidget::InitData(AActor* Owner, EBagSlot InputBagSlot, int32 
 			}
 		}
 
-		PC->GetInventoryComponent()->FullInventoryDispatcher.AddUniqueDynamic(this, &UInventoryGridWidget::Refresh);
+		InventoryComponent->FullInventoryDispatcher.AddUniqueDynamic(this, &UInventoryGridWidget::Refresh);
 	}
 
 	//next block is UI size
