@@ -32,6 +32,8 @@ protected:
 
 #if WITH_AUTOMATION_WORKER
 	int32 LastSelectionItemIDForTests = 0;
+	int32 LastProgrammaticSelectionItemIDForTests = 0;
+	int32 ProgrammaticSelectionCountForTests = 0;
 #endif
 
 	void BindListViewSelection();
@@ -63,6 +65,14 @@ public:
 	void ClearSelection();
 	virtual void ClearSelection_Implementation();
 
+	/**
+	 * Select the list entry matching ItemID after the list has been rebuilt.
+	 * C++ default searches the bound ItemListView and selects the matching row.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent)
+	bool SelectItemByID(int32 ItemID);
+	virtual bool SelectItemByID_Implementation(int32 ItemID);
+
 	UPROPERTY(BlueprintAssignable, BlueprintCallable)
 	FOnSelectionChangedDelegate SelectionChangedDelegate;
 
@@ -91,6 +101,8 @@ public:
 	UListView* GetItemListViewForTests() const { return ItemListView; }
 	int32 GetListItemCountForTests() const { return ItemListView ? ItemListView->GetNumItems() : 0; }
 	int32 GetLastSelectionItemIDForTests() const { return LastSelectionItemIDForTests; }
+	int32 GetLastProgrammaticSelectionItemIDForTests() const { return LastProgrammaticSelectionItemIDForTests; }
+	int32 GetProgrammaticSelectionCountForTests() const { return ProgrammaticSelectionCountForTests; }
 	void HandleListItemSelectionChangedForTests(UObject* SelectedItem) { HandleListItemSelectionChanged(SelectedItem); }
 #endif
 };

@@ -98,13 +98,10 @@ Equipment is visible to all players (no `COND_OwnerOnly`) — everyone sees worn
 UFUNCTION(NetMulticast, reliable)
 void UpdateEquipment(USkeletalMeshComponent* Socket, USkeletalMesh* Mesh,
                      const TArray<FMaterialOverride>& MaterialOverride);
-
-UFUNCTION(NetMulticast, Reliable)
-void EquipLightItem(TSubclassOf<AInventoryLightSourceActor> LightActor) const;
-
-UFUNCTION(NetMulticast, Reliable)
-void UnEquipLightItem() const;
 ```
+
+Game-specific presentation such as equipped lights, particles, and sounds is reconstructed by the owning project from
+the replicated `Equipment` array. InventoryPlugin owns generic equipment state and mesh/socket presentation only.
 
 ### UCoinComponent
 

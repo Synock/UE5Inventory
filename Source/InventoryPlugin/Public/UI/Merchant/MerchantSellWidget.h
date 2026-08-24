@@ -108,6 +108,9 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = "Inventory|Merchant|Buy")
 	bool MerchantCanBuy = true;
 
+	/** Prevent list rebuilds/restoration from being treated as new player selections. */
+	bool bRefreshingItemList = false;
+
 	UPROPERTY(BlueprintReadWrite, Category = "Inventory|Merchant|Buy")
 	EBagSlot MerchantBuyOriginSlot = EBagSlot::Unknown;
 
@@ -122,6 +125,7 @@ protected:
 
 #if WITH_AUTOMATION_WORKER
 	int32 RefreshCountForTests = 0;
+	int32 ItemOfferBroadcastCountForTests = 0;
 #endif
 
 	//------------------------------------------------------------------------------------------------------------------
@@ -227,6 +231,9 @@ public:
 	int32 GetDynamicStartIDForTests() const { return DynamicStartID; }
 	int32 GetSelectedItemIdForTests() const { return SelectedItemId; }
 	EMerchantWindowMode GetMerchantModeForTests() const { return MerchantMode; }
+	int32 GetItemOfferBroadcastCountForTests() const { return ItemOfferBroadcastCountForTests; }
+	bool IsBuySellButtonEnabledForTests() const { return BuySellButton && BuySellButton->GetIsEnabled(); }
+	void SetRefreshingItemListForTests(bool bRefreshing) { bRefreshingItemList = bRefreshing; }
 	void SetMerchantSessionStateForTests(int32 ItemID, int32 TopLeft, EBagSlot OriginBag, EMerchantWindowMode Mode)
 	{
 		SelectedItemId = ItemID;

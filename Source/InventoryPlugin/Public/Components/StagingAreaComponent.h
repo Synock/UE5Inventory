@@ -43,6 +43,9 @@ public:
 	UFUNCTION(BlueprintCallable)
 	bool AddItemToStagingArea(const FInventoryEscrowItem& ItemStorage);
 
+	/** Remove exactly one escrow entry after it has been returned successfully. */
+	bool RemoveItemFromStagingArea(FGuid ReservationId);
+
 	/** Replaces the staging contents after a partial, lossless rollback. */
 	void SetStagingAreaItems(const TArray<FInventoryEscrowItem>& Items);
 };

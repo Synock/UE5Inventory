@@ -289,6 +289,13 @@ void IInventoryPlayerInterface::CancelStagingArea()
 
 //----------------------------------------------------------------------------------------------------------------------
 
+void IInventoryPlayerInterface::ReturnStagingItem(FGuid ReservationId)
+{
+	Server_ReturnStagingItem(ReservationId);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 void IInventoryPlayerInterface::TransferStagingToActor(AActor* TargetActor)
 {
 	Server_TransferStagingToActor(TargetActor);
@@ -925,6 +932,12 @@ void IInventoryPlayerInterface::Server_CancelStagingArea()
 {
 	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
 		Comp->Server_CancelStagingArea();
+}
+
+void IInventoryPlayerInterface::Server_ReturnStagingItem(FGuid ReservationId)
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_ReturnStagingItem(ReservationId);
 }
 
 void IInventoryPlayerInterface::Server_TransferStagingToActor(AActor* TargetActor)

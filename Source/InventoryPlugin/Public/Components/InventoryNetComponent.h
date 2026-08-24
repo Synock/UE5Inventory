@@ -210,6 +210,10 @@ public:
 	UFUNCTION(Server, Reliable, Category = "Inventory|Staging")
 	void Server_CancelStagingArea();
 
+	/** Return one escrow entry without cancelling the rest of the staging transaction. */
+	UFUNCTION(Server, Reliable, Category = "Inventory|Staging")
+	void Server_ReturnStagingItem(FGuid ReservationId);
+
 	UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory|Delivery")
 	void Server_ClaimPendingDelivery(FGuid DeliveryId);
 
@@ -311,12 +315,14 @@ protected:
 
 	// -- Staging --
 	virtual void HandleCancelStagingArea();
+	virtual void HandleReturnStagingItem(FGuid ReservationId);
 	virtual void HandleClaimPendingDelivery(FGuid DeliveryId);
 	virtual void HandleClaimPendingDeliveryAt(FGuid DeliveryId, FInventoryDeliveryDestination Destination);
 	virtual void HandleClaimAllPendingDeliveries();
 	virtual void HandleTransferStagingToActor(AActor* TargetActor);
 	virtual void HandleMoveEquipmentToStagingArea(int32 InItemId, EEquipmentSlot OutSlot);
 	virtual void HandleMoveInventoryItemToStagingArea(int32 InItemId, int32 OutTopLeft, EBagSlot OutSlot);
+	bool TryReturnStagedItem(const struct FInventoryEscrowItem& ItemStorage);
 
 	// -- Keys --
 	virtual void HandlePlayerAddKeyFromInventory(int32 InTopLeft, EBagSlot InSlot, int32 InItemId);

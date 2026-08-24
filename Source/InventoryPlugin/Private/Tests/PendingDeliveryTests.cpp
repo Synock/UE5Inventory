@@ -5,6 +5,7 @@
 #include "Components/InventoryComponent.h"
 #include "Components/EquipmentComponent.h"
 #include "Components/StagingAreaComponent.h"
+#include "UI/StagingAreaSlotWidget.h"
 #include "Components/TradeComponent.h"
 #include "Components/TradeReturnRouting.h"
 #include "Components/StagingReturnRouting.h"
@@ -266,6 +267,53 @@ bool FPendingDeliveryEquipmentReservationTest::RunTest(const FString& Parameters
 	TestEqual(TEXT("Auto equipment selection reports no fit for a reserved multi-slot item"),
 		MultiSlotEquipment->FindSuitableSlot(MultiSlotBag), EEquipmentSlot::Unknown);
 	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStagingSingleItemRemovalTest,
+	"InventoryPlugin.Staging.Regression.SingleItemRemovalPreservesOtherEscrow",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FStagingSingleItemRemovalTest::RunTest(const FString& Parameters)
+{
+	AActor* Owner = NewObject<AActor>(GetTransientPackage());
+	UStagingAreaComponent* Staging = NewObject<UStagingAreaComponent>(Owner);
+	FInventoryEscrowItem First;
+	First.ItemID = 70001;
+	First.Source = FInventoryDeliveryDestination::MakeBag(EBagSlot::Pocket1, 0);
+	First.ReservationId = FGuid::NewGuid();
+	FInventoryEscrowItem Second;
+	Second.ItemID = 70002;
+	Second.Source = FInventoryDeliveryDestination::MakeBag(EBagSlot::Pocket2, 0);
+	Second.ReservationId = FGuid::NewGuid();
+
+	TestTrue(TEXT("First escrow item can be staged"), Staging->AddItemToStagingArea(First));
+	TestTrue(TEXT("Second escrow item can be staged"), Staging->AddItemToStagingArea(Second));
+	TestTrue(TEXT("Selected escrow item can be removed by reservation"),
+		Staging->RemoveItemFromStagingArea(First.ReservationId));
+	TestEqual(TEXT("Removing one staged item preserves the other slot"),
+		Staging->GetStagingAreaItems().Num(), 1);
+	TestEqual(TEXT("The unselected escrow item remains staged"),
+		Staging->GetStagingAreaItems()[0].ReservationId, Second.ReservationId);
+	TestFalse(TEXT("A stale reservation cannot remove another staged item"),
+		Staging->RemoveItemFromStagingArea(First.ReservationId));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStagingSlotNativeDragAssetContractTest,
+	"InventoryPlugin.Staging.UI.StagingSlotUsesNativeDragReturn",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FStagingSlotNativeDragAssetContractTest::RunTest(const FString& Parameters)
+{
+	UClass* SlotClass = LoadClass<UStagingAreaSlotWidget>(
+		nullptr, TEXT("/InventoryPlugin/UI/UI_StagingAreaSlot.UI_StagingAreaSlot_C"));
+	TestNotNull(TEXT("Authored staging slot asset loads"), SlotClass);
+	if (SlotClass)
+	{
+		TestTrue(TEXT("Authored staging slot uses the native drag-and-return implementation"),
+			SlotClass->IsChildOf(UStagingAreaSlotWidget::StaticClass()));
+	}
+	return SlotClass != nullptr;
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTradeCancellationRemovedBackpackRegressionTest,

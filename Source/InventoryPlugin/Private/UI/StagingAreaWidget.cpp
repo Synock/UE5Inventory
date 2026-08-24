@@ -64,15 +64,7 @@ void UStagingAreaWidget::Refresh()
 		}
 
 		const UInventoryItemBase* Item = UInventoryUtilities::GetItemFromID(StagingItemStorage.ItemID, GetWorld());
-		SlotWidget->InitBareData(Item, GetOwningPlayer(), 40.f, StagingItemStorage.Durability);
-
-
-		if (Item)
-		{
-			SlotWidget->SetToolTipText(FText::FromString(Item->Name));
-		}
-
-		SlotWidget->Refresh();
+		SlotWidget->InitializeStagedItem(StagingItemStorage, Item, GetOwningPlayer());
 		SlotIndex++;
 	}
 
@@ -83,9 +75,7 @@ void UStagingAreaWidget::Refresh()
 		if (!SlotWidget)
 			continue;
 
-		SlotWidget->InitBareData(nullptr, GetOwningPlayer(), 40.f);
-		SlotWidget->SetToolTipText(FText::GetEmpty());
-		SlotWidget->Refresh();
+		SlotWidget->ClearStagedItem();
 	}
 }
 

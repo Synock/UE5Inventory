@@ -523,11 +523,21 @@ void UMerchantSellWidget::Refresh()
 		MerchantPurse->Refresh();
 
 
+	const int32 MerchantSelectionToRestore = MerchantMode == EMerchantWindowMode::Sell
+		? SelectedItemId
+		: 0;
+
 	if (ItemList)
 	{
+		TGuardValue<bool> RefreshGuard(bRefreshingItemList, true);
 		ItemList->ClearList();
 		InitListFromStatic(ItemList);
 		InitListFromDynamic(ItemList);
+
+		if (MerchantCanSell(MerchantSelectionToRestore))
+		{
+			ItemList->SelectItemByID(MerchantSelectionToRestore);
+		}
 	}
 
 	if (MerchantCanSell(SelectedItemId))
@@ -599,6 +609,9 @@ void UMerchantSellWidget::AssignSellData(int32 ItemID, int32 TopLeft, EBagSlot O
 
 void UMerchantSellWidget::OnItemListSelectionChanged(int32 ItemID)
 {
+	if (bRefreshingItemList)
+		return;
+
 	// Reset buy-specific data
 	MerchantBuyOriginSlot = EBagSlot::Unknown;
 	MerchantBuyOriginTopLeft = -1;
@@ -670,6 +683,9 @@ void UMerchantSellWidget::OnMerchantOffersPriceQuote(const FString& MerchantName
 void UMerchantSellWidget::OnMerchantOffersItemForSale(const FString& MerchantName, const FString& ItemOfferName,
                                                        const FCoinValue& SalePrice)
 {
+#if WITH_AUTOMATION_WORKER
+	++ItemOfferBroadcastCountForTests;
+#endif
 	OnMerchantOffersItemForSaleDelegate.Broadcast(MerchantName, ItemOfferName, SalePrice);
 }
 

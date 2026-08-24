@@ -594,6 +594,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	virtual void CancelStagingArea();
 
+	/** Return one staged escrow item to its reserved source (or protected delivery fallback). */
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	virtual void ReturnStagingItem(FGuid ReservationId);
+
 	/**
 	 * Transfers staged inventory items to the specified target actor.
 	 *
@@ -1025,6 +1029,8 @@ protected:
 	//------------------------------------------------------------------------------------------------------------------
 
 	virtual void Server_CancelStagingArea();
+
+	virtual void Server_ReturnStagingItem(FGuid ReservationId);
 
 	virtual void Server_TransferStagingToActor(AActor* TargetActor);
 

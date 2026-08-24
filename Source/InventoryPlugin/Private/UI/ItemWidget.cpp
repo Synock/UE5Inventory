@@ -114,6 +114,19 @@ bool UItemWidget::RightClickShortEffect_Implementation()
 	if (!Item || Item->ItemID <= 0)
 		return false;
 
+	// Contextual game UI gets first refusal before built-in item actions.
+	if (IInventoryPlayerInterface* PC = GetInventoryPlayerInterface())
+	{
+		if (UObject* HUDObject = PC->GetInventoryHUDObject())
+		{
+			if (HUDObject->Implements<UInventoryHUDInterface>() &&
+				IInventoryHUDInterface::Execute_TryHandlePriorityItemRightClick(HUDObject, this))
+			{
+				return true;
+			}
+		}
+	}
+
 	// Check if item is a book first
 	if (const IInventoryItemBookInterface* BookItem = Cast<IInventoryItemBookInterface>(Item))
 	{

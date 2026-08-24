@@ -76,6 +76,10 @@ void UMerchantItemListWidget::AddDataToList_Implementation(const FMerchantItemDa
 
 void UMerchantItemListWidget::ClearList_Implementation()
 {
+#if WITH_AUTOMATION_WORKER
+	LastProgrammaticSelectionItemIDForTests = 0;
+#endif
+
 	if (ItemListView)
 		ItemListView->ClearListItems();
 }
@@ -86,6 +90,30 @@ void UMerchantItemListWidget::ClearSelection_Implementation()
 {
 	if (ItemListView)
 		ItemListView->ClearSelection();
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+bool UMerchantItemListWidget::SelectItemByID_Implementation(int32 ItemID)
+{
+	if (!ItemListView || ItemID <= 0)
+		return false;
+
+	for (UObject* Item : ItemListView->GetListItems())
+	{
+		if (const UMerchantItemData* Data = Cast<UMerchantItemData>(Item);
+			Data && Data->Data.Id == ItemID)
+		{
+			ItemListView->SetSelectedItem(Item);
+#if WITH_AUTOMATION_WORKER
+			LastProgrammaticSelectionItemIDForTests = ItemID;
+			++ProgrammaticSelectionCountForTests;
+#endif
+			return true;
+		}
+	}
+
+	return false;
 }
 
 //----------------------------------------------------------------------------------------------------------------------

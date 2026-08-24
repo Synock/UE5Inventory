@@ -231,6 +231,10 @@ bool FMerchantItemListSelectionBroadcastsTest::RunTest(const FString& Parameters
 
 	TestEqual(TEXT("Forwarding a selected merchant list row should emit the merchant item ID"),
 		ListWidget->GetLastSelectionItemIDForTests(), 7000);
+	TestTrue(TEXT("A rebuilt merchant row should be found by item ID for selection restoration"),
+		ListWidget->SelectItemByID(7000));
+	TestFalse(TEXT("Selection restoration should fail when the item is no longer in the list"),
+		ListWidget->SelectItemByID(7001));
 
 	return true;
 }

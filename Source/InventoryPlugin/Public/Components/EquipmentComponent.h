@@ -7,7 +7,6 @@
 #include "Items/InventoryItemEquipable.h"
 #include "EquipmentComponent.generated.h"
 
-class AInventoryLightSourceActor;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnEquipmentChanged);
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnEquipmentChanged_Server);
@@ -82,9 +81,6 @@ protected:
 
 	/** Server-only equipment cells reserved while a pending delivery is committed externally. */
 	TMap<FGuid, TArray<EEquipmentSlot>> PendingDeliveryReservations;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Light")
-	UChildActorComponent* SecondaryLightSource;
 
 	/// Weapons and Sheaths
 	UPROPERTY(EditAnywhere, Replicated, BlueprintReadWrite, Category = "Inventory|Weapon")
@@ -403,50 +399,6 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Equipment")
 	FBoxSphereBounds GetEquipmentOverlapBox(EEquipmentSlot Slot) const;
-
-	/**
-	 * Sets the light source for a specific equipment slot.
-	 *
-	 * @param LightActor The class of the light source actor to use.
-	 * @param Slot The slot where the light source should be set.
-	 *
-	 * @remarks This method should only be called on the server.
-	 *          If LightActor is nullptr, the light source for the slot will be removed.
-	 *          The light source actor is attached to the character's skeletal mesh component
-	 *          using the specified attachment rules.
-	 *          The specific attachment socket depends on the equipment slot provided.
-	 *          Only the secondary slot is supported currently.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Inventory|Equipment")
-	void SetEquipmentLight(TSubclassOf<AInventoryLightSourceActor> LightActor, EEquipmentSlot Slot) const;
-
-	/**
-	 * EquipLightItem function equips a light item specified by the LightActor parameter.
-	 * It is a NetMulticast function that is reliable, meaning it will be executed on all connected clients
-	 * to ensure consistency in the game state across the network.
-	 *
-	 * @param LightActor: The class of the light actor to be equipped.
-	 * @remarks This function is constant, meaning it does not modify any member variables of the class it belongs to.
-	 *          It is assumed that the class containing this function has a valid InventoryLightSourceActor reference to
-	 *          equip the light actor.
-	 * @see InventoryLightSourceActor
-	 * @see AInventoryLightSourceActor
-	 */
-	UFUNCTION(NetMulticast, Reliable)
-	void EquipLightItem(TSubclassOf<AInventoryLightSourceActor> LightActor) const;
-
-	/**
-	 * @brief UnEquips a light item.
-	 *
-	 * This method is a NetMulticast reliable function that is used to un-equip a light item.
-	 * It is const and does not return any value.
-	 *
-	 * @param None
-	 *
-	 * @return None
-	 */
-	UFUNCTION(NetMulticast, Reliable)
-	void UnEquipLightItem() const;
 
 	UFUNCTION(BlueprintCallable)
 	void SetAllEquipmentCollisionDisabled();

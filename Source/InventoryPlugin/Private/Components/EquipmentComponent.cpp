@@ -2,7 +2,6 @@
 #include "InventoryPlugin.h"
 #include <Net/UnrealNetwork.h>
 
-#include "Actors/InventoryLightSourceActor.h"
 #include "GameFramework/Character.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Engine/StaticMesh.h"
@@ -539,9 +538,6 @@ UEquipmentComponent::UEquipmentComponent()
 	RingLComponent->SetIsReplicated(true);
 	RingRComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("RingRComponent"));
 	RingRComponent->SetIsReplicated(true);
-
-	SecondaryLightSource = CreateDefaultSubobject<UChildActorComponent>(TEXT("SecondaryLightSource"));
-	SecondaryLightSource->SetIsReplicated(true);
 
 	WristLComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WristLComponent"));
 	WristLComponent->SetIsReplicated(true);
@@ -1311,47 +1307,6 @@ FBoxSphereBounds UEquipmentComponent::GetEquipmentOverlapBox(EEquipmentSlot Slot
 
 //----------------------------------------------------------------------------------------------------------------------
 
-void UEquipmentComponent::SetEquipmentLight(TSubclassOf<AInventoryLightSourceActor> LightActor,
-                                            EEquipmentSlot Slot) const
-{
-	if (GetOwnerRole() == ROLE_Authority)
-	{
-		EquipLightItem(LightActor);
-	}
-	if (LightActor)
-	{
-		ACharacter* Parent = Cast<ACharacter>(GetOwner());
-		if (!Parent)
-		{
-			return;
-		}
-
-		USkeletalMeshComponent* PlayerMesh = Parent->GetMesh();
-
-		if (!PlayerMesh)
-		{
-			return;
-		}
-
-		FAttachmentTransformRules AttachmentTransformRules(EAttachmentRule::SnapToTarget, true);
-		switch (Slot)
-		{
-		case EEquipmentSlot::Secondary:
-			break;
-		default: ;
-		}
-		SecondaryLightSource->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("SOCKET_LeftHandWeapon"));
-		SecondaryLightSource->SetChildActorClass(LightActor);
-		SecondaryLightSource->CreateChildActor();
-	}
-	else
-	{
-		SecondaryLightSource->DestroyChildActor();
-	}
-}
-
-//----------------------------------------------------------------------------------------------------------------------
-
 void UEquipmentComponent::SetAllEquipmentCollisionDisabled()
 {
 	PrimaryWeaponComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
@@ -1554,41 +1509,4 @@ USkeletalMeshComponent* UEquipmentComponent::GetOverlayComponentForSlot(EEquipme
 	if (const auto* Found = VariableMeshesMap.Find(Slot))
 		return *Found;
 	return nullptr;
-}
-
-//----------------------------------------------------------------------------------------------------------------------
-
-void UEquipmentComponent::EquipLightItem_Implementation(TSubclassOf<AInventoryLightSourceActor> LightActor) const
-{
-	if (LightActor)
-	{
-		ACharacter* Parent = Cast<ACharacter>(GetOwner());
-		if (!Parent)
-		{
-			return;
-		}
-
-		USkeletalMeshComponent* PlayerMesh = Parent->GetMesh();
-
-		if (!PlayerMesh)
-		{
-			return;
-		}
-
-		FAttachmentTransformRules AttachmentTransformRules(EAttachmentRule::SnapToTarget, true);
-		SecondaryLightSource->AttachToComponent(PlayerMesh, AttachmentTransformRules, FName("SOCKET_LeftHandWeapon"));
-		SecondaryLightSource->SetChildActorClass(LightActor);
-		SecondaryLightSource->CreateChildActor();
-	}
-	else
-	{
-		SecondaryLightSource->DestroyChildActor();
-	}
-}
-
-//----------------------------------------------------------------------------------------------------------------------
-
-void UEquipmentComponent::UnEquipLightItem_Implementation() const
-{
-	SecondaryLightSource->DestroyChildActor();
 }

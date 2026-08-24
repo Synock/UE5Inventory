@@ -41,6 +41,18 @@ bool UStagingAreaComponent::AddItemToStagingArea(const FInventoryEscrowItem& Ite
 	return true;
 }
 
+bool UStagingAreaComponent::RemoveItemFromStagingArea(FGuid ReservationId)
+{
+	const int32 ItemIndex = StagingAreaItems.IndexOfByPredicate(
+		[ReservationId](const FInventoryEscrowItem& Item) { return Item.ReservationId == ReservationId; });
+	if (!StagingAreaItems.IsValidIndex(ItemIndex))
+		return false;
+
+	StagingAreaItems.RemoveAt(ItemIndex);
+	StagingAreaDispatcher.Broadcast();
+	return true;
+}
+
 void UStagingAreaComponent::SetStagingAreaItems(const TArray<FInventoryEscrowItem>& Items)
 {
 	StagingAreaItems = Items;

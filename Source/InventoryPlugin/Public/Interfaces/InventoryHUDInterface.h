@@ -16,6 +16,7 @@
 #include "InventoryHUDInterface.generated.h"
 
 class UInventoryItemBase;
+class UItemWidget;
 enum class EBagSlot : uint8;
 // This class does not need to be modified.
 UINTERFACE()
@@ -30,6 +31,16 @@ class INVENTORYPLUGIN_API IInventoryHUDInterface
 	GENERATED_BODY()
 
 public:
+	/**
+	 * Give the owning game HUD first refusal on an inventory item right-click.
+	 *
+	 * This runs before the plugin's normal book, activation, equip, and loot
+	 * actions. The default returns false so projects that do not need contextual
+	 * right-click behavior keep the standard inventory behavior.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, BlueprintCosmetic, Category = "Inventory|Interaction")
+	bool TryHandlePriorityItemRightClick(UItemWidget* ItemWidget);
+	virtual bool TryHandlePriorityItemRightClick_Implementation(UItemWidget* ItemWidget) { return false; }
 
 	//------------------------------------------------------------------------------------------------------------------
 	// Inventory window registry

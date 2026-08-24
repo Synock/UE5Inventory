@@ -413,6 +413,11 @@ void UInventoryNetComponent::Server_CancelStagingArea_Implementation()
 	HandleCancelStagingArea();
 }
 
+void UInventoryNetComponent::Server_ReturnStagingItem_Implementation(FGuid ReservationId)
+{
+	HandleReturnStagingItem(ReservationId);
+}
+
 void UInventoryNetComponent::Server_ClaimPendingDelivery_Implementation(FGuid DeliveryId)
 {
 	HandleClaimPendingDelivery(DeliveryId);
@@ -1124,82 +1129,107 @@ void UInventoryNetComponent::HandleCancelStagingArea()
 		TArray<FInventoryEscrowItem> UnresolvedItems;
 		for (const FInventoryEscrowItem& ItemStorage : StagingItems->GetStagingAreaItems())
 		{
-			const UInventoryItemBase* Item = UInventoryUtilities::GetItemFromID(ItemStorage.ItemID, GetWorld());
-			const auto ReestablishReservation = [this, &ItemStorage, Item]()
-			{
-				if (!Item)
-					return;
-				if (ItemStorage.Source.Kind == EInventoryDeliveryDestinationKind::Bag)
-				{
-					if (UInventoryComponent* Inventory = PlayerInterface->GetInventoryComponent())
-						Inventory->ReserveItemFootprint(ItemStorage.ReservationId, ItemStorage.Source.Bag, Item,
-							ItemStorage.Source.TopLeft);
-				}
-				else if (const UInventoryItemEquipable* Equipable = Cast<UInventoryItemEquipable>(Item);
-					Equipable && ItemStorage.Source.Kind == EInventoryDeliveryDestinationKind::Equipment)
-				{
-					if (IEquipmentInterface* Equipment = GetEquipmentInterface())
-						if (UEquipmentComponent* Component = Equipment->GetEquipmentComponent())
-							Component->ReservePendingDelivery(ItemStorage.ReservationId, Equipable,
-								ItemStorage.Source.EquipmentSlot);
-				}
-			};
-			bool bRestored = false;
-			if (Item && ItemStorage.Source.Kind == EInventoryDeliveryDestinationKind::Bag)
-			{
-				if (UInventoryComponent* Inventory = PlayerInterface->GetInventoryComponent())
-				{
-					Inventory->ReleaseItemFootprint(ItemStorage.ReservationId);
-					if (Inventory->CanPlaceItemAt(ItemStorage.Source.Bag, Item, ItemStorage.Source.TopLeft))
-					{
-						PlayerInterface->PlayerAddItemWithDurability(ItemStorage.Source.TopLeft,
-							ItemStorage.Source.Bag, ItemStorage.ItemID, ItemStorage.Durability);
-						bRestored = PlayerInterface->PlayerGetItem(ItemStorage.Source.TopLeft,
-							ItemStorage.Source.Bag) == ItemStorage.ItemID;
-					}
-				}
-			}
-			else if (const UInventoryItemEquipable* Equipable = Cast<UInventoryItemEquipable>(Item);
-				Equipable && ItemStorage.Source.Kind == EInventoryDeliveryDestinationKind::Equipment)
-			{
-				if (IEquipmentInterface* Equipment = GetEquipmentInterface())
-				{
-					UEquipmentComponent* EquipmentComponent = Equipment->GetEquipmentComponent();
-					if (EquipmentComponent)
-						EquipmentComponent->ReleasePendingDeliveryReservation(ItemStorage.ReservationId);
-					if (EquipmentComponent && EquipmentComponent->CanEquipItemAt(Equipable,
-						ItemStorage.Source.EquipmentSlot))
-					{
-						Equipment->EquipItemWithDurability(ItemStorage.Source.EquipmentSlot,
-							ItemStorage.ItemID, ItemStorage.Durability);
-						bRestored = Equipment->GetEquippedItem(ItemStorage.Source.EquipmentSlot) == Equipable;
-					}
-				}
-			}
-
-			if (bRestored)
-				continue;
-
-			UInventoryDeliveryComponent* DeliveryComponent = PlayerInterface->GetInventoryDeliveryComponent();
-			if (!DeliveryComponent)
-			{
-				ReestablishReservation();
+			if (!TryReturnStagedItem(ItemStorage))
 				UnresolvedItems.Add(ItemStorage);
-				continue;
-			}
-
-			if (!InventoryPlugin::StagingReturn::Route(ItemStorage,
-				[DeliveryComponent](const FInventoryDeliveryRequest& Request)
-				{
-					return DeliveryComponent->TryDeliverOrQueue(Request);
-				}))
-			{
-				ReestablishReservation();
-				UnresolvedItems.Add(ItemStorage);
-			}
 		}
 		StagingItems->SetStagingAreaItems(UnresolvedItems);
 	}
+}
+
+void UInventoryNetComponent::HandleReturnStagingItem(FGuid ReservationId)
+{
+	if (!PlayerInterface || !ReservationId.IsValid())
+		return;
+
+	UStagingAreaComponent* StagingItems = PlayerInterface->GetStagingAreaItems();
+	if (!StagingItems)
+		return;
+
+	const TArray<FInventoryEscrowItem>& Items = StagingItems->GetStagingAreaItems();
+	const int32 ItemIndex = Items.IndexOfByPredicate(
+		[ReservationId](const FInventoryEscrowItem& Item) { return Item.ReservationId == ReservationId; });
+	if (!Items.IsValidIndex(ItemIndex))
+		return;
+
+	const FInventoryEscrowItem ItemToReturn = Items[ItemIndex];
+	if (TryReturnStagedItem(ItemToReturn))
+		StagingItems->RemoveItemFromStagingArea(ReservationId);
+}
+
+bool UInventoryNetComponent::TryReturnStagedItem(const FInventoryEscrowItem& ItemStorage)
+{
+	if (!PlayerInterface)
+		return false;
+
+	const UInventoryItemBase* Item = UInventoryUtilities::GetItemFromID(ItemStorage.ItemID, GetWorld());
+	const auto ReestablishReservation = [this, &ItemStorage, Item]()
+	{
+		if (!Item)
+			return;
+		if (ItemStorage.Source.Kind == EInventoryDeliveryDestinationKind::Bag)
+		{
+			if (UInventoryComponent* Inventory = PlayerInterface->GetInventoryComponent())
+				Inventory->ReserveItemFootprint(ItemStorage.ReservationId, ItemStorage.Source.Bag, Item,
+					ItemStorage.Source.TopLeft);
+		}
+		else if (const UInventoryItemEquipable* Equipable = Cast<UInventoryItemEquipable>(Item);
+			Equipable && ItemStorage.Source.Kind == EInventoryDeliveryDestinationKind::Equipment)
+		{
+			if (IEquipmentInterface* Equipment = GetEquipmentInterface())
+				if (UEquipmentComponent* Component = Equipment->GetEquipmentComponent())
+					Component->ReservePendingDelivery(ItemStorage.ReservationId, Equipable,
+						ItemStorage.Source.EquipmentSlot);
+		}
+	};
+
+	bool bRestored = false;
+	if (Item && ItemStorage.Source.Kind == EInventoryDeliveryDestinationKind::Bag)
+	{
+		if (UInventoryComponent* Inventory = PlayerInterface->GetInventoryComponent())
+		{
+			Inventory->ReleaseItemFootprint(ItemStorage.ReservationId);
+			if (Inventory->CanPlaceItemAt(ItemStorage.Source.Bag, Item, ItemStorage.Source.TopLeft))
+			{
+				PlayerInterface->PlayerAddItemWithDurability(ItemStorage.Source.TopLeft,
+					ItemStorage.Source.Bag, ItemStorage.ItemID, ItemStorage.Durability);
+				bRestored = PlayerInterface->PlayerGetItem(ItemStorage.Source.TopLeft,
+					ItemStorage.Source.Bag) == ItemStorage.ItemID;
+			}
+		}
+	}
+	else if (const UInventoryItemEquipable* Equipable = Cast<UInventoryItemEquipable>(Item);
+		Equipable && ItemStorage.Source.Kind == EInventoryDeliveryDestinationKind::Equipment)
+	{
+		if (IEquipmentInterface* Equipment = GetEquipmentInterface())
+		{
+			UEquipmentComponent* EquipmentComponent = Equipment->GetEquipmentComponent();
+			if (EquipmentComponent)
+				EquipmentComponent->ReleasePendingDeliveryReservation(ItemStorage.ReservationId);
+			if (EquipmentComponent && EquipmentComponent->CanEquipItemAt(Equipable,
+				ItemStorage.Source.EquipmentSlot))
+			{
+				Equipment->EquipItemWithDurability(ItemStorage.Source.EquipmentSlot,
+					ItemStorage.ItemID, ItemStorage.Durability);
+				bRestored = Equipment->GetEquippedItem(ItemStorage.Source.EquipmentSlot) == Equipable;
+			}
+		}
+	}
+
+	if (bRestored)
+		return true;
+
+	UInventoryDeliveryComponent* DeliveryComponent = PlayerInterface->GetInventoryDeliveryComponent();
+	if (DeliveryComponent && InventoryPlugin::StagingReturn::Route(ItemStorage,
+		[DeliveryComponent](const FInventoryDeliveryRequest& Request)
+		{
+			return DeliveryComponent->TryDeliverOrQueue(Request);
+		}))
+	{
+		return true;
+	}
+
+	ReestablishReservation();
+	return false;
 }
 
 void UInventoryNetComponent::HandleClaimPendingDelivery(FGuid DeliveryId)
@@ -1238,8 +1268,8 @@ void UInventoryNetComponent::HandleClaimAllPendingDeliveries()
 
 void UInventoryNetComponent::HandleTransferStagingToActor(AActor* TargetActor)
 {
-	// No sensible generic default for transferring to an NPC/actor.
-	// Game subclass should override this to handle NPC-specific logic (e.g. HandlePlayerGive).
+	// No sensible generic default for transferring staged items to an arbitrary actor.
+	// Game subclasses may override this to apply their own transaction semantics.
 	UE_LOG(LogInventoryPlugin, Warning,
 	       TEXT(
 		       "UInventoryNetComponent::HandleTransferStagingToActor: No override provided. Staging area not transferred."
