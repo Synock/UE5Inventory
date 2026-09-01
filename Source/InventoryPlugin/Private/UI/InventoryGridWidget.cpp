@@ -1,10 +1,11 @@
 #include "UI/InventoryGridWidget.h"
 
+#include "UI/InventoryGridGeometry.h"
+
 #include "InventoryPlugin.h"
 #include "BagStorage.h"
 #include "InventoryUtilities.h"
 #include "Blueprint/DragDropOperation.h"
-#include "Blueprint/SlateBlueprintLibrary.h"
 #include "Blueprint/WidgetBlueprintLibrary.h"
 #include "Components/BankComponent.h"
 #include "Components/Border.h"
@@ -898,19 +899,24 @@ bool UInventoryGridWidget::NativeOnDragOver(const FGeometry& InGeometry, const F
 {
 	if (InOperation)
 	{
+		const FGeometry* CanvasGeometry = GridCanvasPanel ? &GridCanvasPanel->GetCachedGeometry() : nullptr;
+		const FGeometry* BorderGeometry = GridBorder ? &GridBorder->GetCachedGeometry() : nullptr;
+		const FGeometry* GridGeometry = InventoryGridGeometry::ResolveGridGeometry(
+			CanvasGeometry, BorderGeometry);
+		const FVector2D LocalPos = InventoryGridGeometry::AbsoluteToGridLocal(
+			InGeometry, GridGeometry, InDragDropEvent.GetScreenSpacePosition(), GridVisualInset);
+
 		if (const UPendingDeliveryDragDropOperation* DeliveryOperation =
 			Cast<UPendingDeliveryDragDropOperation>(InOperation))
 		{
 			if (!DeliveryOperation->Item)
 				return false;
-			const FVector2D LocalPos = InGeometry.AbsoluteToLocal(InDragDropEvent.GetScreenSpacePosition());
 			DraggedItemTopLeftID = GetActualTopLeftCorner(static_cast<float>(LocalPos.X),
 				static_cast<float>(LocalPos.Y), DeliveryOperation->Item->Width, DeliveryOperation->Item->Height);
 			return IsValidGridIndex(DraggedItemTopLeftID);
 		}
 		if (UItemWidget* Item = Cast<UItemWidget>(InOperation->Payload))
 		{
-			const FVector2D LocalPos = InGeometry.AbsoluteToLocal(InDragDropEvent.GetScreenSpacePosition());
 			return UpdateDraggedItemTopLeft(Item, static_cast<float>(LocalPos.X), static_cast<float>(LocalPos.Y));
 		}
 	}
@@ -934,8 +940,12 @@ int32 UInventoryGridWidget::NativePaint(const FPaintArgs& Args, const FGeometry&
 
 	FPaintContext Context(AllottedGeometry, MyCullingRect, OutDrawElements, MaxLayerId, InWidgetStyle, bParentEnabled);
 
-	// GridBorder sits inside the widget; get its top-left offset in the widget's local space.
-	const FVector2D LocalTopLeft = USlateBlueprintLibrary::GetLocalTopLeft(GridBorder->GetCachedGeometry());
+	const FGeometry* CanvasGeometry = GridCanvasPanel ? &GridCanvasPanel->GetCachedGeometry() : nullptr;
+	const FGeometry* BorderGeometry = &GridBorder->GetCachedGeometry();
+	const FGeometry* GridGeometry = InventoryGridGeometry::ResolveGridGeometry(
+		CanvasGeometry, BorderGeometry);
+	const FVector2D LocalTopLeft = InventoryGridGeometry::GridOriginInWidgetLocal(
+		AllottedGeometry, GridGeometry, GridVisualInset);
 
 	for (const FInventoryLine& Line : Lines)
 	{

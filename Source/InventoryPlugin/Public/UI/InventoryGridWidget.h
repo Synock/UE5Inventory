@@ -44,6 +44,10 @@ protected:
 	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, Category = "Inventory|UI")
 	float TileSize = 40.0f;
 
+	/** Offset from the grid canvas origin to the visible item-cell origin in UI_Item. */
+	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, Category = "Inventory|UI")
+	FVector2D GridVisualInset = FVector2D(8.0f, 8.0f);
+
 	UPROPERTY(BlueprintReadWrite, Category = "Inventory|UI")
 	TArray<FInventoryLine> Lines;
 
