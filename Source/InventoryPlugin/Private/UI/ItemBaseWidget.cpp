@@ -103,10 +103,10 @@ void UItemBaseWidget::DisplayDescription(const FPointerEvent& InMouseEvent)
 
 	if (IInventoryPlayerInterface* PC = Cast<IInventoryPlayerInterface>(GetOwningPlayer()))
 	{
-		PC->GetInventoryHUDInterface()->Execute_DisplayItemDescriptionWithDurability(PC->GetInventoryHUDObject(), Item,
+		PC->GetInventoryHUDInterface()->DisplayItemDescriptionWithDurabilityFromSource(Item,
 			InMouseEvent.GetScreenSpacePosition().X,
 			InMouseEvent.GetScreenSpacePosition().Y,
-			Durability, MaxDurability);
+			Durability, MaxDurability, this);
 	}
 }
 
@@ -123,8 +123,7 @@ void UItemBaseWidget::DisplayBookText(const FPointerEvent& InMouseEvent)
 		if (APlayerController* PlayerController = GetOwningPlayer())
 			PlayerController->GetMousePosition(MouseX, MouseY);
 
-		PC->GetInventoryHUDInterface()->Execute_DisplayBookText(
-			PC->GetInventoryHUDObject(), Item, MouseX, MouseY);
+		PC->GetInventoryHUDInterface()->DisplayBookTextFromSource(Item, MouseX, MouseY, this);
 	}
 }
 

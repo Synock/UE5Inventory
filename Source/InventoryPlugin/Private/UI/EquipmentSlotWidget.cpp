@@ -41,6 +41,42 @@ void UEquipmentSlotWidget::NativeOnMouseLeave(const FPointerEvent& InMouseEvent)
 
 //----------------------------------------------------------------------------------------------------------------------
 
+FReply UEquipmentSlotWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
+{
+	const bool bLeftClick = InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton;
+	IInventoryPlayerInterface* Player = GetInventoryPlayerInterface();
+	const bool bCanPresentToMerchant = CanHandleMerchantSaleClick(bLeftClick,
+		Player && Player->IsTrading(), EnabledSlot, bIsLocked, Item && Item->ItemID > 0,
+		SlotID > EEquipmentSlot::Unknown && SlotID < EEquipmentSlot::Last);
+
+	if (!bCanPresentToMerchant)
+		return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
+
+	if (Cast<IInventoryItemBagInterface>(Item))
+	{
+		UInventoryComponent* Inventory = Player->GetInventoryComponent();
+		if (!Inventory || !Inventory->IsLinkedEquipmentStorageEmptyAndUnreserved(SlotID))
+		{
+			NotifyInteractionBlocked(FText::FromString(TEXT("Empty this container before selling it.")));
+			return FReply::Handled();
+		}
+	}
+
+	Player->TryPresentEquippedSellItem(SlotID, Item->ItemID);
+	return FReply::Handled();
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+bool UEquipmentSlotWidget::CanHandleMerchantSaleClick(bool bLeftClick, bool bTrading,
+	bool bSlotEnabled, bool bSlotLocked, bool bHasValidItem, bool bHasCanonicalSlot)
+{
+	return bLeftClick && bTrading && bSlotEnabled && !bSlotLocked && bHasValidItem &&
+		bHasCanonicalSlot;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 void UEquipmentSlotWidget::NativeOnDragCancelled(const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
 {
 	Super::NativeOnDragCancelled(InDragDropEvent, InOperation);

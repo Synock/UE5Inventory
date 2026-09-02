@@ -269,6 +269,52 @@ bool FPendingDeliveryEquipmentReservationTest::RunTest(const FString& Parameters
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMultiSlotEquipmentOccupancyTest,
+	"InventoryPlugin.Equipment.MultiSlotOccupancy",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FMultiSlotEquipmentOccupancyTest::RunTest(const FString& Parameters)
+{
+	AActor* Owner = NewObject<AActor>();
+	UInventoryItemEquipable* TwoHandedWeapon = NewObject<UInventoryItemEquipable>();
+	TwoHandedWeapon->Weapon = true;
+	TwoHandedWeapon->MultiSlotItem = true;
+	TwoHandedWeapon->EquipableSlotBitMask = (1 << static_cast<uint8>(EEquipmentSlot::Primary)) |
+		(1 << static_cast<uint8>(EEquipmentSlot::Secondary));
+
+	UInventoryItemEquipable* Torch = NewObject<UInventoryItemEquipable>();
+	Torch->EquipableSlotBitMask = 1 << static_cast<uint8>(EEquipmentSlot::Secondary);
+
+	UInventoryItemEquipable* OneHandedWeapon = NewObject<UInventoryItemEquipable>();
+	OneHandedWeapon->Weapon = true;
+	OneHandedWeapon->EquipableSlotBitMask = 1 << static_cast<uint8>(EEquipmentSlot::Primary);
+
+	UEquipmentComponent* WeaponFirstEquipment = NewObject<UEquipmentComponent>(Owner);
+	WeaponFirstEquipment->EquipItem(TwoHandedWeapon, EEquipmentSlot::Primary);
+	TestFalse(TEXT("An equipped two-handed weapon blocks the secondary slot"),
+		WeaponFirstEquipment->CanEquipItemAt(Torch, EEquipmentSlot::Secondary));
+	TestEqual(TEXT("Auto-equip cannot select the blocked secondary slot"),
+		WeaponFirstEquipment->FindSuitableSlot(Torch), EEquipmentSlot::Unknown);
+	TestFalse(TEXT("A pending delivery cannot reserve the blocked secondary slot"),
+		WeaponFirstEquipment->ReservePendingDelivery(FGuid::NewGuid(), Torch, EEquipmentSlot::Secondary));
+	TestTrue(TEXT("The two-handed weapon can be removed from its stored primary slot"),
+		WeaponFirstEquipment->RemoveItem(EEquipmentSlot::Primary));
+	TestEqual(TEXT("Removing the two-handed weapon makes the torch eligible again"),
+		WeaponFirstEquipment->FindSuitableSlot(Torch), EEquipmentSlot::Secondary);
+
+	UEquipmentComponent* TorchFirstEquipment = NewObject<UEquipmentComponent>(Owner);
+	TorchFirstEquipment->EquipItem(Torch, EEquipmentSlot::Secondary);
+	TestFalse(TEXT("An equipped torch blocks the complete two-handed weapon footprint"),
+		TorchFirstEquipment->CanEquipItemAt(TwoHandedWeapon, EEquipmentSlot::Primary));
+
+	UEquipmentComponent* OneHandedEquipment = NewObject<UEquipmentComponent>(Owner);
+	OneHandedEquipment->EquipItem(OneHandedWeapon, EEquipmentSlot::Primary);
+	TestEqual(TEXT("A one-handed primary weapon leaves the torch slot available"),
+		OneHandedEquipment->FindSuitableSlot(Torch), EEquipmentSlot::Secondary);
+
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStagingSingleItemRemovalTest,
 	"InventoryPlugin.Staging.Regression.SingleItemRemovalPreservesOtherEscrow",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)

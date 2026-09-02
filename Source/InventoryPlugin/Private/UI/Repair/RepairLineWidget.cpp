@@ -175,10 +175,10 @@ FReply URepairLineWidget::NativeOnMouseButtonUp(const FGeometry& InGeometry, con
 	{
 		if (IInventoryPlayerInterface* PC = Cast<IInventoryPlayerInterface>(GetOwningPlayer()))
 		{
-			PC->GetInventoryHUDInterface()->Execute_DisplayItemDescription(
-				PC->GetInventoryHUDObject(), UInventoryUtilities::GetItemFromID(ItemID, GetWorld()),
+			PC->GetInventoryHUDInterface()->DisplayItemDescriptionFromSource(
+				UInventoryUtilities::GetItemFromID(ItemID, GetWorld()),
 				InMouseEvent.GetScreenSpacePosition().X,
-				InMouseEvent.GetScreenSpacePosition().Y);
+				InMouseEvent.GetScreenSpacePosition().Y, this);
 		}
 	}
 

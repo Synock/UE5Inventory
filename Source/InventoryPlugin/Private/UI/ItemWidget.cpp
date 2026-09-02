@@ -13,6 +13,8 @@
 #include "InventoryPlugin.h"
 #include "Items/Interfaces/InventoryItemBookInterface.h"
 #include "InventoryPlugin.h"
+#include "Items/Interfaces/InventoryItemBagInterface.h"
+#include "Components/InventoryComponent.h"
 #include "Items/InventoryItemEquipable.h"
 #include "InventoryPlugin.h"
 #include "UI/InventoryGridWidget.h"
@@ -83,7 +85,24 @@ void UItemWidget::HandleSellClick()
 	if (!PC->IsTrading())
 		return;
 
-	PC->TryPresentSellItem(ParentGrid->GetBagID(), Item->ItemID, TopLeftID);
+	if (IsFromEquipment())
+	{
+		if (Cast<IInventoryItemBagInterface>(Item))
+		{
+			UInventoryComponent* Inventory = PC->GetInventoryComponent();
+			if (!Inventory || !Inventory->IsLinkedEquipmentStorageEmptyAndUnreserved(OriginalSlotID))
+			{
+				NotifyInteractionBlocked(FText::FromString(TEXT("Empty this container before selling it.")));
+				return;
+			}
+		}
+
+		PC->TryPresentEquippedSellItem(OriginalSlotID, Item->ItemID);
+		return;
+	}
+
+	if (ParentGrid)
+		PC->TryPresentSellItem(ParentGrid->GetBagID(), Item->ItemID, TopLeftID);
 }
 
 void UItemWidget::HandleActivation()

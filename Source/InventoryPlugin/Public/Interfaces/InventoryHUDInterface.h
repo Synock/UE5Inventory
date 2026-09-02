@@ -395,6 +395,10 @@ public:
 	virtual void TryPresentSellItem_Implementation(EBagSlot OutSlot, int32 ItemID, int32 TopLeft) {}
 
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, BlueprintCosmetic, Category = "Inventory")
+	void TryPresentEquippedSellItem(EEquipmentSlot Slot, int32 ItemID);
+	virtual void TryPresentEquippedSellItem_Implementation(EEquipmentSlot Slot, int32 ItemID) {}
+
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, BlueprintCosmetic, Category = "Inventory")
 	void ResetSellItem();
 	virtual void ResetSellItem_Implementation() {}
 
@@ -423,6 +427,8 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, BlueprintCosmetic, Category = "Inventory")
 	void DisplayItemDescription(const UInventoryItemBase* Item, float X, float Y);
 	virtual void DisplayItemDescription_Implementation(const UInventoryItemBase* Item, float X, float Y);
+	virtual void DisplayItemDescriptionFromSource(const UInventoryItemBase* Item, float X, float Y,
+	                                              const UWidget* SourceWidget);
 
 	/**
 	 * Display an item description tooltip with explicit durability values at the given viewport position.
@@ -438,6 +444,9 @@ public:
 	                                           float Durability, float MaxDurability);
 	virtual void DisplayItemDescriptionWithDurability_Implementation(const UInventoryItemBase* Item, float X, float Y,
 	                                                                  float Durability, float MaxDurability);
+	virtual void DisplayItemDescriptionWithDurabilityFromSource(const UInventoryItemBase* Item, float X, float Y,
+	                                                            float Durability, float MaxDurability,
+	                                                            const UWidget* SourceWidget);
 
 	//------------------------------------------------------------------------------------------------------------------
 	// Book
@@ -470,6 +479,8 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, BlueprintCosmetic, Category = "Inventory")
 	void DisplayBookText(const UInventoryItemBase* Item, float X, float Y);
 	virtual void DisplayBookText_Implementation(const UInventoryItemBase* Item, float X, float Y);
+	virtual void DisplayBookTextFromSource(const UInventoryItemBase* Item, float X, float Y,
+	                                       const UWidget* SourceWidget);
 
 	//------------------------------------------------------------------------------------------------------------------
 	// Staging / trade / field repair

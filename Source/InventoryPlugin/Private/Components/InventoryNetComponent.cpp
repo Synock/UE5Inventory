@@ -132,6 +132,59 @@ IEquipmentInterface* UInventoryNetComponent::GetEquipmentInterface() const
 
 //----------------------------------------------------------------------------------------------------------------------
 
+bool UInventoryNetComponent::CanRemoveEquippedItem(EEquipmentSlot Slot, int32 ExpectedItemId) const
+{
+	if (!PlayerInterface || Slot <= EEquipmentSlot::Unknown || Slot >= EEquipmentSlot::Last)
+		return false;
+
+	IEquipmentInterface* Equipment = GetEquipmentInterface();
+	return CanRemoveEquippedItemFromComponents(Equipment ? Equipment->GetEquipmentComponent() : nullptr,
+		PlayerInterface->GetInventoryComponent(), Slot, ExpectedItemId);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+bool UInventoryNetComponent::CanRemoveEquippedItemFromComponents(const UEquipmentComponent* EquipmentComponent,
+	const UInventoryComponent* InventoryComponent, EEquipmentSlot Slot, int32 ExpectedItemId)
+{
+	if (Slot <= EEquipmentSlot::Unknown || Slot >= EEquipmentSlot::Last)
+		return false;
+
+	const UInventoryItemEquipable* Item = EquipmentComponent ? EquipmentComponent->GetItemAtSlot(Slot) : nullptr;
+	if (!EquipmentComponent || !InventoryComponent || !Item || Item->ItemID <= 0 ||
+		(ExpectedItemId != INDEX_NONE && Item->ItemID != ExpectedItemId))
+	{
+		return false;
+	}
+
+	if (EquipmentComponent->IsEquipmentSlotReserved(Slot))
+		return false;
+
+	if (Item->MultiSlotItem)
+	{
+		for (int32 Index = static_cast<int32>(EEquipmentSlot::Unknown) + 1;
+			Index < static_cast<int32>(EEquipmentSlot::Last); ++Index)
+		{
+			const uint32 SlotBit = 1u << static_cast<uint32>(Index);
+			if ((static_cast<uint32>(Item->EquipableSlotBitMask) & SlotBit) != 0 &&
+				EquipmentComponent->IsEquipmentSlotReserved(static_cast<EEquipmentSlot>(Index)))
+			{
+				return false;
+			}
+		}
+	}
+
+	if (Cast<IInventoryItemBagInterface>(Item))
+	{
+		if (!InventoryComponent->IsLinkedEquipmentStorageEmptyAndUnreserved(Slot))
+			return false;
+	}
+
+	return true;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 UTradeComponent* UInventoryNetComponent::GetTradeComponent() const
 {
 	if (AActor* Owner = GetOwner())
@@ -372,6 +425,18 @@ bool UInventoryNetComponent::Server_PlayerSellToMerchant_Validate(EBagSlot OutSl
                                                                     const FCoinValue& Price)
 {
 	return ValidatePlayerSellToMerchant(OutSlot, ItemId, TopLeft, Price);
+}
+
+void UInventoryNetComponent::Server_PlayerSellEquippedItemToMerchant_Implementation(EEquipmentSlot Slot,
+	int32 ExpectedItemId)
+{
+	HandlePlayerSellEquippedItemToMerchant(Slot, ExpectedItemId);
+}
+
+bool UInventoryNetComponent::Server_PlayerSellEquippedItemToMerchant_Validate(EEquipmentSlot Slot,
+	int32 ExpectedItemId)
+{
+	return ValidatePlayerSellEquippedItemToMerchant(Slot, ExpectedItemId);
 }
 
 // --- Repair ---
@@ -981,6 +1046,34 @@ void UInventoryNetComponent::HandlePlayerSellToMerchant(EBagSlot OutSlot, int32 
 }
 
 //----------------------------------------------------------------------------------------------------------------------
+
+void UInventoryNetComponent::HandlePlayerSellEquippedItemToMerchant(EEquipmentSlot Slot, int32 ExpectedItemId)
+{
+	if (!PlayerInterface || !MerchantActor || !CanRemoveEquippedItem(Slot, ExpectedItemId))
+		return;
+
+	IEquipmentInterface* Equipment = GetEquipmentInterface();
+	IMerchantInterface* Merchant = Cast<IMerchantInterface>(MerchantActor);
+	UCoinComponent* PlayerCoins = PlayerInterface->GetCoinComponent();
+	const UInventoryItemEquipable* Item = Equipment ? Equipment->GetEquippedItem(Slot) : nullptr;
+	FText RefusalReason;
+	if (!Equipment || !Merchant || !PlayerCoins || !Item || !Merchant->CanAcceptItemType(Item, RefusalReason))
+		return;
+
+	const FCoinValue ServerPrice = Merchant->GetItemPriceBuy(ExpectedItemId);
+	if (!ServerPrice.IsNonNegative() || ServerPrice.IsEmpty() || !Merchant->CanPayAmount(ServerPrice))
+		return;
+
+	Equipment->UnequipItem(Slot);
+	if (Equipment->GetEquippedItem(Slot) != nullptr)
+		return;
+
+	Merchant->PayCoin(ServerPrice);
+	Merchant->AddDynamicItem(ExpectedItemId);
+	PlayerCoins->AddCoins(ServerPrice);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
 // Repair
 //----------------------------------------------------------------------------------------------------------------------
 
@@ -1467,26 +1560,14 @@ bool UInventoryNetComponent::ValidatePlayerUnequipItem(int32 InTopLeft, EBagSlot
                                                         EEquipmentSlot OutSlot)
 {
 	IEquipmentInterface* Equipment = GetEquipmentInterface();
-	if (!Equipment || !PlayerInterface)
+	if (!Equipment || !PlayerInterface || !CanRemoveEquippedItem(OutSlot, InItemId))
 		return false;
 
 	const UInventoryItemEquipable* ConsideredItem = Equipment->GetEquippedItem(OutSlot);
-	if (!ConsideredItem || ConsideredItem->ItemID <= 0)
-		return false;
-
-	if (Cast<IInventoryItemBagInterface>(ConsideredItem))
-	{
-		const EBagSlot BagSlot = UInventoryComponent::GetBagSlotFromInventory(OutSlot);
-		if (PlayerInterface->GetInventoryComponent()->GetBagConst(BagSlot).Num() > 0 ||
-			PlayerInterface->GetInventoryComponent()->HasReservationsInBag(BagSlot))
-			return false;
-	}
-	if (Equipment->GetEquipmentComponent()->IsEquipmentSlotReserved(OutSlot))
-		return false;
 	if (!PlayerInterface->GetInventoryComponent()->CanPlaceItemAt(InSlot, ConsideredItem, InTopLeft))
 		return false;
 
-	return ConsideredItem->ItemID == InItemId;
+	return true;
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -1598,21 +1679,7 @@ bool UInventoryNetComponent::ValidateDropItemFromInventory(int32 TopLeft, EBagSl
 
 bool UInventoryNetComponent::ValidateDropItemFromEquipment(EEquipmentSlot Slot, FVector DropLocation)
 {
-	IEquipmentInterface* Equipment = GetEquipmentInterface();
-	if (!Equipment)
-		return false;
-
-	const UInventoryItemEquipable* Item = Equipment->GetEquippedItem(Slot);
-	if (!Item || Equipment->GetEquipmentComponent()->IsEquipmentSlotReserved(Slot))
-		return false;
-	if (Cast<IInventoryItemBagInterface>(Item) && PlayerInterface)
-	{
-		const EBagSlot BagSlot = UInventoryComponent::GetBagSlotFromInventory(Slot);
-		if (PlayerInterface->GetInventoryComponent()->GetBagConst(BagSlot).Num() > 0 ||
-			PlayerInterface->GetInventoryComponent()->HasReservationsInBag(BagSlot))
-			return false;
-	}
-	return true;
+	return CanRemoveEquippedItem(Slot);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -1656,6 +1723,13 @@ bool UInventoryNetComponent::ValidatePlayerSellToMerchant(EBagSlot OutSlot, int3
                                                             const FCoinValue& Price)
 {
 	return ItemId >= 0 && TopLeft >= 0 && Price.IsNonNegative();
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+bool UInventoryNetComponent::ValidatePlayerSellEquippedItemToMerchant(EEquipmentSlot Slot, int32 ExpectedItemId)
+{
+	return Slot > EEquipmentSlot::Unknown && Slot < EEquipmentSlot::Last && ExpectedItemId > 0;
 }
 
 //----------------------------------------------------------------------------------------------------------------------

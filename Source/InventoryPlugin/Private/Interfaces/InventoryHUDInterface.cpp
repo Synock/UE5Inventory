@@ -1,4 +1,5 @@
 #include "Interfaces/InventoryHUDInterface.h"
+#include "UI/InventoryWindowLayering.h"
 #include "UI/InventoryWindowInterface.h"
 #include "UI/Keyring/KeyringWindowInterface.h"
 #include "UI/TradeWindowInterface.h"
@@ -727,6 +728,14 @@ TSubclassOf<UUserWidget> IInventoryHUDInterface::GetBookWidgetClass_Implementati
 
 void IInventoryHUDInterface::DisplayBookText_Implementation(const UInventoryItemBase* Item, float X, float Y)
 {
+	DisplayBookTextFromSource(Item, X, Y, nullptr);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::DisplayBookTextFromSource(const UInventoryItemBase* Item, float X, float Y,
+	                                                     const UWidget* SourceWidget)
+{
 	if (!Item)
 		return;
 
@@ -789,7 +798,7 @@ void IInventoryHUDInterface::DisplayBookText_Implementation(const UInventoryItem
 	if (PC)
 		PC->GetMousePosition(MouseX, MouseY);
 
-	Widget->AddToViewport(5);
+	InventoryWindowLayering::AddToViewportAboveSource(Widget, SourceWidget, 5);
 	Widget->SetAlignmentInViewport(FVector2D(0.5f, 0.5f));
 	Widget->SetPositionInViewport(FVector2D(MouseX, MouseY), true);
 }
@@ -1080,7 +1089,8 @@ TSubclassOf<UUserWidget> IInventoryHUDInterface::GetItemDescriptionWidgetClass_I
 
 namespace
 {
-	UUserWidget* CreateAndPositionDescriptionWidget(IInventoryHUDInterface* Self, float X, float Y)
+	UUserWidget* CreateAndPositionDescriptionWidget(IInventoryHUDInterface* Self, float X, float Y,
+	                                                const UWidget* SourceWidget)
 	{
 		UObject* SelfObject = Cast<UObject>(Self);
 		if (!SelfObject)
@@ -1102,7 +1112,7 @@ namespace
 		if (PC)
 			PC->GetMousePosition(MouseX, MouseY);
 
-		Widget->AddToViewport(5);
+		InventoryWindowLayering::AddToViewportAboveSource(Widget, SourceWidget, 5);
 		Widget->SetPositionInViewport(FVector2D(MouseX, MouseY), true);
 		return Widget;
 	}
@@ -1112,10 +1122,18 @@ namespace
 
 void IInventoryHUDInterface::DisplayItemDescription_Implementation(const UInventoryItemBase* Item, float X, float Y)
 {
+	DisplayItemDescriptionFromSource(Item, X, Y, nullptr);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::DisplayItemDescriptionFromSource(const UInventoryItemBase* Item, float X, float Y,
+	                                                             const UWidget* SourceWidget)
+{
 	if (!Item)
 		return;
 
-	UUserWidget* Widget = CreateAndPositionDescriptionWidget(this, X, Y);
+	UUserWidget* Widget = CreateAndPositionDescriptionWidget(this, X, Y, SourceWidget);
 	if (!Widget)
 		return;
 
@@ -1137,10 +1155,18 @@ void IInventoryHUDInterface::DisplayItemDescriptionWithDurability_Implementation
                                                                                   float X, float Y,
                                                                                   float Durability, float MaxDurability)
 {
+	DisplayItemDescriptionWithDurabilityFromSource(Item, X, Y, Durability, MaxDurability, nullptr);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::DisplayItemDescriptionWithDurabilityFromSource(const UInventoryItemBase* Item,
+	float X, float Y, float Durability, float MaxDurability, const UWidget* SourceWidget)
+{
 	if (!Item)
 		return;
 
-	UUserWidget* Widget = CreateAndPositionDescriptionWidget(this, X, Y);
+	UUserWidget* Widget = CreateAndPositionDescriptionWidget(this, X, Y, SourceWidget);
 	if (!Widget)
 		return;
 

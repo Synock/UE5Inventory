@@ -477,6 +477,13 @@ void IInventoryPlayerInterface::TryPresentSellItem(EBagSlot OutSlot, int32 ItemI
 
 //----------------------------------------------------------------------------------------------------------------------
 
+void IInventoryPlayerInterface::TryPresentEquippedSellItem(EEquipmentSlot Slot, int32 ItemId)
+{
+	GetInventoryHUDInterface()->Execute_TryPresentEquippedSellItem(GetInventoryHUDObject(), Slot, ItemId);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 void IInventoryPlayerInterface::ResetSellItem()
 {
 	GetInventoryHUDInterface()->Execute_ResetSellItem(GetInventoryHUDObject());
@@ -495,6 +502,13 @@ void IInventoryPlayerInterface::PlayerSellToMerchant(EBagSlot OutSlot, int32 Ite
                                                      const FCoinValue& Price)
 {
 	Server_PlayerSellToMerchant(OutSlot, ItemId, TopLeft, Price);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryPlayerInterface::PlayerSellEquippedItemToMerchant(EEquipmentSlot Slot, int32 ExpectedItemId)
+{
+	Server_PlayerSellEquippedItemToMerchant(Slot, ExpectedItemId);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -816,6 +830,12 @@ void IInventoryPlayerInterface::Server_PlayerSellToMerchant(EBagSlot OutSlot, in
 {
 	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
 		Comp->Server_PlayerSellToMerchant(OutSlot, ItemId, TopLeft, Price);
+}
+
+void IInventoryPlayerInterface::Server_PlayerSellEquippedItemToMerchant(EEquipmentSlot Slot, int32 ExpectedItemId)
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_PlayerSellEquippedItemToMerchant(Slot, ExpectedItemId);
 }
 
 void IInventoryPlayerInterface::Server_RepairTrade(AActor* InputRepairerActor)

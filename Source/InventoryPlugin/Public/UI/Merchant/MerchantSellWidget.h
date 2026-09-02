@@ -117,8 +117,14 @@ protected:
 	UPROPERTY(BlueprintReadWrite, Category = "Inventory|Merchant|Buy")
 	int32 MerchantBuyOriginTopLeft = -1;
 
+	UPROPERTY(BlueprintReadWrite, Category = "Inventory|Merchant|Buy")
+	EEquipmentSlot MerchantBuyOriginEquipmentSlot = EEquipmentSlot::Unknown;
+
 	UPROPERTY(BlueprintReadWrite, Category = "Inventory|Merchant")
 	EMerchantWindowMode MerchantMode = EMerchantWindowMode::Sell;
+
+	/** Last stock item for which a sale quote was emitted this merchant session. */
+	int32 LastQuotedMerchantItemId = INDEX_NONE;
 
 	/** Pending post-transaction refresh. Cleared when the merchant session closes. */
 	FTimerHandle TransactionRefreshTimer;
@@ -158,6 +164,9 @@ protected:
 	 * @brief Update the price preview display
 	 */
 	void UpdatePricePreview();
+
+	/** Present the currently selected player-owned item and emit its merchant quote. */
+	void PresentPlayerItemForSale();
 
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Inventory|Merchant")
 	TArray<FMerchantItemDataStruct> GetStaticDataDisplayable();
@@ -239,12 +248,30 @@ public:
 		SelectedItemId = ItemID;
 		MerchantBuyOriginTopLeft = TopLeft;
 		MerchantBuyOriginSlot = OriginBag;
+		MerchantBuyOriginEquipmentSlot = EEquipmentSlot::Unknown;
 		MerchantMode = Mode;
 	}
+	void SetEquippedMerchantSessionStateForTests(int32 ItemID, EEquipmentSlot OriginSlot,
+		EMerchantWindowMode Mode)
+	{
+		SelectedItemId = ItemID;
+		MerchantBuyOriginTopLeft = -1;
+		MerchantBuyOriginSlot = EBagSlot::Unknown;
+		MerchantBuyOriginEquipmentSlot = OriginSlot;
+		MerchantMode = Mode;
+	}
+	EEquipmentSlot GetMerchantBuyOriginEquipmentSlotForTests() const
+	{
+		return MerchantBuyOriginEquipmentSlot;
+	}
+	EBagSlot GetMerchantBuyOriginSlotForTests() const { return MerchantBuyOriginSlot; }
+	int32 GetMerchantBuyOriginTopLeftForTests() const { return MerchantBuyOriginTopLeft; }
 	bool HasMerchantSessionStateForTests() const
 	{
 		return SelectedItemId != 0 || MerchantBuyOriginTopLeft != -1 ||
-			MerchantBuyOriginSlot != EBagSlot::Unknown || MerchantMode != EMerchantWindowMode::Sell;
+			MerchantBuyOriginSlot != EBagSlot::Unknown ||
+			MerchantBuyOriginEquipmentSlot != EEquipmentSlot::Unknown ||
+			MerchantMode != EMerchantWindowMode::Sell;
 	}
 #endif
 
@@ -258,6 +285,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Merchant|Buy")
 	void AssignSellData(int32 ItemID, int32 TopLeft, EBagSlot OriginBag);
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Merchant|Buy")
+	void AssignEquippedSellData(int32 ItemID, EEquipmentSlot OriginEquipmentSlot);
 
 	/**
 	 * @brief Handle item selection from merchant list

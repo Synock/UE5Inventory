@@ -764,6 +764,10 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Inventory|Merchant")
 	virtual void TryPresentSellItem(EBagSlot OutSlot, int32 ItemId, int32 TopLeft);
 
+	/** Present an equipped item to the active merchant without first moving it into inventory. */
+	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Inventory|Merchant")
+	virtual void TryPresentEquippedSellItem(EEquipmentSlot Slot, int32 ItemId);
+
 	/**
 	 * @brief Resets the sell item in the inventory merchant category.
 	 *
@@ -800,6 +804,10 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Merchant")
 	virtual void PlayerSellToMerchant(EBagSlot OutSlot, int32 ItemId, int32 TopLeft, const FCoinValue& Price);
+
+	/** Request sale of the item currently occupying Slot. The server derives the price. */
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Merchant")
+	virtual void PlayerSellEquippedItemToMerchant(EEquipmentSlot Slot, int32 ExpectedItemId);
 
 	/**
 	 * @brief Initiates a trade with a merchant actor.
@@ -973,6 +981,9 @@ protected:
 
 	//Sell selected stuff to merchant
 	virtual void Server_PlayerSellToMerchant(EBagSlot OutSlot, int32 ItemId, int32 TopLeft, const FCoinValue& Price);
+
+	// Sell directly from equipment; the expected id protects against stale UI state.
+	virtual void Server_PlayerSellEquippedItemToMerchant(EEquipmentSlot Slot, int32 ExpectedItemId);
 
 	//------------------------------------------------------------------------------------------------------------------
 	// Repair -- Server (forwarded to UInventoryNetComponent)

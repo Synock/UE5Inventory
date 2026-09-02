@@ -16,6 +16,8 @@ class UTradeComponent;
 class UInventoryItemBase;
 class UInventoryItemEquipable;
 class UInventoryDeliveryComponent;
+class UEquipmentComponent;
+class UInventoryComponent;
 
 /**
  * @class UInventoryNetComponent
@@ -55,6 +57,16 @@ public:
 	bool ValidatePlayerSellToMerchantForTests(EBagSlot OutSlot, int32 ItemId, int32 TopLeft, const FCoinValue& Price)
 	{
 		return ValidatePlayerSellToMerchant(OutSlot, ItemId, TopLeft, Price);
+	}
+
+	bool ValidatePlayerSellEquippedItemToMerchantForTests(EEquipmentSlot Slot, int32 ExpectedItemId)
+	{
+		return ValidatePlayerSellEquippedItemToMerchant(Slot, ExpectedItemId);
+	}
+	static bool CanRemoveEquippedItemFromComponentsForTests(const UEquipmentComponent* EquipmentComponent,
+		const UInventoryComponent* InventoryComponent, EEquipmentSlot Slot, int32 ExpectedItemId)
+	{
+		return CanRemoveEquippedItemFromComponents(EquipmentComponent, InventoryComponent, Slot, ExpectedItemId);
 	}
 
 	bool ValidatePlayerRepairEquipmentForTests(EEquipmentSlot Slot, const FCoinValue& Price)
@@ -187,6 +199,9 @@ public:
 	UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory|Merchant")
 	void Server_PlayerSellToMerchant(EBagSlot OutSlot, int32 ItemId, int32 TopLeft, const FCoinValue& Price);
 
+	UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory|Merchant")
+	void Server_PlayerSellEquippedItemToMerchant(EEquipmentSlot Slot, int32 ExpectedItemId);
+
 	//==================================================================================================================
 	// Repair RPCs
 	//==================================================================================================================
@@ -306,6 +321,7 @@ protected:
 	virtual void HandleStopMerchantTrade();
 	virtual void HandlePlayerBuyFromMerchant(int32 ItemId, const FCoinValue& Price);
 	virtual void HandlePlayerSellToMerchant(EBagSlot OutSlot, int32 ItemId, int32 TopLeft, const FCoinValue& Price);
+	virtual void HandlePlayerSellEquippedItemToMerchant(EEquipmentSlot Slot, int32 ExpectedItemId);
 
 	// -- Repair --
 	virtual void HandleRepairTrade(AActor* InputRepairerActor);
@@ -368,6 +384,7 @@ protected:
 	// -- Merchant --
 	virtual bool ValidatePlayerBuyFromMerchant(int32 ItemId, const FCoinValue& Price);
 	virtual bool ValidatePlayerSellToMerchant(EBagSlot OutSlot, int32 ItemId, int32 TopLeft, const FCoinValue& Price);
+	virtual bool ValidatePlayerSellEquippedItemToMerchant(EEquipmentSlot Slot, int32 ExpectedItemId);
 
 	// -- Repair --
 	virtual bool ValidatePlayerRepairEquipment(EEquipmentSlot Slot, const FCoinValue& Price);
@@ -399,6 +416,11 @@ protected:
 
 	/** Resolve the owning actor's IEquipmentInterface. */
 	IEquipmentInterface* GetEquipmentInterface() const;
+
+	/** Validate that an equipped item can leave its slot without orphaning storage or racing a reservation. */
+	bool CanRemoveEquippedItem(EEquipmentSlot Slot, int32 ExpectedItemId = INDEX_NONE) const;
+	static bool CanRemoveEquippedItemFromComponents(const UEquipmentComponent* EquipmentComponent,
+		const UInventoryComponent* InventoryComponent, EEquipmentSlot Slot, int32 ExpectedItemId = INDEX_NONE);
 
 	/** Get the TradeComponent from the owner, if any. */
 	UTradeComponent* GetTradeComponent() const;

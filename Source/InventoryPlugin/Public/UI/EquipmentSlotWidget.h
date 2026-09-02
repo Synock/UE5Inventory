@@ -84,6 +84,7 @@ protected:
 
 	virtual void NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
 	virtual void NativeOnMouseLeave(const FPointerEvent& InMouseEvent) override;
+	virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
 	virtual void NativeOnDragCancelled(const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
 	virtual bool NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent,
 		UDragDropOperation* InOperation) override;
@@ -127,6 +128,9 @@ protected:
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Inventory|Equipment")
 	bool IsBag() const;
 
+	static bool CanHandleMerchantSaleClick(bool bLeftClick, bool bTrading, bool bSlotEnabled,
+		bool bSlotLocked, bool bHasValidItem, bool bHasCanonicalSlot);
+
 	/** Disables this slot and mirrors the multi-slot item icon into it. */
 	void DisableAndRefresh(const UInventoryItemEquipable* InputItem);
 
@@ -169,4 +173,13 @@ public:
 	[[nodiscard]] TObjectPtr<UInventoryEquipmentWidget> GetParentComponent() const { return ParentComponent; }
 
 	void SetParentComponent(UInventoryEquipmentWidget* NewParentComponent) { ParentComponent = NewParentComponent; }
+
+#if WITH_AUTOMATION_WORKER
+	static bool CanHandleMerchantSaleClickForTests(bool bLeftClick, bool bTrading, bool bSlotEnabled,
+		bool bSlotLocked, bool bHasValidItem, bool bHasCanonicalSlot)
+	{
+		return CanHandleMerchantSaleClick(bLeftClick, bTrading, bSlotEnabled, bSlotLocked,
+			bHasValidItem, bHasCanonicalSlot);
+	}
+#endif
 };

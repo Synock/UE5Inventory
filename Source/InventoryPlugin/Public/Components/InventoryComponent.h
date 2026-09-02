@@ -48,6 +48,8 @@ public:
 	void ReleaseItemFootprint(const FGuid& ReservationId);
 	bool HasItemFootprintReservation(const FGuid& ReservationId) const;
 	bool HasReservationsInBag(EBagSlot BagSlot) const;
+	/** True when the storage linked to an equipped bag/quiver slot is empty and has no reserved footprint. */
+	bool IsLinkedEquipmentStorageEmptyAndUnreserved(EEquipmentSlot EquipmentSlot) const;
 	bool IsCellReserved(EBagSlot BagSlot, int32 Cell, const FGuid& IgnoredReservation = FGuid()) const;
 	float GetEffectiveItemWeight(EBagSlot BagSlot, const UInventoryItemBase* Item) const;
 	// Sets default values for this component's properties

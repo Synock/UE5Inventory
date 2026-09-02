@@ -413,6 +413,14 @@ bool UInventoryComponent::HasReservationsInBag(EBagSlot BagSlot) const
 	return false;
 }
 
+//----------------------------------------------------------------------------------------------------------------------
+
+bool UInventoryComponent::IsLinkedEquipmentStorageEmptyAndUnreserved(EEquipmentSlot EquipmentSlot) const
+{
+	const EBagSlot BagSlot = GetBagSlotFromInventory(EquipmentSlot);
+	return BagSlot != EBagSlot::Unknown && GetBagConst(BagSlot).IsEmpty() && !HasReservationsInBag(BagSlot);
+}
+
 bool UInventoryComponent::IsCellReserved(EBagSlot BagSlot, int32 Cell, const FGuid& IgnoredReservation) const
 {
 	for (const TPair<FGuid, FItemFootprintReservation>& Pair : ItemFootprintReservations)

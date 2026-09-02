@@ -1012,10 +1012,31 @@ bool UEquipmentComponent::CanEquipItemAt(const UInventoryItemEquipable* Item, EE
 		}
 	}
 
+	const auto IsOccupiedByEquipment = [this](EEquipmentSlot Slot)
+	{
+		const int32 Index = static_cast<int32>(Slot);
+		if (!Equipment.IsValidIndex(Index))
+			return true;
+
+		if (Equipment[Index] != nullptr)
+			return true;
+
+		const uint32 SlotBit = 1u << static_cast<uint32>(Index);
+		for (const UInventoryItemEquipable* EquippedItem : Equipment)
+		{
+			if (EquippedItem && EquippedItem->MultiSlotItem &&
+				(static_cast<uint32>(EquippedItem->EquipableSlotBitMask) & SlotBit) != 0)
+			{
+				return true;
+			}
+		}
+
+		return false;
+	};
+
 	for (const EEquipmentSlot RequiredSlot : RequiredSlots)
 	{
-		const int32 RequiredIndex = static_cast<int32>(RequiredSlot);
-		if (!Equipment.IsValidIndex(RequiredIndex) || Equipment[RequiredIndex] != nullptr ||
+		if (IsOccupiedByEquipment(RequiredSlot) ||
 			IsEquipmentSlotReserved(RequiredSlot, IgnoredReservation))
 			return false;
 	}

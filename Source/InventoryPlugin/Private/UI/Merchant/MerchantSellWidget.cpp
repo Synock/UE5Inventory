@@ -141,9 +141,11 @@ void UMerchantSellWidget::HandleBuyClick()
 void UMerchantSellWidget::HandleSellClick()
 {
 	IInventoryPlayerInterface* PC = Cast<IInventoryPlayerInterface>(GetOwningPlayer());
+	const bool bHasBagOrigin = MerchantBuyOriginSlot != EBagSlot::Unknown && MerchantBuyOriginTopLeft >= 0;
+	const bool bHasEquipmentOrigin = MerchantBuyOriginEquipmentSlot > EEquipmentSlot::Unknown &&
+		MerchantBuyOriginEquipmentSlot < EEquipmentSlot::Last;
 
-	if (!PC || !MerchantActor || SelectedItemId <= 0 || MerchantBuyOriginSlot == EBagSlot::Unknown ||
-		MerchantBuyOriginTopLeft < 0)
+	if (!PC || !MerchantActor || SelectedItemId <= 0 || bHasBagOrigin == bHasEquipmentOrigin)
 		return;
 
 	const FCoinValue TransactionValue = GetSelectedItemPrice();
@@ -156,10 +158,18 @@ void UMerchantSellWidget::HandleSellClick()
 		return;
 	}
 
-	PC->PlayerSellToMerchant(MerchantBuyOriginSlot, SelectedItemId, MerchantBuyOriginTopLeft, TransactionValue);
+	if (bHasEquipmentOrigin)
+	{
+		PC->PlayerSellEquippedItemToMerchant(MerchantBuyOriginEquipmentSlot, SelectedItemId);
+	}
+	else
+	{
+		PC->PlayerSellToMerchant(MerchantBuyOriginSlot, SelectedItemId, MerchantBuyOriginTopLeft, TransactionValue);
+	}
 
 	MerchantBuyOriginSlot = EBagSlot::Unknown;
 	MerchantBuyOriginTopLeft = -1;
+	MerchantBuyOriginEquipmentSlot = EEquipmentSlot::Unknown;
 	SelectedItemId = 0;
 
 	UpdateItemPreview();
@@ -396,6 +406,8 @@ void UMerchantSellWidget::ResetMerchantSessionState()
 	MerchantCanBuy = true;
 	MerchantBuyOriginSlot = EBagSlot::Unknown;
 	MerchantBuyOriginTopLeft = -1;
+	MerchantBuyOriginEquipmentSlot = EEquipmentSlot::Unknown;
+	LastQuotedMerchantItemId = INDEX_NONE;
 	MerchantMode = EMerchantWindowMode::Sell;
 
 	if (ItemList)
@@ -558,7 +570,12 @@ void UMerchantSellWidget::Refresh()
 
 void UMerchantSellWidget::ResetSellData()
 {
-	AssignSellData(0, 0, EBagSlot::Unknown);
+	SelectedItemId = 0;
+	MerchantBuyOriginSlot = EBagSlot::Unknown;
+	MerchantBuyOriginTopLeft = -1;
+	MerchantBuyOriginEquipmentSlot = EEquipmentSlot::Unknown;
+	MerchantMode = EMerchantWindowMode::Sell;
+	UpdateItemPreview();
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -567,23 +584,44 @@ void UMerchantSellWidget::AssignSellData(int32 ItemID, int32 TopLeft, EBagSlot O
 {
 	MerchantBuyOriginSlot = OriginBag;
 	MerchantBuyOriginTopLeft = TopLeft;
+	MerchantBuyOriginEquipmentSlot = EEquipmentSlot::Unknown;
 	SelectedItemId = ItemID;
 	MerchantMode = EMerchantWindowMode::Buy;
+	PresentPlayerItemForSale();
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UMerchantSellWidget::AssignEquippedSellData(int32 ItemID, EEquipmentSlot OriginEquipmentSlot)
+{
+	MerchantBuyOriginSlot = EBagSlot::Unknown;
+	MerchantBuyOriginTopLeft = -1;
+	MerchantBuyOriginEquipmentSlot = OriginEquipmentSlot;
+	SelectedItemId = ItemID;
+	MerchantMode = EMerchantWindowMode::Buy;
+	PresentPlayerItemForSale();
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UMerchantSellWidget::PresentPlayerItemForSale()
+{
 
 	UpdateItemPreview();
 
 	if (ItemList)
 	{
+		TGuardValue<bool> SelectionGuard(bRefreshingItemList, true);
 		ItemList->ClearSelection();
 	}
 
 
 	// Broadcast price quote for the item
-	if (MerchantActor && ItemID > 0)
+	if (MerchantActor && SelectedItemId > 0)
 	{
 		// Check if merchant accepts this item type
 
-		const UInventoryItemBase* Item = UInventoryUtilities::GetItemFromID(ItemID, GetWorld());
+		const UInventoryItemBase* Item = UInventoryUtilities::GetItemFromID(SelectedItemId, GetWorld());
 		if (Item)
 		{
 			FText Reason;
@@ -612,9 +650,13 @@ void UMerchantSellWidget::OnItemListSelectionChanged(int32 ItemID)
 	if (bRefreshingItemList)
 		return;
 
+	const bool bRepeatedMerchantSelection = MerchantMode == EMerchantWindowMode::Sell &&
+		SelectedItemId == ItemID && LastQuotedMerchantItemId == ItemID;
+
 	// Reset buy-specific data
 	MerchantBuyOriginSlot = EBagSlot::Unknown;
 	MerchantBuyOriginTopLeft = -1;
+	MerchantBuyOriginEquipmentSlot = EEquipmentSlot::Unknown;
 
 	// Update selected item
 	SelectedItemId = ItemID;
@@ -624,6 +666,12 @@ void UMerchantSellWidget::OnItemListSelectionChanged(int32 ItemID)
 
 	// Update the item preview
 	UpdateItemPreview();
+
+	// The authored list Blueprint still forwards the ListView selection alongside
+	// the native handler. Both callbacks identify the same selected stock item;
+	// retain the preview update but emit its chat quote only once.
+	if (bRepeatedMerchantSelection)
+		return;
 
 	// Broadcast that merchant is offering this item for sale
 	if (MerchantActor && ItemID > 0)
@@ -637,6 +685,7 @@ void UMerchantSellWidget::OnItemListSelectionChanged(int32 ItemID)
 				return;
 			}
 
+			LastQuotedMerchantItemId = ItemID;
 			OnMerchantOffersItemForSale(MerchantActor->GetMerchantName(), Item->Name, SalePrice);
 		}
 	}
