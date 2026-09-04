@@ -10,20 +10,19 @@ namespace InventoryGridGeometry
 	}
 
 	inline FVector2D AbsoluteToGridLocal(const FGeometry& WidgetGeometry, const FGeometry* GridGeometry,
-		const FVector2D& AbsolutePosition, const FVector2D& ContentInset = FVector2D::ZeroVector)
+		const FVector2D& AbsolutePosition)
 	{
-		const FVector2D LocalPosition = GridGeometry
+		return GridGeometry
 			? GridGeometry->AbsoluteToLocal(AbsolutePosition)
 			: WidgetGeometry.AbsoluteToLocal(AbsolutePosition);
-		return LocalPosition - ContentInset;
 	}
 
-	inline FVector2D GridOriginInWidgetLocal(const FGeometry& WidgetGeometry, const FGeometry* GridGeometry,
-		const FVector2D& ContentInset = FVector2D::ZeroVector)
+	/** Both geometries must come from the same paint-space layout pass. */
+	inline FVector2D GridOriginInWidgetLocal(const FGeometry& WidgetPaintGeometry,
+		const FGeometry* GridPaintGeometry)
 	{
-		const FVector2D ChildOrigin = GridGeometry
-			? WidgetGeometry.AbsoluteToLocal(GridGeometry->LocalToAbsolute(FVector2D::ZeroVector))
+		return GridPaintGeometry
+			? WidgetPaintGeometry.AbsoluteToLocal(GridPaintGeometry->LocalToAbsolute(FVector2D::ZeroVector))
 			: FVector2D::ZeroVector;
-		return ChildOrigin + ContentInset;
 	}
 }

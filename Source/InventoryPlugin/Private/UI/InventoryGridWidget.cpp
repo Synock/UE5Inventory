@@ -899,12 +899,13 @@ bool UInventoryGridWidget::NativeOnDragOver(const FGeometry& InGeometry, const F
 {
 	if (InOperation)
 	{
-		const FGeometry* CanvasGeometry = GridCanvasPanel ? &GridCanvasPanel->GetCachedGeometry() : nullptr;
-		const FGeometry* BorderGeometry = GridBorder ? &GridBorder->GetCachedGeometry() : nullptr;
+		// Drag events use desktop/screen coordinates, so use the widgets' tick-space geometry here.
+		const FGeometry* CanvasGeometry = GridCanvasPanel ? &GridCanvasPanel->GetTickSpaceGeometry() : nullptr;
+		const FGeometry* BorderGeometry = GridBorder ? &GridBorder->GetTickSpaceGeometry() : nullptr;
 		const FGeometry* GridGeometry = InventoryGridGeometry::ResolveGridGeometry(
 			CanvasGeometry, BorderGeometry);
 		const FVector2D LocalPos = InventoryGridGeometry::AbsoluteToGridLocal(
-			InGeometry, GridGeometry, InDragDropEvent.GetScreenSpacePosition(), GridVisualInset);
+			InGeometry, GridGeometry, InDragDropEvent.GetScreenSpacePosition());
 
 		if (const UPendingDeliveryDragDropOperation* DeliveryOperation =
 			Cast<UPendingDeliveryDragDropOperation>(InOperation))
@@ -940,12 +941,14 @@ int32 UInventoryGridWidget::NativePaint(const FPaintArgs& Args, const FGeometry&
 
 	FPaintContext Context(AllottedGeometry, MyCullingRect, OutDrawElements, MaxLayerId, InWidgetStyle, bParentEnabled);
 
-	const FGeometry* CanvasGeometry = GridCanvasPanel ? &GridCanvasPanel->GetCachedGeometry() : nullptr;
-	const FGeometry* BorderGeometry = &GridBorder->GetCachedGeometry();
+	// NativePaint's AllottedGeometry is paint-space geometry. GetCachedGeometry() returns tick/desktop-space
+	// geometry and can be a frame behind; mixing the two makes the grid drift when a PIE window is resized.
+	const FGeometry* CanvasGeometry = GridCanvasPanel ? &GridCanvasPanel->GetPaintSpaceGeometry() : nullptr;
+	const FGeometry* BorderGeometry = &GridBorder->GetPaintSpaceGeometry();
 	const FGeometry* GridGeometry = InventoryGridGeometry::ResolveGridGeometry(
 		CanvasGeometry, BorderGeometry);
 	const FVector2D LocalTopLeft = InventoryGridGeometry::GridOriginInWidgetLocal(
-		AllottedGeometry, GridGeometry, GridVisualInset);
+		AllottedGeometry, GridGeometry);
 
 	for (const FInventoryLine& Line : Lines)
 	{
