@@ -1,6 +1,3 @@
-﻿// Copyright 2022 Maximilien (Synock) Guislain
-
-
 #include "Interfaces/PurseInterface.h"
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -29,6 +26,9 @@ FCoinValue IPurseInterface::GetCoinAmount() const
 void IPurseInterface::TransferCoinsTo(UCoinComponent* GivingComponent, UCoinComponent* ReceivingComponent,
 	const FCoinValue & RemovedValue, const FCoinValue & AddedValue)
 {
+	if (GivingComponent == nullptr || ReceivingComponent == nullptr)
+		return;
+
 	GivingComponent->RemoveCoins(RemovedValue);
 	ReceivingComponent->AddCoins(AddedValue);
 }

@@ -1,5 +1,3 @@
-﻿// Copyright 2022 Maximilien (Synock) Guislain
-
 #pragma once
 
 #include "CoreMinimal.h"
@@ -37,24 +35,18 @@ public:
 	 * @param DesiredDropLocation  The desired location where the item should be dropped.
 	 * @param ClampOnGround  Whether the item should be clamped to the ground or not. Defaults to true.
 	 * @return  A pointer to the spawned ADroppedItem object, or nullptr if spawning failed.
-	 *
-	 * This method is a pure virtual function and needs to be implemented by the derived classes.
-	 * It allows an item to be spawned from a specific actor at a desired location.
-	 *
-	 * Usage example:
-	 *     AActor* SpawningActor = GetPlayerCharacter();
-	 *     FVector DesiredDropLocation = SpawningActor->GetActorLocation();
-	 *     uint32 ItemID = GetRandomItemID();
-	 *     ADroppedItem* DroppedItem = SpawnItemFromActor(SpawningActor, ItemID, DesiredDropLocation);
-	 *     if (DroppedItem != nullptr) {
-	 *         // Item was successfully spawned.
-	 *     } else {
-	 *         // Item spawning failed.
-	 *     }
 	 */
-	virtual ADroppedItem* SpawnItemFromActor(AActor* SpawningActor, uint32 ItemID, const FVector& DesiredDropLocation, bool ClampOnGround = true);
+	virtual ADroppedItem* SpawnItemFromActor(AActor* SpawningActor, uint32 ItemID, const FVector& DesiredDropLocation, bool ClampOnGround = true, float Durability = 100.0f);
 
-	virtual ADroppedItem* SpawnItemFromActorRaw(AActor* SpawningActor, UInventoryItemBase* ItemToSpawn);
+	/**
+	 * Spawns an item from the given actor using a raw item reference.
+	 *
+	 * @param SpawningActor  The actor from which the item will be spawned.
+	 * @param ItemToSpawn    A pointer to the UInventoryItemBase object representing the item to be spawned.
+	 * @param Durability     The durability of the spawned item. Defaults to 100.0f.
+	 * @return  A pointer to the spawned ADroppedItem object, or nullptr if spawning failed.
+	 */
+	virtual ADroppedItem* SpawnItemFromActorRaw(AActor* SpawningActor, UInventoryItemBase* ItemToSpawn, float Durability = 100.0f);
 
 	/**
 	 * Spawns coins from an actor at a desired drop location.
@@ -66,7 +58,7 @@ public:
 	 *
 	 * @return A pointer to the spawned coins.
 	 */
-	virtual ADroppedCoins* SpawnCoinsFromActor(AActor* SpawningActor, const FCoinValue& CoinValue, const FVector& DesiredDropLocation, bool ClampOnGround = true) = 0;
+	virtual ADroppedCoins* SpawnCoinsFromActor(AActor* SpawningActor, const FCoinValue& CoinValue, const FVector& DesiredDropLocation, bool ClampOnGround = true);
 
 	/**
 	 * Calculates the spawn location for an item to be dropped by a spawning actor.
@@ -101,12 +93,42 @@ public:
 	UFUNCTION(BlueprintCallable)
 	virtual void RegisterItem(UInventoryItemBase* NewItem) = 0;
 
+	/**
+	 * @brief Determines if a new item can be spawned.
+	 *
+	 * This method checks if the specified item can be spawned in the game world.
+	 * It can be used to enforce lore restrictions or other conditions on item spawning.
+	 *
+	 * @param NewItem The inventory item to check for spawn eligibility.
+	 * @return True if the item can be spawned, false otherwise.
+	 */
 	UFUNCTION(BlueprintCallable)
 	virtual bool CanSpawnItem(UInventoryItemBase* NewItem);
 
+	/**
+	 * @brief Validates a lore item after a delay.
+	 *
+	 * This method is intended to perform delayed validation of lore items, potentially
+	 * in relation to loot pools or other game systems. It can be used to ensure that
+	 * certain conditions are met before allowing a lore item to be considered valid.
+	 *
+	 * @param LocalItem The inventory item being validated.
+	 * @param Origin The loot pool component that is the origin of the validation request.
+	 * @return True if the lore item is valid, false otherwise.
+	 */
 	virtual bool DelayedLoreItemValidation(const UInventoryItemBase* LocalItem, ULootPoolComponent* Origin);
 
+	/**
+	 * @brief Retrieves the lore management component.
+	 *
+	 * This method returns a pointer to the lore management component, which can be used
+	 * to manage lore-related functionality in the game. If no lore management component is present,
+	 * this method can return nullptr.
+	 *
+	 * @return A pointer to the ULoreItemManagerComponent if available, otherwise nullptr.
+	 */
 	virtual ULoreItemManagerComponent* GetLoreManagementComponent();
+
 
 	/**
 	 * @brief Returns the current inflation value.

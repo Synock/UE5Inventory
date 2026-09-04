@@ -1,39 +1,46 @@
-// Copyright 2022 Maximilien (Synock) Guislain
-
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Blueprint/UserWidget.h"
+#include "UI/Merchant/CoinDisplayWidget.h"
 #include "PurseWidget.generated.h"
 
 /**
- * 
+ * @class UPurseWidget
+ *
+ * Widget for displaying a player's or merchant's purse (coin inventory).
+ * Inherits from CoinDisplayWidget to get automatic coin display with icons.
+ * Automatically syncs with a UCoinComponent and updates when coins change.
  */
 UCLASS()
-class INVENTORYPLUGIN_API UPurseWidget : public UUserWidget
+class INVENTORYPLUGIN_API UPurseWidget : public UCoinDisplayWidget
 {
 	GENERATED_BODY()
 
 protected:
-	UPROPERTY(BlueprintReadWrite, Category="Inventory|Purse")
-	int32 CP = 0;
-
-	UPROPERTY(BlueprintReadWrite, Category="Inventory|Purse")
-	int32 SP = 0;
-
-	UPROPERTY(BlueprintReadWrite, Category="Inventory|Purse")
-	int32 GP = 0;
-
-	UPROPERTY(BlueprintReadWrite, Category="Inventory|Purse")
-	int32 PP = 0;
-
-	UPROPERTY(BlueprintReadOnly, Category= "Inventory|Purse")
+	/** Reference to the coin component this widget is displaying */
+	UPROPERTY(BlueprintReadOnly, Category = "Inventory|Purse")
 	class UCoinComponent* PursePointer = nullptr;
 
 public:
+	/**
+	 * @brief Refresh the display from the coin component
+	 * Called automatically when coin component changes
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory|UI")
+	void Refresh();
+
+	/**
+	 * @brief Initialize the widget with a coin component
+	 * Binds to the component's PurseDispatcher for automatic updates
+	 * @param Owner The coin component to display
+	 */
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Inventory|UI")
 	void InitWidget(UCoinComponent* Owner);
 
-	UFUNCTION(BlueprintImplementableEvent, BlueprintCosmetic, BlueprintCallable, Category = "Inventory|UI")
-	void Refresh();
+	/**
+	 * @brief Get the current purse pointer
+	 * @return The coin component this widget is displaying
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Inventory|UI")
+	UCoinComponent* GetPursePointer() const { return PursePointer; }
 };

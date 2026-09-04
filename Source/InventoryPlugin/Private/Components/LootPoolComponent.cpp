@@ -1,6 +1,5 @@
-// Copyright 2022 Maximilien (Synock) Guislain
 #include "Components/LootPoolComponent.h"
-
+#include "InventoryPlugin.h"
 #include <Net/UnrealNetwork.h>
 
 #include "InventoryUtilities.h"
@@ -59,6 +58,55 @@ void ULootPoolComponent::Init(const TArray<int32>& LootableItems)
 
 //----------------------------------------------------------------------------------------------------------------------
 
+void ULootPoolComponent::InitWithDurability(const TArray<FMinimalItemStorage>& LootableItems)
+{
+	if (!GetOwner()->HasAuthority())
+		return;
+
+	TArray<FMinimalItemStorage> ValidItems;
+	ValidItems.Reserve(LootableItems.Num());
+
+	for (const FMinimalItemStorage& ItemStorage : LootableItems)
+	{
+		const UInventoryItemBase* LocalItem = UInventoryUtilities::GetItemFromID(ItemStorage.ItemID, GetWorld());
+
+		if (!LocalItem)
+			continue;
+
+		if (LocalItem->LoreItem)
+		{
+			auto* GM = Cast<IInventoryGameModeInterface>(
+				UGameplayStatics::GetGameMode(GetWorld()));
+			if (GM->DelayedLoreItemValidation(LocalItem, this))
+			{
+				continue;
+			}
+		}
+
+		ValidItems.Add(ItemStorage);
+	}
+
+	GridBagSolver Solver(Width, Height);
+	for (const FMinimalItemStorage& ItemStorage : ValidItems)
+	{
+		const UInventoryItemBase* LocalItem = UInventoryUtilities::GetItemFromID(ItemStorage.ItemID, GetWorld());
+		int32 TopLeft = Solver.GetFirstValidTopLeft(LocalItem);
+
+		if (TopLeft >= 0)
+		{
+			FMinimalItemStorage NewItem;
+			NewItem.ItemID = ItemStorage.ItemID;
+			NewItem.TopLeftID = TopLeft;
+			NewItem.Durability = ItemStorage.Durability;  // Preserve durability!
+
+			Items.Add(NewItem);
+			Solver.RecordData(LocalItem, TopLeft);
+		}
+	}
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 void ULootPoolComponent::OnRep_LootPool()
 {
 	LootPoolDispatcher.Broadcast();
@@ -68,6 +116,13 @@ void ULootPoolComponent::OnRep_LootPool()
 
 void ULootPoolComponent::AddItem_Implementation(int32 ItemID, int32 TopLeftIndex)
 {
+
+	if (!GetOwner() || !GetOwner()->HasAuthority())
+	{
+		UE_LOG(LogInventoryPlugin, Warning, TEXT("AddItem called without authority"));
+		return;
+	}
+
 	Items.Add({ItemID, TopLeftIndex});
 }
 
@@ -118,6 +173,13 @@ bool ULootPoolComponent::AddItemSomewhere(int32 ItemID)
 
 void ULootPoolComponent::RemoveItem_Implementation(int32 TopLeftIndex)
 {
+
+	if (!GetOwner() || !GetOwner()->HasAuthority())
+	{
+		UE_LOG(LogInventoryPlugin, Warning, TEXT("RemoveItem called without authority"));
+		return;
+	}
+
 	auto& Bag = Items;
 	int32 ID = 0;
 	for (const auto& Item : Bag)
@@ -144,5 +206,5 @@ void ULootPoolComponent::BeginPlay()
 void ULootPoolComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-	DOREPLIFETIME(ULootPoolComponent, Items);
+	DOREPLIFETIME_CONDITION(ULootPoolComponent, Items, ItemsReplicationCondition);
 }

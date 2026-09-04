@@ -1,7 +1,1203 @@
-﻿// Copyright 2022 Maximilien (Synock) Guislain
-
-
 #include "Interfaces/InventoryHUDInterface.h"
+#include "Interfaces/InventoryHUDPositioning.h"
+#include "UI/InventoryWindowLayering.h"
+#include "UI/InventoryWindowInterface.h"
+#include "UI/Keyring/KeyringWindowInterface.h"
+#include "UI/TradeWindowInterface.h"
+#include "Interfaces/InventoryPlayerInterface.h"
+#include "GameFramework/PlayerController.h"
+#include "Interfaces/EquipmentInterface.h"
+#include "Components/EquipmentComponent.h"
+#include "Components/InventoryComponent.h"
+#include "Items/Interfaces/InventoryItemBagInterface.h"
+#include "Items/Interfaces/InventoryItemBookInterface.h"
+#include "Items/InventoryItemEquipable.h"
+#include "UI/InventoryBagWindowInterface.h"
+#include "UI/InventoryBookWidgetInterface.h"
+#include "UI/InventoryItemDescriptionWidgetInterface.h"
+#include "UI/ItemDescriptionWidget.h"
+#include "UI/InventoryLootWindowInterface.h"
+#include "UI/InventoryMerchantWindowInterface.h"
+#include "UI/InventoryRepairWindowInterface.h"
+#include "UI/FieldRepairWidgetInterface.h"
+#include "UI/FieldRepairWidget.h"
+#include "UI/Merchant/MerchantSellWidget.h"
+#include "UI/Repair/RepairWidget.h"
+#include "Blueprint/UserWidget.h"
+#include "GameFramework/PlayerController.h"
+#include "UObject/ObjectKey.h"
+#include "TimerManager.h"
 
+FVector2D InventoryHUDPositioning::ClampWindowPositionToViewport(const FVector2D& DesiredPosition,
+                                                                 const FVector2D& DesiredSize,
+                                                                 int32 ViewportX, int32 ViewportY)
+{
+	if (DesiredSize.X <= 0.f || DesiredSize.Y <= 0.f || ViewportX <= 0 || ViewportY <= 0)
+	{
+		return DesiredPosition;
+	}
 
-// Add default functionality here for any IInventoryHUDInterface functions that are not pure virtual.
+	return FVector2D(
+		FMath::Clamp(DesiredPosition.X, 0.f, FMath::Max(0.f, static_cast<float>(ViewportX) - DesiredSize.X)),
+		FMath::Clamp(DesiredPosition.Y, 0.f, FMath::Max(0.f, static_cast<float>(ViewportY) - DesiredSize.Y)));
+}
+
+static void ApplyWindowViewportPosition(UUserWidget* Window, FVector2D DesiredPosition)
+{
+	if (!Window)
+	{
+		return;
+	}
+
+	Window->ForceLayoutPrepass();
+
+	APlayerController* PC = Window->GetOwningPlayer();
+	int32 ViewportX = 0;
+	int32 ViewportY = 0;
+	if (PC)
+	{
+		PC->GetViewportSize(ViewportX, ViewportY);
+	}
+
+	const FVector2D ClampedPosition = InventoryHUDPositioning::ClampWindowPositionToViewport(
+		DesiredPosition, Window->GetDesiredSize(), ViewportX, ViewportY);
+
+	Window->SetAlignmentInViewport(FVector2D::ZeroVector);
+	Window->SetPositionInViewport(ClampedPosition, true);
+}
+
+static void PositionWindowAtViewportPoint(UUserWidget* Window, const FVector2D& DesiredPosition)
+{
+	if (!Window)
+	{
+		return;
+	}
+
+	ApplyWindowViewportPosition(Window, DesiredPosition);
+
+	if (UWorld* World = Window->GetWorld())
+	{
+		TWeakObjectPtr<UUserWidget> WeakWindow(Window);
+		World->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateLambda([WeakWindow, DesiredPosition]()
+		{
+			if (UUserWidget* StrongWindow = WeakWindow.Get())
+			{
+				ApplyWindowViewportPosition(StrongWindow, DesiredPosition);
+			}
+		}));
+	}
+}
+
+static void PositionWindowBottomRightOfCursor(APlayerController* PC, UUserWidget* Window)
+{
+	if (!PC || !Window)
+	{
+		return;
+	}
+
+	float MouseX = 0.f;
+	float MouseY = 0.f;
+	if (!PC->GetMousePosition(MouseX, MouseY))
+	{
+		return;
+	}
+
+	int32 ViewportX = 0;
+	int32 ViewportY = 0;
+	PC->GetViewportSize(ViewportX, ViewportY);
+
+	constexpr float CursorOffset = 24.f;
+	const FVector2D DesiredPosition(MouseX + CursorOffset, MouseY + CursorOffset);
+	PositionWindowAtViewportPoint(Window, DesiredPosition);
+}
+
+static bool ShouldApplyInitialCursorPosition(UObject* WindowObj)
+{
+	static TSet<TObjectKey<UObject>> CursorPositionedBagWindows;
+	if (!WindowObj)
+	{
+		return false;
+	}
+
+	const TObjectKey<UObject> WindowKey(WindowObj);
+	if (CursorPositionedBagWindows.Contains(WindowKey))
+	{
+		return false;
+	}
+
+	CursorPositionedBagWindows.Add(WindowKey);
+	return true;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+// Inventory window registry — default no-ops
+//----------------------------------------------------------------------------------------------------------------------
+
+TScriptInterface<IInventoryWindowInterface> IInventoryHUDInterface::GetInventoryWindow() const
+{
+	return {};
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::RegisterInventoryWindow(TScriptInterface<IInventoryWindowInterface> /*InventoryWindow*/)
+{
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+// Inventory display
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::SetInventoryDisplay_Implementation(bool State)
+{
+	const TScriptInterface<IInventoryWindowInterface> Window = GetInventoryWindow();
+	UObject* WindowObj = Window.GetObject();
+	if (!WindowObj)
+		return;
+
+	if (State)
+	{
+		IInventoryWindowInterface::Execute_ShowInventoryWindow(WindowObj);
+		IInventoryWindowInterface::Execute_RefreshInventoryEquipments(WindowObj);
+		IInventoryWindowInterface::Execute_RefreshInventoryGrids(WindowObj);
+	}
+	else
+	{
+		IInventoryWindowInterface::Execute_HideInventoryWindow(WindowObj);
+	}
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::ToggleInventoryDisplay_Implementation()
+{
+	const TScriptInterface<IInventoryWindowInterface> Window = GetInventoryWindow();
+	UObject* WindowObj = Window.GetObject();
+	if (!WindowObj)
+		return;
+
+	const bool bVisible = IInventoryWindowInterface::Execute_IsInventoryWindowVisible(WindowObj);
+
+	UObject* SelfObject = _getUObject();
+	Execute_SetInventoryDisplay(SelfObject, !bVisible);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+// Trade window registry — default no-ops
+//----------------------------------------------------------------------------------------------------------------------
+
+TScriptInterface<ITradeWindowInterface> IInventoryHUDInterface::GetTradeWindow() const
+{
+	return {};
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::RegisterTradeWindow(TScriptInterface<ITradeWindowInterface> /*TradeWindow*/)
+{
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+// Trade display
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::OpenTradeWindow_Implementation()
+{
+	// Resolve the owning player controller's IInventoryPlayerInterface.
+	UObject* SelfObject = Cast<UObject>(this);
+	if (!SelfObject)
+		return;
+
+	APlayerController* PC = nullptr;
+	if (const UUserWidget* AsWidget = Cast<UUserWidget>(SelfObject))
+		PC = AsWidget->GetOwningPlayer();
+
+	if (!PC)
+		return;
+
+	IInventoryPlayerInterface* PlayerInterface = Cast<IInventoryPlayerInterface>(PC);
+	if (!PlayerInterface)
+		return;
+
+	// Guard: only open if a player-to-player trade session is active.
+	UTradeComponent* TradeComp = PlayerInterface->GetLocalTradeComponent();
+	if (!TradeComp || !TradeComp->IsTrading())
+		return;
+
+	const TScriptInterface<ITradeWindowInterface> Window = GetTradeWindow();
+	UObject* WindowObj = Window.GetObject();
+	if (!WindowObj)
+		return;
+
+	ITradeWindowInterface::Execute_InitTradeWindow(WindowObj, TradeComp);
+	ITradeWindowInterface::Execute_ShowTradeWindow(WindowObj);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::CloseTradeWindow_Implementation()
+{
+	const TScriptInterface<ITradeWindowInterface> Window = GetTradeWindow();
+	UObject* WindowObj = Window.GetObject();
+	if (!WindowObj)
+		return;
+
+	ITradeWindowInterface::Execute_DeInitTradeWindow(WindowObj);
+	ITradeWindowInterface::Execute_HideTradeWindow(WindowObj);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+// Keyring window registry — default no-ops
+//----------------------------------------------------------------------------------------------------------------------
+
+TScriptInterface<IKeyringWindowInterface> IInventoryHUDInterface::GetKeyringWindow() const
+{
+	return {};
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::RegisterKeyringWindow(TScriptInterface<IKeyringWindowInterface> /*KeyringWindow*/)
+{
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+// Keyring display
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::SetKeyringDisplay_Implementation(bool State)
+{
+	const TScriptInterface<IKeyringWindowInterface> Window = GetKeyringWindow();
+	UObject* WindowObj = Window.GetObject();
+	if (!WindowObj)
+		return;
+
+	if (State)
+		IKeyringWindowInterface::Execute_ShowKeyringWindow(WindowObj);
+	else
+		IKeyringWindowInterface::Execute_HideKeyringWindow(WindowObj);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::ToggleKeyringDisplay_Implementation()
+{
+	const TScriptInterface<IKeyringWindowInterface> Window = GetKeyringWindow();
+	UObject* WindowObj = Window.GetObject();
+	if (!WindowObj)
+		return;
+
+	const bool bVisible = IKeyringWindowInterface::Execute_IsKeyringWindowVisible(WindowObj);
+
+	UObject* SelfObject = _getUObject();
+	Execute_SetKeyringDisplay(SelfObject, !bVisible);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+// Bag window registry — default no-ops
+//----------------------------------------------------------------------------------------------------------------------
+
+TScriptInterface<IInventoryBagWindowInterface> IInventoryHUDInterface::GetBagWindowForSlot(EBagSlot /*Slot*/) const
+{
+	return {};
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::RegisterBagWindowForSlot(EBagSlot /*Slot*/,
+                                                       TScriptInterface<IInventoryBagWindowInterface> /*BagWindow*/)
+{
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+TArray<EBagSlot> IInventoryHUDInterface::GetRegisteredBagSlots() const
+{
+	return {};
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+// Inventory refresh
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::RefreshAllInventoryGrids_Implementation()
+{
+	// Refresh every registered bag window. Game side adds the InventoryWindow grid refresh on top.
+	for (const EBagSlot Slot : GetRegisteredBagSlots())
+	{
+		if (TScriptInterface<IInventoryBagWindowInterface> BagWindow = GetBagWindowForSlot(Slot))
+		{
+			IInventoryBagWindowInterface::Execute_RefreshBagWindow(BagWindow.GetObject());
+		}
+	}
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::ForceRefreshInventory_Implementation()
+{
+	// Plugin default: iterate bags + refresh grids.
+	// Game side prepends RefreshAllEquipments() on the InventoryWindow before calling this.
+	Execute_RefreshAllInventoryGrids(_getUObject());
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+// Bag lifecycle
+//----------------------------------------------------------------------------------------------------------------------
+
+TSubclassOf<UUserWidget> IInventoryHUDInterface::GetBagWindowClass_Implementation() const
+{
+	// No plugin-default bag window asset; game code overrides this to return its draggable window class.
+	return nullptr;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::HandleBag_Implementation(EBagSlot InputBagSlot,
+                                                       const TScriptInterface<IInventoryBagWindowInterface>& BagWindow)
+{
+	UObject* WindowObj = BagWindow.GetObject();
+	if (!WindowObj)
+		return;
+
+	UObject* SelfObject = Cast<UObject>(this);
+	if (!SelfObject)
+		return;
+
+	APlayerController* PC = nullptr;
+	if (const UUserWidget* AsWidget = Cast<UUserWidget>(SelfObject))
+		PC = AsWidget->GetOwningPlayer();
+
+	if (!PC)
+		return;
+
+	APawn* Pawn = PC->GetPawn();
+	if (!Pawn)
+		return;
+
+	IEquipmentInterface* EquipInterface = Cast<IEquipmentInterface>(Pawn);
+	if (!EquipInterface)
+		return;
+
+	const EEquipmentSlot EquipSlot = UInventoryComponent::GetInventorySlotFromBagSlot(InputBagSlot);
+	const UInventoryItemEquipable* BagItem = EquipInterface->GetEquippedItem(EquipSlot);
+	if (!BagItem)
+		return;
+
+	const IInventoryItemBagInterface* BagData = Cast<IInventoryItemBagInterface>(BagItem);
+	if (!BagData)
+		return;
+
+	IInventoryBagWindowInterface::Execute_InitBagData(
+		WindowObj,
+		BagItem->Name,
+		static_cast<int32>(BagData->GetBagWidth()),
+		static_cast<int32>(BagData->GetBagHeight()),
+		BagData->GetBagSize(),
+		InputBagSlot);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::DisplayBag_Implementation(EBagSlot InputBagSlot)
+{
+	TScriptInterface<IInventoryBagWindowInterface> BagWindow = GetBagWindowForSlot(InputBagSlot);
+
+	if (!BagWindow.GetObject())
+	{
+		// Lazy-create: ask for the window class and spawn it.
+		UObject* SelfObject = Cast<UObject>(this);
+		if (!SelfObject)
+			return;
+
+		const TSubclassOf<UUserWidget> WindowClass = Execute_GetBagWindowClass(SelfObject);
+		if (!WindowClass)
+		{
+			UE_LOG(LogTemp, Warning,
+			       TEXT("IInventoryHUDInterface::DisplayBag — slot %d has no registered window and GetBagWindowClass returned nullptr."),
+			       static_cast<int32>(InputBagSlot));
+			return;
+		}
+
+		APlayerController* PC = nullptr;
+		if (const UUserWidget* AsWidget = Cast<UUserWidget>(SelfObject))
+			PC = AsWidget->GetOwningPlayer();
+
+		UUserWidget* NewWindow = CreateWidget<UUserWidget>(PC, WindowClass);
+		if (!NewWindow)
+			return;
+
+		if (!NewWindow->GetClass()->ImplementsInterface(UInventoryBagWindowInterface::StaticClass()))
+		{
+			UE_LOG(LogTemp, Warning,
+			       TEXT("IInventoryHUDInterface::DisplayBag — created widget '%s' does not implement IInventoryBagWindowInterface."),
+			       *WindowClass->GetName());
+			return;
+		}
+
+		BagWindow = TScriptInterface<IInventoryBagWindowInterface>(NewWindow);
+		RegisterBagWindowForSlot(InputBagSlot, BagWindow);
+		NewWindow->AddToViewport();
+	}
+
+	UObject* WindowObj = BagWindow.GetObject();
+	if (!WindowObj)
+		return;
+
+	// Populate with equipped item data.
+	UObject* SelfObject = Cast<UObject>(this);
+	Execute_HandleBag(SelfObject, InputBagSlot, BagWindow);
+
+	IInventoryBagWindowInterface::Execute_ShowBagWindow(WindowObj);
+
+	if (ShouldApplyInitialCursorPosition(WindowObj))
+	{
+		if (UUserWidget* BagWidget = Cast<UUserWidget>(WindowObj))
+		{
+			PositionWindowBottomRightOfCursor(BagWidget->GetOwningPlayer(), BagWidget);
+		}
+	}
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::HideBag_Implementation(EBagSlot InputBagSlot)
+{
+	const TScriptInterface<IInventoryBagWindowInterface> BagWindow = GetBagWindowForSlot(InputBagSlot);
+	if (UObject* WindowObj = BagWindow.GetObject())
+		IInventoryBagWindowInterface::Execute_HideBagWindow(WindowObj);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::HideAllBags_Implementation()
+{
+	UObject* SelfObject = Cast<UObject>(this);
+	for (const EBagSlot Slot : GetRegisteredBagSlots())
+	{
+		// Route through the full NativeEvent dispatch so Blueprint overrides of HideBag fire correctly.
+		Execute_HideBag(SelfObject, Slot);
+	}
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::UnequipBag_Implementation(EBagSlot InputBagSlot)
+{
+	const TScriptInterface<IInventoryBagWindowInterface> BagWindow = GetBagWindowForSlot(InputBagSlot);
+	UObject* WindowObj = BagWindow.GetObject();
+	if (!WindowObj)
+		return;
+
+	IInventoryBagWindowInterface::Execute_DeInitBagWindow(WindowObj);
+	IInventoryBagWindowInterface::Execute_HideBagWindow(WindowObj);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::ToggleBag_Implementation(EBagSlot InputBagSlot)
+{
+	const TScriptInterface<IInventoryBagWindowInterface> BagWindow = GetBagWindowForSlot(InputBagSlot);
+	UObject* WindowObj = BagWindow.GetObject();
+
+	// No window registered yet — DisplayBag lazy-creates and shows it.
+	if (!WindowObj)
+	{
+		UObject* SelfObject = Cast<UObject>(this);
+		Execute_DisplayBag(SelfObject, InputBagSlot);
+		return;
+	}
+
+	// If the window is currently visible, hide it directly.
+	// Otherwise route through DisplayBag so HandleBag initializes the grid before showing.
+	const UWidget* AsWidget = Cast<UWidget>(WindowObj);
+	const bool bCurrentlyVisible = AsWidget &&
+	                                (AsWidget->GetVisibility() == ESlateVisibility::Visible ||
+	                                 AsWidget->GetVisibility() == ESlateVisibility::SelfHitTestInvisible ||
+	                                 AsWidget->GetVisibility() == ESlateVisibility::HitTestInvisible);
+
+	if (bCurrentlyVisible)
+	{
+		IInventoryBagWindowInterface::Execute_HideBagWindow(WindowObj);
+	}
+	else
+	{
+		UObject* SelfObject = Cast<UObject>(this);
+		Execute_DisplayBag(SelfObject, InputBagSlot);
+	}
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+// Loot window registry — default no-ops
+//----------------------------------------------------------------------------------------------------------------------
+
+TScriptInterface<IInventoryLootWindowInterface> IInventoryHUDInterface::GetLootWindow() const
+{
+	return {};
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::RegisterLootWindow(TScriptInterface<IInventoryLootWindowInterface> /*LootWindow*/)
+{
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+// Loot lifecycle
+//----------------------------------------------------------------------------------------------------------------------
+
+TSubclassOf<UUserWidget> IInventoryHUDInterface::GetLootWindowClass_Implementation() const
+{
+	static TSoftClassPtr<UUserWidget> DefaultClass(FSoftObjectPath(TEXT("/InventoryPlugin/UI/UI_LootWidget.UI_LootWidget_C")));
+	if (UClass* Loaded = DefaultClass.LoadSynchronous())
+		return Loaded;
+	return nullptr;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::DisplayLootScreen_Implementation(AActor* LootedActor)
+{
+	if (!LootedActor)
+		return;
+
+	UObject* SelfObject = Cast<UObject>(this);
+	if (!SelfObject)
+		return;
+
+	APlayerController* PC = nullptr;
+	if (const UUserWidget* AsWidget = Cast<UUserWidget>(SelfObject))
+		PC = AsWidget->GetOwningPlayer();
+
+	TScriptInterface<IInventoryLootWindowInterface> LootWindow = GetLootWindow();
+
+	if (!LootWindow.GetObject())
+	{
+		const TSubclassOf<UUserWidget> WindowClass = Execute_GetLootWindowClass(SelfObject);
+		if (!WindowClass)
+		{
+			UE_LOG(LogTemp, Warning,
+			       TEXT("IInventoryHUDInterface::DisplayLootScreen — no registered window and GetLootWindowClass returned nullptr."));
+			return;
+		}
+
+		UUserWidget* NewWindow = CreateWidget<UUserWidget>(PC, WindowClass);
+		if (!NewWindow)
+			return;
+
+		if (!NewWindow->GetClass()->ImplementsInterface(UInventoryLootWindowInterface::StaticClass()))
+		{
+			UE_LOG(LogTemp, Warning,
+			       TEXT("IInventoryHUDInterface::DisplayLootScreen — created widget '%s' does not implement IInventoryLootWindowInterface."),
+			       *WindowClass->GetName());
+			return;
+		}
+
+		LootWindow = TScriptInterface<IInventoryLootWindowInterface>(NewWindow);
+		RegisterLootWindow(LootWindow);
+		NewWindow->AddToViewport();
+
+		// Position bottom-right of the cursor on first creation.
+		NewWindow->SetAlignmentInViewport(FVector2D(0.0f, 0.0f));
+		float MouseX = 0.f, MouseY = 0.f;
+		if (PC)
+			PC->GetMousePosition(MouseX, MouseY);
+		NewWindow->SetPositionInViewport(FVector2D(MouseX, MouseY), true);
+	}
+
+	UObject* WindowObj = LootWindow.GetObject();
+	if (!WindowObj)
+		return;
+
+	IInventoryLootWindowInterface::Execute_InitLootWindow(WindowObj, LootedActor);
+	IInventoryLootWindowInterface::Execute_ShowLootWindow(WindowObj);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::HideLootScreen_Implementation()
+{
+	const TScriptInterface<IInventoryLootWindowInterface> LootWindow = GetLootWindow();
+	UObject* WindowObj = LootWindow.GetObject();
+	if (!WindowObj)
+		return;
+
+	IInventoryLootWindowInterface::Execute_DeInitLootWindow(WindowObj);
+	IInventoryLootWindowInterface::Execute_HideLootWindow(WindowObj);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+// Merchant window registry — default no-ops
+//----------------------------------------------------------------------------------------------------------------------
+
+TScriptInterface<IInventoryMerchantWindowInterface> IInventoryHUDInterface::GetMerchantWindow() const
+{
+	return {};
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::RegisterMerchantWindow(TScriptInterface<IInventoryMerchantWindowInterface> /*MerchantWindow*/)
+{
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+// Merchant lifecycle
+//----------------------------------------------------------------------------------------------------------------------
+
+TSubclassOf<UUserWidget> IInventoryHUDInterface::GetMerchantWindowClass_Implementation() const
+{
+	// Default: use the built-in UMerchantSellWidget as a standalone merchant window.
+	// Game code overrides this to return a richer class.
+	return UMerchantSellWidget::StaticClass();
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::DisplayMerchantScreen_Implementation(AActor* MerchantActor)
+{
+	if (!MerchantActor)
+		return;
+
+	UObject* SelfObject = Cast<UObject>(this);
+	if (!SelfObject)
+		return;
+
+	APlayerController* PC = nullptr;
+	if (const UUserWidget* AsWidget = Cast<UUserWidget>(SelfObject))
+		PC = AsWidget->GetOwningPlayer();
+
+	TScriptInterface<IInventoryMerchantWindowInterface> MerchantWindow = GetMerchantWindow();
+
+	if (!MerchantWindow.GetObject())
+	{
+		const TSubclassOf<UUserWidget> WindowClass = Execute_GetMerchantWindowClass(SelfObject);
+		if (!WindowClass)
+		{
+			UE_LOG(LogTemp, Warning,
+			       TEXT("IInventoryHUDInterface::DisplayMerchantScreen — no registered window and GetMerchantWindowClass returned nullptr."));
+			return;
+		}
+
+		UUserWidget* NewWindow = CreateWidget<UUserWidget>(PC, WindowClass);
+		if (!NewWindow)
+			return;
+
+		if (!NewWindow->GetClass()->ImplementsInterface(UInventoryMerchantWindowInterface::StaticClass()))
+		{
+			UE_LOG(LogTemp, Warning,
+			       TEXT("IInventoryHUDInterface::DisplayMerchantScreen — created widget '%s' does not implement IInventoryMerchantWindowInterface."),
+			       *WindowClass->GetName());
+			return;
+		}
+
+		MerchantWindow = TScriptInterface<IInventoryMerchantWindowInterface>(NewWindow);
+		RegisterMerchantWindow(MerchantWindow);
+		NewWindow->AddToViewport();
+
+		// Position bottom-right of the cursor on first creation.
+		NewWindow->SetAlignmentInViewport(FVector2D(0.0f, 0.0f));
+		float MouseX = 0.f, MouseY = 0.f;
+		if (PC)
+			PC->GetMousePosition(MouseX, MouseY);
+		NewWindow->SetPositionInViewport(FVector2D(MouseX, MouseY), true);
+	}
+
+	UObject* WindowObj = MerchantWindow.GetObject();
+	if (!WindowObj)
+		return;
+
+	IInventoryMerchantWindowInterface::Execute_InitMerchantWindow(WindowObj, MerchantActor);
+	IInventoryMerchantWindowInterface::Execute_ShowMerchantWindow(WindowObj);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::HideMerchantScreen_Implementation()
+{
+	const TScriptInterface<IInventoryMerchantWindowInterface> MerchantWindow = GetMerchantWindow();
+	UObject* WindowObj = MerchantWindow.GetObject();
+	if (!WindowObj)
+		return;
+
+	IInventoryMerchantWindowInterface::Execute_DeInitMerchantWindow(WindowObj);
+	IInventoryMerchantWindowInterface::Execute_HideMerchantWindow(WindowObj);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+// Book
+//----------------------------------------------------------------------------------------------------------------------
+
+TSubclassOf<UUserWidget> IInventoryHUDInterface::GetBookWidgetClass_Implementation() const
+{
+	static TSoftClassPtr<UUserWidget> DefaultClass(FSoftObjectPath(TEXT("/InventoryPlugin/UI/UI_BookWidget.UI_BookWidget_C")));
+	if (UClass* Loaded = DefaultClass.LoadSynchronous())
+		return Loaded;
+	return nullptr;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::DisplayBookText_Implementation(const UInventoryItemBase* Item, float X, float Y)
+{
+	DisplayBookTextFromSource(Item, X, Y, nullptr);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::DisplayBookTextFromSource(const UInventoryItemBase* Item, float X, float Y,
+	                                                     const UWidget* SourceWidget)
+{
+	if (!Item)
+		return;
+
+	UObject* SelfObject = Cast<UObject>(this);
+	if (!SelfObject)
+		return;
+
+	APlayerController* PC = nullptr;
+	if (const UUserWidget* AsWidget = Cast<UUserWidget>(SelfObject))
+		PC = AsWidget->GetOwningPlayer();
+
+	// Resolve pages first so we can pick the right widget class
+	TArray<FBookPage> Pages;
+	bool bImplementsBook = Item->GetClass()->ImplementsInterface(UInventoryItemBookInterface::StaticClass());
+	if (bImplementsBook)
+		Pages = IInventoryItemBookInterface::Execute_GetBookPages(Item);
+
+	// Single-page notes use GetNoteWidgetClass() if provided, fall back to GetBookWidgetClass()
+	const bool bSinglePage = Pages.Num() <= 1;
+	TSubclassOf<UUserWidget> WidgetClass = nullptr;
+	if (bSinglePage)
+	{
+		WidgetClass = Execute_GetNoteWidgetClass(SelfObject);
+		if (!WidgetClass)
+			WidgetClass = Execute_GetBookWidgetClass(SelfObject);
+	}
+	else
+	{
+		WidgetClass = Execute_GetBookWidgetClass(SelfObject);
+	}
+
+	if (!WidgetClass)
+		return;
+
+	UUserWidget* Widget = CreateWidget<UUserWidget>(PC, WidgetClass);
+	if (!Widget)
+		return;
+
+	IInventoryBookWidgetInterface* BookWidget = Cast<IInventoryBookWidgetInterface>(Widget);
+	if (!BookWidget)
+	{
+		UE_LOG(LogTemp, Warning,
+		       TEXT("IInventoryHUDInterface::DisplayBookText — widget class '%s' does not implement IInventoryBookWidgetInterface."),
+		       *WidgetClass->GetName());
+		return;
+	}
+
+	IInventoryBookWidgetInterface::Execute_SetupUI(Widget);
+
+	if (bImplementsBook)
+	{
+		IInventoryBookWidgetInterface::Execute_SetTitle(Widget, IInventoryItemBookInterface::Execute_GetBookTitle(Item));
+		if (bSinglePage)
+			IInventoryBookWidgetInterface::Execute_SetText(Widget, Pages.IsEmpty() ? FText::GetEmpty() : Pages[0].Content);
+		else
+			IInventoryBookWidgetInterface::Execute_SetPages(Widget, Pages);
+	}
+
+	float MouseX = X, MouseY = Y;
+	if (PC)
+		PC->GetMousePosition(MouseX, MouseY);
+
+	InventoryWindowLayering::AddToViewportAboveSource(Widget, SourceWidget, 5);
+	Widget->SetAlignmentInViewport(FVector2D(0.5f, 0.5f));
+	Widget->SetPositionInViewport(FVector2D(MouseX, MouseY), true);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+// Field repair
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::LockEquipmentSlot_Implementation(EEquipmentSlot EquipmentSlot, bool bLocked)
+{
+	UObject* SelfObject = Cast<UObject>(this);
+	if (!SelfObject)
+		return;
+
+	AActor* Owner = Cast<AActor>(SelfObject->GetOuter());
+	if (!Owner)
+	{
+		if (const UUserWidget* Widget = Cast<UUserWidget>(SelfObject))
+		{
+			if (APlayerController* PC = Widget->GetOwningPlayer())
+				Owner = PC->GetPawn();
+		}
+	}
+
+	if (!Owner)
+		return;
+
+	IEquipmentInterface* EquipmentInterface = Cast<IEquipmentInterface>(Owner);
+	if (!EquipmentInterface)
+		return;
+
+	UEquipmentComponent* EquipmentComp = EquipmentInterface->GetEquipmentComponent();
+	if (!EquipmentComp)
+		return;
+
+	EquipmentComp->SetEquipmentLockState(EquipmentSlot, bLocked);
+	EquipmentComp->EquipmentDispatcher.Broadcast();
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+// Repair window registry — default no-ops
+//----------------------------------------------------------------------------------------------------------------------
+
+TScriptInterface<IInventoryRepairWindowInterface> IInventoryHUDInterface::GetRepairWindow() const
+{
+	return {};
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::RegisterRepairWindow(TScriptInterface<IInventoryRepairWindowInterface> /*RepairWindow*/)
+{
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+// Repair lifecycle
+//----------------------------------------------------------------------------------------------------------------------
+
+TSubclassOf<UUserWidget> IInventoryHUDInterface::GetRepairWindowClass_Implementation() const
+{
+	// Default: use the built-in URepairWidget as a standalone repair window.
+	// Game code overrides this to return a richer draggable window class.
+	return URepairWidget::StaticClass();
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::DisplayRepairScreen_Implementation(AActor* RepairerActor)
+{
+	if (!RepairerActor)
+		return;
+
+	UObject* SelfObject = Cast<UObject>(this);
+	if (!SelfObject)
+		return;
+
+	APlayerController* PC = nullptr;
+	if (const UUserWidget* AsWidget = Cast<UUserWidget>(SelfObject))
+		PC = AsWidget->GetOwningPlayer();
+
+	TScriptInterface<IInventoryRepairWindowInterface> RepairWindow = GetRepairWindow();
+
+	if (!RepairWindow.GetObject())
+	{
+		const TSubclassOf<UUserWidget> WindowClass = Execute_GetRepairWindowClass(SelfObject);
+		if (!WindowClass)
+		{
+			UE_LOG(LogTemp, Warning,
+			       TEXT("IInventoryHUDInterface::DisplayRepairScreen — no registered window and GetRepairWindowClass returned nullptr."));
+			return;
+		}
+
+		UUserWidget* NewWindow = CreateWidget<UUserWidget>(PC, WindowClass);
+		if (!NewWindow)
+			return;
+
+		if (!NewWindow->GetClass()->ImplementsInterface(UInventoryRepairWindowInterface::StaticClass()))
+		{
+			UE_LOG(LogTemp, Warning,
+			       TEXT("IInventoryHUDInterface::DisplayRepairScreen — created widget '%s' does not implement IInventoryRepairWindowInterface."),
+			       *WindowClass->GetName());
+			return;
+		}
+
+		RepairWindow = TScriptInterface<IInventoryRepairWindowInterface>(NewWindow);
+		RegisterRepairWindow(RepairWindow);
+		NewWindow->AddToViewport();
+
+		// Position bottom-right of the cursor on first creation.
+		NewWindow->SetAlignmentInViewport(FVector2D(0.0f, 0.0f));
+		float MouseX = 0.f, MouseY = 0.f;
+		if (PC)
+			PC->GetMousePosition(MouseX, MouseY);
+		NewWindow->SetPositionInViewport(FVector2D(MouseX, MouseY), true);
+	}
+
+	UObject* WindowObj = RepairWindow.GetObject();
+	if (!WindowObj)
+		return;
+
+	IInventoryRepairWindowInterface::Execute_InitRepairWindow(WindowObj, RepairerActor);
+	IInventoryRepairWindowInterface::Execute_ShowRepairWindow(WindowObj);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::HideRepairScreen_Implementation()
+{
+	const TScriptInterface<IInventoryRepairWindowInterface> RepairWindow = GetRepairWindow();
+	UObject* WindowObj = RepairWindow.GetObject();
+	if (!WindowObj)
+		return;
+
+	IInventoryRepairWindowInterface::Execute_DeInitRepairWindow(WindowObj);
+	IInventoryRepairWindowInterface::Execute_HideRepairWindow(WindowObj);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::OnRepairTransactionComplete_Implementation()
+{
+	const TScriptInterface<IInventoryRepairWindowInterface> RepairWindow = GetRepairWindow();
+	UObject* WindowObj = RepairWindow.GetObject();
+	if (!WindowObj)
+		return;
+
+	IInventoryRepairWindowInterface::Execute_OnRepairWindowTransactionComplete(WindowObj);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+// Field repair window registry — default no-ops
+//----------------------------------------------------------------------------------------------------------------------
+
+TScriptInterface<IFieldRepairWidgetInterface> IInventoryHUDInterface::GetFieldRepairWindow() const
+{
+	return {};
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::RegisterFieldRepairWindow(TScriptInterface<IFieldRepairWidgetInterface> /*FieldRepairWindow*/)
+{
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+// Field repair lifecycle
+//----------------------------------------------------------------------------------------------------------------------
+
+TSubclassOf<UUserWidget> IInventoryHUDInterface::GetFieldRepairWidgetClass_Implementation() const
+{
+	return UFieldRepairWidget::StaticClass();
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::DisplayFieldRepairScreen_Implementation(int32 RepairKitItemID, EBagSlot BagSlot, int32 TopLeft)
+{
+	UObject* SelfObject = Cast<UObject>(this);
+	if (!SelfObject)
+		return;
+
+	APlayerController* PC = nullptr;
+	if (const UUserWidget* AsWidget = Cast<UUserWidget>(SelfObject))
+		PC = AsWidget->GetOwningPlayer();
+
+	TScriptInterface<IFieldRepairWidgetInterface> FieldRepairWindow = GetFieldRepairWindow();
+
+	if (!FieldRepairWindow.GetObject())
+	{
+		const TSubclassOf<UUserWidget> WindowClass = Execute_GetFieldRepairWidgetClass(SelfObject);
+		if (!WindowClass)
+		{
+			UE_LOG(LogTemp, Warning,
+			       TEXT("IInventoryHUDInterface::DisplayFieldRepairScreen — no registered window and GetFieldRepairWidgetClass returned nullptr."));
+			return;
+		}
+
+		UUserWidget* NewWindow = CreateWidget<UUserWidget>(PC, WindowClass);
+		if (!NewWindow)
+			return;
+
+		if (!NewWindow->GetClass()->ImplementsInterface(UFieldRepairWidgetInterface::StaticClass()))
+		{
+			UE_LOG(LogTemp, Warning,
+			       TEXT("IInventoryHUDInterface::DisplayFieldRepairScreen — created widget '%s' does not implement IFieldRepairWidgetInterface."),
+			       *WindowClass->GetName());
+			return;
+		}
+
+		FieldRepairWindow = TScriptInterface<IFieldRepairWidgetInterface>(NewWindow);
+		RegisterFieldRepairWindow(FieldRepairWindow);
+		NewWindow->AddToViewport();
+
+		NewWindow->SetAlignmentInViewport(FVector2D(0.0f, 0.0f));
+		float MouseX = 0.f, MouseY = 0.f;
+		if (PC)
+			PC->GetMousePosition(MouseX, MouseY);
+		NewWindow->SetPositionInViewport(FVector2D(MouseX, MouseY), true);
+	}
+
+	UObject* WindowObj = FieldRepairWindow.GetObject();
+	if (!WindowObj)
+		return;
+
+	IFieldRepairWidgetInterface::Execute_InitFieldRepairWindow(WindowObj, RepairKitItemID, BagSlot, TopLeft);
+	IFieldRepairWidgetInterface::Execute_ShowFieldRepairWindow(WindowObj);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::HideFieldRepairScreen_Implementation()
+{
+	const TScriptInterface<IFieldRepairWidgetInterface> FieldRepairWindow = GetFieldRepairWindow();
+	UObject* WindowObj = FieldRepairWindow.GetObject();
+	if (!WindowObj)
+		return;
+
+	IFieldRepairWidgetInterface::Execute_DeInitFieldRepairWindow(WindowObj);
+	IFieldRepairWidgetInterface::Execute_HideFieldRepairWindow(WindowObj);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::NotifyFieldRepairFinished_Implementation(EBagSlot RepairBagSlot, int32 RepairTopLeft,
+                                                                      float ActualRepairAmount,
+                                                                      float NewTargetDurability, float NewKitDurability)
+{
+	const TScriptInterface<IFieldRepairWidgetInterface> FieldRepairWindow = GetFieldRepairWindow();
+	UObject* WindowObj = FieldRepairWindow.GetObject();
+	if (!WindowObj)
+		return;
+
+	IFieldRepairWidgetInterface::Execute_OnFieldRepairFinished(WindowObj, RepairBagSlot, RepairTopLeft,
+	                                                           ActualRepairAmount, NewTargetDurability,
+	                                                           NewKitDurability);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::LockInventorySlot_Implementation(EBagSlot BagSlot, int32 TopLeft, bool bLocked)
+{
+	// Route through the registered bag window for this slot.
+	// Pocket1/Pocket2 typically map to the main InventoryWindow which the plugin has no abstraction
+	// for — game-side overrides handle those. All other slots go through IInventoryBagWindowInterface.
+	const TScriptInterface<IInventoryBagWindowInterface> BagWindow = GetBagWindowForSlot(BagSlot);
+	if (UObject* WindowObj = BagWindow.GetObject())
+	{
+		IInventoryBagWindowInterface::Execute_LockBagItemSlot(WindowObj, TopLeft, bLocked);
+		return;
+	}
+
+	UE_LOG(LogTemp, Verbose,
+	       TEXT("IInventoryHUDInterface::LockInventorySlot — no bag window registered for slot %d (TopLeft=%d). "
+	            "Override LockInventorySlot_Implementation in the game HUD to handle pocket/main-window slots."),
+	       static_cast<int32>(BagSlot), TopLeft);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+// Item description
+//----------------------------------------------------------------------------------------------------------------------
+
+TSubclassOf<UUserWidget> IInventoryHUDInterface::GetItemDescriptionWidgetClass_Implementation() const
+{
+	return UItemDescriptionWidget::StaticClass();
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+namespace
+{
+	UUserWidget* CreateDescriptionWidget(IInventoryHUDInterface* Self, const UWidget* SourceWidget,
+	                                     FVector2D& OutCursorPosition)
+	{
+		UObject* SelfObject = Cast<UObject>(Self);
+		if (!SelfObject)
+			return nullptr;
+
+		const TSubclassOf<UUserWidget> WidgetClass = IInventoryHUDInterface::Execute_GetItemDescriptionWidgetClass(SelfObject);
+		if (!WidgetClass)
+			return nullptr;
+
+		APlayerController* PC = nullptr;
+		if (const UUserWidget* AsWidget = Cast<UUserWidget>(SelfObject))
+			PC = AsWidget->GetOwningPlayer();
+
+		UUserWidget* Widget = CreateWidget<UUserWidget>(PC, WidgetClass);
+		if (!Widget)
+			return nullptr;
+
+		float MouseX = OutCursorPosition.X;
+		float MouseY = OutCursorPosition.Y;
+		if (PC)
+		{
+			PC->GetMousePosition(MouseX, MouseY);
+		}
+		OutCursorPosition = FVector2D(MouseX, MouseY);
+
+		InventoryWindowLayering::AddToViewportAboveSource(Widget, SourceWidget, 5);
+		return Widget;
+	}
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::DisplayItemDescription_Implementation(const UInventoryItemBase* Item, float X, float Y)
+{
+	DisplayItemDescriptionFromSource(Item, X, Y, nullptr);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::DisplayItemDescriptionFromSource(const UInventoryItemBase* Item, float X, float Y,
+	                                                             const UWidget* SourceWidget)
+{
+	if (!Item)
+		return;
+
+	FVector2D CursorPosition(X, Y);
+	UUserWidget* Widget = CreateDescriptionWidget(this, SourceWidget, CursorPosition);
+	if (!Widget)
+		return;
+
+	if (!Widget->GetClass()->ImplementsInterface(UInventoryItemDescriptionWidgetInterface::StaticClass()))
+	{
+		UE_LOG(LogTemp, Warning,
+		       TEXT("IInventoryHUDInterface::DisplayItemDescription — widget class '%s' does not implement IInventoryItemDescriptionWidgetInterface."),
+		       *Widget->GetClass()->GetName());
+		Widget->RemoveFromParent();
+		return;
+	}
+
+	IInventoryItemDescriptionWidgetInterface::Execute_InitDescription(Widget, Item);
+	PositionWindowAtViewportPoint(Widget, CursorPosition);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::DisplayItemDescriptionWithDurability_Implementation(const UInventoryItemBase* Item,
+                                                                                  float X, float Y,
+                                                                                  float Durability, float MaxDurability)
+{
+	DisplayItemDescriptionWithDurabilityFromSource(Item, X, Y, Durability, MaxDurability, nullptr);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryHUDInterface::DisplayItemDescriptionWithDurabilityFromSource(const UInventoryItemBase* Item,
+	float X, float Y, float Durability, float MaxDurability, const UWidget* SourceWidget)
+{
+	if (!Item)
+		return;
+
+	FVector2D CursorPosition(X, Y);
+	UUserWidget* Widget = CreateDescriptionWidget(this, SourceWidget, CursorPosition);
+	if (!Widget)
+		return;
+
+	if (!Widget->GetClass()->ImplementsInterface(UInventoryItemDescriptionWidgetInterface::StaticClass()))
+	{
+		UE_LOG(LogTemp, Warning,
+		       TEXT("IInventoryHUDInterface::DisplayItemDescriptionWithDurability — widget class '%s' does not implement IInventoryItemDescriptionWidgetInterface."),
+		       *Widget->GetClass()->GetName());
+		Widget->RemoveFromParent();
+		return;
+	}
+
+	IInventoryItemDescriptionWidgetInterface::Execute_InitDescriptionWithDurability(Widget, Item, Durability, MaxDurability);
+	PositionWindowAtViewportPoint(Widget, CursorPosition);
+}
+

@@ -1,5 +1,3 @@
-// Copyright 2022 Maximilien (Synock) Guislain
-
 #include "CoinValue.h"
 
 FCoinValue::FCoinValue(float ValueAsFloat)
@@ -24,10 +22,17 @@ FCoinValue::FCoinValue(float ValueAsFloat)
 
 FCoinValue& FCoinValue::operator+=(const FCoinValue& OtherCoinValue)
 {
-	CopperPieces += OtherCoinValue.CopperPieces;
-	SilverPieces += OtherCoinValue.SilverPieces;
-	GoldPieces += OtherCoinValue.GoldPieces;
-	PlatinumPieces += OtherCoinValue.PlatinumPieces;
+
+	const int64 NewCP = static_cast<int64>(CopperPieces) + OtherCoinValue.CopperPieces;
+	const int64 NewSP = static_cast<int64>(SilverPieces) + OtherCoinValue.SilverPieces;
+	const int64 NewGP = static_cast<int64>(GoldPieces) + OtherCoinValue.GoldPieces;
+	const int64 NewPP = static_cast<int64>(PlatinumPieces) + OtherCoinValue.PlatinumPieces;
+
+	CopperPieces = FMath::Clamp(NewCP, 0LL, static_cast<int64>(INT32_MAX));
+	SilverPieces = FMath::Clamp(NewSP, 0LL, static_cast<int64>(INT32_MAX));
+	GoldPieces = FMath::Clamp(NewGP, 0LL, static_cast<int64>(INT32_MAX));
+	PlatinumPieces = FMath::Clamp(NewPP, 0LL, static_cast<int64>(INT32_MAX));
+
 	return *this;
 }
 
@@ -35,14 +40,11 @@ FCoinValue& FCoinValue::operator+=(const FCoinValue& OtherCoinValue)
 
 FCoinValue& FCoinValue::operator*=(float Ratio)
 {
-	float FVal = ToFloat();
-	FVal *= Ratio;
-	if (Ratio >= 1.0f)
-		FVal += 0.5f;
-	else
-		FVal -= 0.5f;
-
-	*this = FCoinValue(FMath::CeilToFloat(FMath::Max(FVal, 0.f)));
+	const float ScaledValue = FMath::Max(ToFloat() * Ratio, 0.f);
+	const float RoundedValue = Ratio > 1.0f
+		                           ? FMath::CeilToFloat(ScaledValue)
+		                           : FMath::FloorToFloat(ScaledValue);
+	*this = FCoinValue(RoundedValue);
 	return *this;
 }
 
@@ -76,9 +78,33 @@ float FCoinValue::ToFloat() const
 
 //----------------------------------------------------------------------------------------------------------------------
 
+int64 FCoinValue::ToCopperValue() const
+{
+	return static_cast<int64>(CopperPieces)
+		+ static_cast<int64>(SilverPieces) * 10
+		+ static_cast<int64>(GoldPieces) * 100
+		+ static_cast<int64>(PlatinumPieces) * 1000;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 bool FCoinValue::IsEmpty() const
 {
 	return CopperPieces == 0 && SilverPieces == 0 && GoldPieces == 0 && PlatinumPieces == 0;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+bool FCoinValue::IsNonNegative() const
+{
+	return CopperPieces >= 0 && SilverPieces >= 0 && GoldPieces >= 0 && PlatinumPieces >= 0;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+bool FCoinValue::HasSameValue(const FCoinValue& OtherCoinValue) const
+{
+	return ToCopperValue() == OtherCoinValue.ToCopperValue();
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -111,8 +137,10 @@ void MakeChange(int32& AvailableLow, const int32& NeededLow, int32& AvailableCur
 
 bool FCoinValue::RetrieveValue(FCoinValue& AvailableCoins, FCoinValue& NeededCoins)
 {
+	if (!AvailableCoins.IsNonNegative() || !NeededCoins.IsNonNegative())
+		return false;
 
-	if (AvailableCoins.ToFloat() < NeededCoins.ToFloat())
+	if (AvailableCoins.ToCopperValue() < NeededCoins.ToCopperValue())
 		return false;
 
 
@@ -156,6 +184,9 @@ bool FCoinValue::RetrieveValue(FCoinValue& AvailableCoins, FCoinValue& NeededCoi
 
 bool FCoinValue::CanPay(const FCoinValue& AvailableCoins, const FCoinValue& NeededCoins)
 {
+	if (!AvailableCoins.IsNonNegative() || !NeededCoins.IsNonNegative())
+		return false;
+
 	return NeededCoins.CopperPieces <= AvailableCoins.CopperPieces
 		&& NeededCoins.SilverPieces <= AvailableCoins.SilverPieces
 		&& NeededCoins.GoldPieces <= AvailableCoins.GoldPieces
@@ -166,5 +197,7 @@ bool FCoinValue::CanPay(const FCoinValue& AvailableCoins, const FCoinValue& Need
 
 bool FCoinValue::CanPayWithChange(const FCoinValue& AvailableCoins, const FCoinValue& NeededCoins)
 {
-	return AvailableCoins.ToFloat() >= NeededCoins.ToFloat();
+	return AvailableCoins.IsNonNegative()
+		&& NeededCoins.IsNonNegative()
+		&& AvailableCoins.ToCopperValue() >= NeededCoins.ToCopperValue();
 }

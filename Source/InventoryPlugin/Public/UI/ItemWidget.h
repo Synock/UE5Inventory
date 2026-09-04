@@ -1,5 +1,3 @@
-// Copyright 2022 Maximilien (Synock) Guislain
-
 #pragma once
 
 #include "CoreMinimal.h"
@@ -41,13 +39,24 @@ protected:
 	UFUNCTION(BlueprintCallable)
 	void HandleActivation();
 
+	virtual bool RightClickShortEffect_Implementation() override;
+
 	IInventoryPlayerInterface* GetInventoryPlayerInterface() const;
-	
+
+	virtual void RefreshInternal() override;
+
+	// C++ override to forward to the Blueprint event
+	virtual void NativeOnMouseEnter(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+	// C++ override to handle mouse leave
+	virtual void NativeOnMouseLeave(const FPointerEvent& MouseEvent) override;
+	// C++ override to handle drag-cancelled (calls StopDrag)
+	virtual void NativeOnDragCancelled(const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
+
 public:
 	UFUNCTION(BlueprintCallable)
 	void InitData(const UInventoryItemBase* InputItem, AActor* InputOwner, float InputTileSize,
 	              int32 InputTopLeftID = 0, EBagSlot InputBagID = EBagSlot::Unknown,
-	              EEquipmentSlot InputOriginalSlotID = EEquipmentSlot::Unknown);
+	              EEquipmentSlot InputOriginalSlotID = EEquipmentSlot::Unknown, float InputDurability = 100.0f);
 
 	virtual void StopDrag() override;
 

@@ -1,28 +1,65 @@
-﻿// Copyright 2022 Maximilien (Synock) Guislain
-
-
 #include "Interfaces/EquipmentInterface.h"
-
+#include "InventoryPlugin.h"
 #include "InventoryUtilities.h"
+#include "InventoryPlugin.h"
 #include "Components/EquipmentComponent.h"
+#include "InventoryPlugin.h"
 #include "Components/InventoryComponent.h"
+#include "InventoryPlugin.h"
 #include "GameFramework/Character.h"
+#include "InventoryPlugin.h"
 #include "Interfaces/InventoryPlayerInterface.h"
-#include "Items/InventoryItemBag.h"
+#include "InventoryPlugin.h"
+#include "Items/InventoryItemAmmoBag.h"
+#include "InventoryPlugin.h"
+#include "Items/Interfaces/InventoryItemBagInterface.h"
+#include "InventoryPlugin.h"
 #include "Items/InventoryItemBase.h"
+#include "InventoryPlugin.h"
 #include "Items/InventoryItemEquipable.h"
+#include "InventoryPlugin.h"
+#include "Items/Interfaces/InventoryItemAmmoInterface.h"
+#include "InventoryPlugin.h"
 
 
 bool IEquipmentInterface::EquipmentHasAuthority()
 {
-	return GetEquipmentComponent()->GetOwner()->HasAuthority();
+	UEquipmentComponent* EquipComp = GetEquipmentComponent();
+	if (!EquipComp)
+	{
+		UE_LOG(LogInventoryPlugin, Error, TEXT("EquipmentHasAuthority: Equipment component is null"));
+		return false;
+	}
+
+	AActor* Owner = EquipComp->GetOwner();
+	if (!Owner)
+	{
+		UE_LOG(LogInventoryPlugin, Error, TEXT("EquipmentHasAuthority: Equipment component owner is null"));
+		return false;
+	}
+
+	return Owner->HasAuthority();
 }
 
 //----------------------------------------------------------------------------------------------------------------------
 
 UWorld* IEquipmentInterface::EquipmentGetWorldContext() const
 {
-	return GetEquipmentComponentConst()->GetOwner()->GetWorld();
+	const UEquipmentComponent* EquipComp = GetEquipmentComponentConst();
+	if (!EquipComp)
+	{
+		UE_LOG(LogInventoryPlugin, Error, TEXT("EquipmentGetWorldContext: Equipment component is null"));
+		return nullptr;
+	}
+
+	AActor* Owner = EquipComp->GetOwner();
+	if (!Owner)
+	{
+		UE_LOG(LogInventoryPlugin, Error, TEXT("EquipmentGetWorldContext: Equipment component owner is null"));
+		return nullptr;
+	}
+
+	return Owner->GetWorld();
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -37,8 +74,27 @@ const TArray<const UInventoryItemEquipable*>& IEquipmentInterface::GetAllEquipme
 
 const UInventoryItemEquipable* IEquipmentInterface::GetEquippedItem(EEquipmentSlot Slot) const
 {
-	check(GetEquipmentComponentConst());
-	return GetEquipmentComponentConst()->GetItemAtSlot(Slot);
+	const UEquipmentComponent* EquipComp = GetEquipmentComponentConst();
+	if (!EquipComp)
+	{
+		UE_LOG(LogInventoryPlugin, Error, TEXT("GetEquippedItem: Equipment component is null for slot %d"), static_cast<int32>(Slot));
+		return nullptr;
+	}
+	return EquipComp->GetItemAtSlot(Slot);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+bool IEquipmentInterface::GetEquipmentDurability(EEquipmentSlot Slot, float& OutDurability) const
+{
+	const UEquipmentComponent* EquipComp = GetEquipmentComponentConst();
+	if (!EquipComp)
+	{
+		UE_LOG(LogInventoryPlugin, Error, TEXT("GetEquipmentDurability: Equipment component is null for slot %d"), static_cast<int32>(Slot));
+		OutDurability = 0.f;
+		return false;
+	}
+	return EquipComp->GetEquipmentDurability(Slot, OutDurability);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -56,6 +112,22 @@ void IEquipmentInterface::EquipItem(EEquipmentSlot InSlot, int32 InItemId)
 
 	GetEquipmentComponent()->EquipItem(LocalItem, InSlot);
 	//HandleEquipmentEffect(InSlot, LocalItem);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IEquipmentInterface::EquipItemWithDurability(EEquipmentSlot InSlot, int32 InItemId, float Durability)
+{
+	if (!EquipmentHasAuthority())
+		return;
+
+	const UInventoryItemEquipable* LocalItem = Cast<UInventoryItemEquipable>(
+		UInventoryUtilities::GetItemFromID(InItemId, EquipmentGetWorldContext()));
+
+	if (!LocalItem)
+		return;
+
+	GetEquipmentComponent()->EquipItemWithDurability(LocalItem, InSlot, Durability);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -120,7 +192,7 @@ void IEquipmentInterface::HandleEquipmentEffect(EEquipmentSlot InSlot, const UIn
 
 	HandleTwoSlotItemEquip(LocalItem, InSlot);
 
-	if (const UInventoryItemBag* LocalBag = Cast<UInventoryItemBag>(LocalItem); LocalBag)
+	if (const IInventoryItemBagInterface* LocalBag = Cast<IInventoryItemBagInterface>(LocalItem); LocalBag)
 	{
 		const ACharacter* Chara = Cast<ACharacter>(GetEquipmentComponent()->GetOwner());
 		if (!Chara)
@@ -128,8 +200,18 @@ void IEquipmentInterface::HandleEquipmentEffect(EEquipmentSlot InSlot, const UIn
 
 		const EBagSlot AffectedSlot = UInventoryComponent::GetBagSlotFromInventory(InSlot);
 		if (IInventoryPlayerInterface* Inventory = Cast<IInventoryPlayerInterface>(Chara->GetController()))
-			Inventory->GetInventoryComponent()->BagSet(AffectedSlot, true, LocalBag->BagWidth, LocalBag->BagHeight,
-			                                           LocalBag->BagSize);
+		{
+			// FIXED: Correct FMath::Clamp parameter order (Value, Min, Max)
+			const float WeightReduction = FMath::Clamp(1.f - LocalBag->GetWeightReduction(), 0.f, 1.f);
+			Inventory->GetInventoryComponent()->BagSet(AffectedSlot, true, LocalBag->GetBagWidth(), LocalBag->GetBagHeight(),
+			                                           LocalBag->GetBagSize(), WeightReduction);
+
+			if (const IInventoryItemAmmoBagInterface* LocalQuiver = Cast<IInventoryItemAmmoBagInterface>(LocalBag);
+				LocalQuiver)
+			{
+				Inventory->GetInventoryComponent()->QuiverSpecificSetup(AffectedSlot, LocalQuiver->GetAmmoType());
+			}
+		}
 	}
 
 	// Override this function do equipment specific stuff here
@@ -147,7 +229,7 @@ void IEquipmentInterface::HandleUnEquipmentEffect(EEquipmentSlot InSlot, const U
 	HandleTwoSlotItemUnequip(LocalItem, InSlot);
 	//do equipment specific stuff here
 
-	if (const UInventoryItemBag* LocalBag = Cast<UInventoryItemBag>(LocalItem); LocalBag)
+	if (const IInventoryItemBagInterface* LocalBag = Cast<IInventoryItemBagInterface>(LocalItem); LocalBag)
 	{
 		const ACharacter* Chara = Cast<ACharacter>(GetEquipmentComponent()->GetOwner());
 		if (!Chara)
@@ -155,7 +237,12 @@ void IEquipmentInterface::HandleUnEquipmentEffect(EEquipmentSlot InSlot, const U
 
 		const EBagSlot AffectedSlot = UInventoryComponent::GetBagSlotFromInventory(InSlot);
 		if (IInventoryPlayerInterface* Inventory = Cast<IInventoryPlayerInterface>(Chara->GetController()))
+		{
 			Inventory->GetInventoryComponent()->BagSet(AffectedSlot, false);
+			if (const IInventoryItemAmmoBagInterface* LocalQuiver = Cast<IInventoryItemAmmoBagInterface>(LocalBag);
+				LocalQuiver)
+				Inventory->GetInventoryComponent()->QuiverSpecificSetup(AffectedSlot, EAmmoType::Unknown);
+		}
 	}
 }
 
@@ -217,10 +304,17 @@ void IEquipmentInterface::HandleTwoSlotItemUnequip(const UInventoryItemEquipable
 		{
 			const int32 localValue = 1 << i;
 
-			if ((localValue & Item->EquipableSlotBitMask )&& InSlot != static_cast<EEquipmentSlot>(i))
+			if ((localValue & Item->EquipableSlotBitMask) && InSlot != static_cast<EEquipmentSlot>(i))
 			{
 				OtherSlots.Emplace(static_cast<EEquipmentSlot>(i));
 			}
+		}
+
+		// FIXED: Actually unequip from other slots (was building array but not using it)
+		for (EEquipmentSlot OtherSlot : OtherSlots)
+		{
+			GetEquipmentComponent()->RemoveItem(OtherSlot);
+			UE_LOG(LogInventoryPlugin, Verbose, TEXT("Cleared secondary slot %d for multi-slot item"), static_cast<int32>(OtherSlot));
 		}
 	}
 }
@@ -230,4 +324,78 @@ void IEquipmentInterface::HandleTwoSlotItemUnequip(const UInventoryItemEquipable
 UStaticMesh* IEquipmentInterface::GetPreferedMesh(UStaticMesh* OriginalMesh) const
 {
 	return OriginalMesh;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+bool IEquipmentInterface::HasCompatibleAmmoEquipped(EAmmoType AmmoType) const
+{
+	const auto PotentialAmmo = GetEquipmentComponentConst()->GetItemAtSlot(EEquipmentSlot::Ammo);
+
+	if (const auto Ammo = Cast<IInventoryItemAmmoInterface>(PotentialAmmo))
+	{
+		return Ammo->GetAmmoType() == AmmoType;
+	}
+
+	return false;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+TScriptInterface<IInventoryItemAmmoInterface> IEquipmentInterface::RemoveAmmoEquipped(EAmmoType AmmoType)
+{
+	auto* PotentialAmmo = GetEquipmentComponent()->GetItemAtSlot(EEquipmentSlot::Ammo);
+
+	if (const auto Ammo = Cast<IInventoryItemAmmoInterface>(PotentialAmmo))
+	{
+		if (Ammo->GetAmmoType() == AmmoType)
+		{
+			GetEquipmentComponent()->RemoveItem(EEquipmentSlot::Ammo);
+			// oh man, this sux so much, that const cast from hell
+			return TScriptInterface<IInventoryItemAmmoInterface>(const_cast<UInventoryItemEquipable*>(PotentialAmmo));
+		}
+	}
+
+	return nullptr;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+TArray<FMaterialOverride> IEquipmentInterface::GetMaterialOverridesForSlot(EEquipmentSlot Slot) const
+{
+	TArray<FMaterialOverride> MaterialOverrides;
+
+	if (const UInventoryItemEquipable* Item = GetEquipmentComponentConst()->GetItemAtSlot(Slot); Item && Item->
+		EquipmentMeshMaterialOverride.Num() > 0)
+	{
+		return Item->EquipmentMeshMaterialOverride;
+	}
+
+	return {};
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+TMap<FString, FMaterialOverride> IEquipmentInterface::GetMaterialOverridesMapForSlot(EEquipmentSlot Slot) const
+{
+	TMap<FString, FMaterialOverride> MaterialOverrides;
+
+	const UInventoryItemEquipable* Item = GetEquipmentComponentConst()->GetItemAtSlot(Slot);
+
+	// FIXED: Add null checks for Item, MaterialOverride array, and EquipmentMesh
+	if (!Item || Item->EquipmentMeshMaterialOverride.Num() == 0 || !Item->EquipmentMesh)
+	{
+		return MaterialOverrides;
+	}
+
+	const auto& MaterialList = Item->EquipmentMesh->GetMaterials();
+	for (const FMaterialOverride& Override : Item->EquipmentMeshMaterialOverride)
+	{
+		if (Override.MaterialID < MaterialList.Num())
+		{
+			MaterialOverrides.FindOrAdd(MaterialList[Override.MaterialID].MaterialSlotName.ToString(), Override);
+		}
+	}
+
+	return MaterialOverrides;
 }

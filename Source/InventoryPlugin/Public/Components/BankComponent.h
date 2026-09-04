@@ -1,5 +1,3 @@
-// Copyright 2022 Maximilien (Synock) Guislain
-
 #pragma once
 
 #include "CoreMinimal.h"
@@ -10,7 +8,7 @@
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnBankPoolChangedDelegate);
 
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FBankItemAdd, int32, ItemID, int32, TopLeftIndex);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FBankItemAdd, int32, ItemID, int32, TopLeftIndex, float, Durability);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FBankItemRemove, int32, TopLeftIndex);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnBankReorganize);
 
@@ -146,9 +144,10 @@ public:
 	 *
 	 * @param ItemID The ID of the item to be added.
 	 * @param TopLeftIndex The top left index of the item in the bank pool.
+	 * @param Durability The current durability of the item.
 	 */
 	UFUNCTION(Server, Reliable, BlueprintCallable, Category = "Inventory|BankPool")
-	void AddItem(int32 ItemID, int32 TopLeftIndex);
+	void AddItem(int32 ItemID, int32 TopLeftIndex, float Durability = 100.0f);
 
 	/**
 	 * @brief Removes an item at the specified index.

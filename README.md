@@ -1,6 +1,6 @@
-# Unreal Engine 5 Inventory proof of concept
+# Unreal Engine 5 Replicated Inventory Plugin
 
-This repo is a proof of concept, grid based, fully replicated inventory and equipment system for unreal engine 5.
+A grid-based, fully replicated inventory and equipment plugin for Unreal Engine 5. It provides the core systems in C++ and exposes focused extension points for game-specific rules, UI, and presentation.
 
 You will find find the following feature included:
 * Grid based
@@ -12,13 +12,26 @@ You will find find the following feature included:
 * Loot system
 * Merchant system
 * Banking system
-* Trading system
+* Trading system (player-to-player)
+* Repair system (NPC and field repair)
+* Durability system for equipment
+* Skeletal mesh equipment support
 
-Despite some effort to make this plugin a bit more generic, you'd better be off forking this repo and and tailoring it to you needs.
+The plugin is intended to be extended for your game's item definitions, visuals, and gameplay rules. Fork it or subclass the provided C++ extension points as appropriate for your project.
 
-## Integration tutorial:
+## Documentation and integration
 
-You can find a this plugin integrated and used, including an in depth explanation of the necessary integration steps in this repository : https://github.com/Synock/UE5PluginIntegration
+Start with the maintained local documentation:
+
+- [Integration Guide](./Docs/Integration_Guide.md) — installation, required game-side bridges, UI wiring, replication, and troubleshooting.
+- [Interface Implementation Guide](./Docs/Interface_Implementation_Guide.md) — required versus optional interface contracts.
+- [Component Architecture Guide](./Docs/Component_Architecture_Guide.md) — component responsibilities and extension points.
+- [Item System Guide](./Docs/Item_System_Guide.md) — creating and configuring item definitions.
+- [Replication System Guide](./Docs/Replication_System_Guide.md) — multiplayer synchronization details.
+
+The plugin's `UInventoryNetComponent` owns the inventory Server RPCs, so a consuming project does not need to recreate the previous set of RPC declarations and implementation stubs. The Integration Guide walks through the remaining game-side setup: item registry, PlayerController/Character components, and HUD window registration.
+
+For an older complete-project reference, see [UE5PluginIntegration](https://github.com/Synock/UE5PluginIntegration). Prefer the local guides above for the current API.
 
 ![Inventory Example](./Images/InventoryExample.png?raw=true "InventoryExample")
 
@@ -82,3 +95,52 @@ ListWidget is a code adaptation from https://www.youtube.com/watch?v=JyMEAx8-nbY
 Players can loot specific actors to gain access to new items and money.
 This Looting system is replicated and allow a simple one player access to the items at once.
 An automatic looting button is present.
+
+## Trading system
+Players can trade items and currency directly with each other through a secure two-phase commit system.
+Both players must accept the trade before items and currency are exchanged.
+The system includes trade cancellation, insufficient space detection, and full server-side validation to prevent cheating.
+
+## Repair systems
+
+### NPC Repair
+NPCs can repair player equipment for a fee. Repair costs are configurable based on item value and durability loss.
+NPCs can optionally refuse to repair certain item types. Full UI support with repair preview.
+
+### Field Repair
+Players can repair their own equipment using consumable repair kits. This system includes:
+* Success/failure mechanics with optional skill integration
+* Interruptible by combat, movement, or other actions
+* Repair kits with limited charges
+* Optional skill-up system on successful repairs
+
+## Durability system
+Equipment items can have durability that decreases with use (combat, time, etc.).
+The durability system is optional and can be configured per item.
+Items with low durability become less effective and require repair.
+Durability state is fully replicated and persists to backend storage.
+
+## Skeletal mesh equipment
+Weapons and equipment can use animated skeletal meshes instead of just static meshes.
+Includes support for left-hand IK for two-handed weapons and improved attachment system.
+
+---
+
+## Migration Notes
+
+### FItemContainerLine Now Built Into Plugin
+
+As of the latest version, `FItemContainerLine` (used for DataTable item registration) is now part of the InventoryPlugin instead of requiring manual implementation.
+
+**If you get DataTable errors after updating:**
+
+Add this to your `Config/DefaultEngine.ini`:
+
+```ini
+[CoreRedirects]
++StructRedirects=(OldName="/Script/YourModuleName.ItemContainerLine",NewName="/Script/InventoryPlugin.ItemContainerLine")
+```
+
+Replace `YourModuleName` with your game module name, then restart the editor. Your DataTables will automatically fix themselves.
+
+See [Integration Guide - DataTable Troubleshooting](./Docs/Integration_Guide.md#troubleshooting-broken-datatables-after-plugin-update) for details.

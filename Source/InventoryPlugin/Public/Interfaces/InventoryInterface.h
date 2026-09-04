@@ -1,5 +1,3 @@
-﻿// Copyright 2022 Maximilien (Synock) Guislain
-
 #pragma once
 
 #include "CoreMinimal.h"
@@ -26,4 +24,6 @@ public:
 	virtual UInventoryComponent* GetInventoryComponent() = 0;
 
 	virtual const UInventoryComponent* GetInventoryComponentConst() const = 0;
+
+	virtual FString GetInventoryOwnerName() const;
 };

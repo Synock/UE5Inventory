@@ -1,12 +1,12 @@
-﻿// Copyright 2022 Maximilien (Synock) Guislain
-
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "InventoryItem.h"
 #include "UObject/Interface.h"
 #include "EquipmentInterface.generated.h"
 
+struct FMaterialOverride;
+class IInventoryItemAmmoInterface;
 class UInventoryItemEquipable;
 class UEquipmentComponent;
 
@@ -47,6 +47,16 @@ public:
 	virtual const UInventoryItemEquipable* GetEquippedItem(EEquipmentSlot Slot) const;
 
 	/**
+	 * Retrieves the current durability of the item equipped in the specified slot.
+	 *
+	 * @param Slot The equipment slot to query.
+	 * @param OutDurability The current durability value (output parameter).
+	 * @return True if an item is equipped in the slot and has durability, false otherwise.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Equipment")
+	virtual bool GetEquipmentDurability(EEquipmentSlot Slot, float& OutDurability) const;
+
+	/**
 	 * \brief Equip an item in the given equipment slot.
 	 * \param InSlot The equipment slot to equip the item in.
 	 * \param InItemId The ID of the item to equip.
@@ -58,6 +68,15 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Equipment")
 	virtual void EquipItem(EEquipmentSlot InSlot, int32 InItemId);
+
+	/**
+	 * Equip an item with specific durability value.
+	 * @param InSlot The equipment slot to equip the item in.
+	 * @param InItemId The ID of the item to equip.
+	 * @param Durability The current durability of the item.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Equipment")
+	virtual void EquipItemWithDurability(EEquipmentSlot InSlot, int32 InItemId, float Durability);
 
 	/**
 	 * Tries to automatically equip an item based on its ID.
@@ -168,6 +187,16 @@ public:
 		 * @return The static mesh to use.
 		 */
 	virtual UStaticMesh* GetPreferedMesh(UStaticMesh* OriginalMesh) const;
+
+	UFUNCTION(BlueprintCallable)
+	virtual bool HasCompatibleAmmoEquipped(EAmmoType AmmoType) const;
+
+	UFUNCTION(BlueprintCallable)
+	virtual TScriptInterface<IInventoryItemAmmoInterface> RemoveAmmoEquipped(EAmmoType AmmoType);
+
+	TArray<FMaterialOverride> GetMaterialOverridesForSlot(EEquipmentSlot Slot) const;
+
+	TMap<FString, FMaterialOverride> GetMaterialOverridesMapForSlot(EEquipmentSlot Slot) const;
 
 protected:
 	/**
