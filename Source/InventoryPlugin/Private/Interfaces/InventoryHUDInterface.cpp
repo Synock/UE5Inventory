@@ -1,4 +1,5 @@
 #include "Interfaces/InventoryHUDInterface.h"
+#include "Interfaces/InventoryHUDPositioning.h"
 #include "UI/InventoryWindowLayering.h"
 #include "UI/InventoryWindowInterface.h"
 #include "UI/Keyring/KeyringWindowInterface.h"
@@ -27,8 +28,9 @@
 #include "UObject/ObjectKey.h"
 #include "TimerManager.h"
 
-static FVector2D ClampWindowPositionToViewport(const FVector2D& DesiredPosition, const FVector2D& DesiredSize,
-                                               int32 ViewportX, int32 ViewportY)
+FVector2D InventoryHUDPositioning::ClampWindowPositionToViewport(const FVector2D& DesiredPosition,
+                                                                 const FVector2D& DesiredSize,
+                                                                 int32 ViewportX, int32 ViewportY)
 {
 	if (DesiredSize.X <= 0.f || DesiredSize.Y <= 0.f || ViewportX <= 0 || ViewportY <= 0)
 	{
@@ -57,11 +59,33 @@ static void ApplyWindowViewportPosition(UUserWidget* Window, FVector2D DesiredPo
 		PC->GetViewportSize(ViewportX, ViewportY);
 	}
 
-	const FVector2D ClampedPosition = ClampWindowPositionToViewport(
+	const FVector2D ClampedPosition = InventoryHUDPositioning::ClampWindowPositionToViewport(
 		DesiredPosition, Window->GetDesiredSize(), ViewportX, ViewportY);
 
 	Window->SetAlignmentInViewport(FVector2D::ZeroVector);
 	Window->SetPositionInViewport(ClampedPosition, true);
+}
+
+static void PositionWindowAtViewportPoint(UUserWidget* Window, const FVector2D& DesiredPosition)
+{
+	if (!Window)
+	{
+		return;
+	}
+
+	ApplyWindowViewportPosition(Window, DesiredPosition);
+
+	if (UWorld* World = Window->GetWorld())
+	{
+		TWeakObjectPtr<UUserWidget> WeakWindow(Window);
+		World->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateLambda([WeakWindow, DesiredPosition]()
+		{
+			if (UUserWidget* StrongWindow = WeakWindow.Get())
+			{
+				ApplyWindowViewportPosition(StrongWindow, DesiredPosition);
+			}
+		}));
+	}
 }
 
 static void PositionWindowBottomRightOfCursor(APlayerController* PC, UUserWidget* Window)
@@ -84,19 +108,7 @@ static void PositionWindowBottomRightOfCursor(APlayerController* PC, UUserWidget
 
 	constexpr float CursorOffset = 24.f;
 	const FVector2D DesiredPosition(MouseX + CursorOffset, MouseY + CursorOffset);
-	ApplyWindowViewportPosition(Window, DesiredPosition);
-
-	if (UWorld* World = Window->GetWorld())
-	{
-		TWeakObjectPtr<UUserWidget> WeakWindow(Window);
-		World->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateLambda([WeakWindow, DesiredPosition]()
-		{
-			if (UUserWidget* StrongWindow = WeakWindow.Get())
-			{
-				ApplyWindowViewportPosition(StrongWindow, DesiredPosition);
-			}
-		}));
-	}
+	PositionWindowAtViewportPoint(Window, DesiredPosition);
 }
 
 static bool ShouldApplyInitialCursorPosition(UObject* WindowObj)
@@ -1089,8 +1101,8 @@ TSubclassOf<UUserWidget> IInventoryHUDInterface::GetItemDescriptionWidgetClass_I
 
 namespace
 {
-	UUserWidget* CreateAndPositionDescriptionWidget(IInventoryHUDInterface* Self, float X, float Y,
-	                                                const UWidget* SourceWidget)
+	UUserWidget* CreateDescriptionWidget(IInventoryHUDInterface* Self, const UWidget* SourceWidget,
+	                                     FVector2D& OutCursorPosition)
 	{
 		UObject* SelfObject = Cast<UObject>(Self);
 		if (!SelfObject)
@@ -1108,12 +1120,15 @@ namespace
 		if (!Widget)
 			return nullptr;
 
-		float MouseX = X, MouseY = Y;
+		float MouseX = OutCursorPosition.X;
+		float MouseY = OutCursorPosition.Y;
 		if (PC)
+		{
 			PC->GetMousePosition(MouseX, MouseY);
+		}
+		OutCursorPosition = FVector2D(MouseX, MouseY);
 
 		InventoryWindowLayering::AddToViewportAboveSource(Widget, SourceWidget, 5);
-		Widget->SetPositionInViewport(FVector2D(MouseX, MouseY), true);
 		return Widget;
 	}
 }
@@ -1133,7 +1148,8 @@ void IInventoryHUDInterface::DisplayItemDescriptionFromSource(const UInventoryIt
 	if (!Item)
 		return;
 
-	UUserWidget* Widget = CreateAndPositionDescriptionWidget(this, X, Y, SourceWidget);
+	FVector2D CursorPosition(X, Y);
+	UUserWidget* Widget = CreateDescriptionWidget(this, SourceWidget, CursorPosition);
 	if (!Widget)
 		return;
 
@@ -1147,6 +1163,7 @@ void IInventoryHUDInterface::DisplayItemDescriptionFromSource(const UInventoryIt
 	}
 
 	IInventoryItemDescriptionWidgetInterface::Execute_InitDescription(Widget, Item);
+	PositionWindowAtViewportPoint(Widget, CursorPosition);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -1166,7 +1183,8 @@ void IInventoryHUDInterface::DisplayItemDescriptionWithDurabilityFromSource(cons
 	if (!Item)
 		return;
 
-	UUserWidget* Widget = CreateAndPositionDescriptionWidget(this, X, Y, SourceWidget);
+	FVector2D CursorPosition(X, Y);
+	UUserWidget* Widget = CreateDescriptionWidget(this, SourceWidget, CursorPosition);
 	if (!Widget)
 		return;
 
@@ -1180,5 +1198,6 @@ void IInventoryHUDInterface::DisplayItemDescriptionWithDurabilityFromSource(cons
 	}
 
 	IInventoryItemDescriptionWidgetInterface::Execute_InitDescriptionWithDurability(Widget, Item, Durability, MaxDurability);
+	PositionWindowAtViewportPoint(Widget, CursorPosition);
 }
 

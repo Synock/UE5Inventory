@@ -9,10 +9,12 @@
 #include "Components/ListView.h"
 #include "Components/MerchantComponent.h"
 #include "UI/Merchant/MerchantItemListWidget.h"
+#include "UI/Merchant/MerchantItemWidget.h"
 #include "UI/Merchant/MerchantSellWidget.h"
 #include "UI/EquipmentSlotWidget.h"
 #include "Items/InventoryItemBag.h"
 #include "Items/InventoryItemEquipable.h"
+#include "Interfaces/InventoryHUDPositioning.h"
 
 //----------------------------------------------------------------------------------------------------------------------
 // Merchant purse replication
@@ -334,6 +336,67 @@ bool FMerchantStaticPoolRepNotifyTest::RunTest(const FString& Parameters)
 
 //----------------------------------------------------------------------------------------------------------------------
 // Merchant item list selection
+//----------------------------------------------------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMerchantInspectionWindowPositionTest,
+	"InventoryPlugin.Merchant.Regression.InspectionWindowPosition",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FMerchantInspectionWindowPositionTest::RunTest(const FString& Parameters)
+{
+	const FVector2D CursorPosition(640.f, 360.f);
+	const FVector2D WindowSize(300.f, 240.f);
+
+	TestEqual(TEXT("An in-bounds merchant click remains the inspection window origin"),
+		InventoryHUDPositioning::ClampWindowPositionToViewport(CursorPosition, WindowSize, 1920, 1080),
+		CursorPosition);
+	TestNotEqual(TEXT("A nonzero merchant click must not collapse to the screen origin"),
+		InventoryHUDPositioning::ClampWindowPositionToViewport(CursorPosition, WindowSize, 1920, 1080),
+		FVector2D::ZeroVector);
+	TestEqual(TEXT("Inspection windows clamp inside the right and bottom viewport edges"),
+		InventoryHUDPositioning::ClampWindowPositionToViewport(FVector2D(1850.f, 1000.f), WindowSize, 1920, 1080),
+		FVector2D(1620.f, 840.f));
+
+	return true;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMerchantInspectionLongRightClickTest,
+	"InventoryPlugin.Merchant.Regression.InspectionRequiresLongRightClick",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FMerchantInspectionLongRightClickTest::RunTest(const FString& Parameters)
+{
+	UMerchantItemWidget* ShortClickWidget = NewObject<UMerchantItemWidget>(GetTransientPackage());
+	ShortClickWidget->BeginRightClickHoldForTests(7000);
+	ShortClickWidget->ReleaseRightClickHoldForTests();
+	ShortClickWidget->ExpireRightClickHoldForTests();
+	TestEqual(TEXT("A short right-click must not request inspection"),
+		ShortClickWidget->GetInspectionRequestCountForTests(), 0);
+
+	UMerchantItemWidget* LongClickWidget = NewObject<UMerchantItemWidget>(GetTransientPackage());
+	LongClickWidget->BeginRightClickHoldForTests(7001);
+	LongClickWidget->ExpireRightClickHoldForTests();
+	TestEqual(TEXT("Reaching the hold threshold requests one inspection"),
+		LongClickWidget->GetInspectionRequestCountForTests(), 1);
+	TestFalse(TEXT("The hold is no longer pending after inspection"),
+		LongClickWidget->IsRightClickPendingForTests());
+	LongClickWidget->ReleaseRightClickHoldForTests();
+	LongClickWidget->ExpireRightClickHoldForTests();
+	TestEqual(TEXT("Releasing after the timer fires must not inspect twice"),
+		LongClickWidget->GetInspectionRequestCountForTests(), 1);
+
+	UMerchantItemWidget* RecycledWidget = NewObject<UMerchantItemWidget>(GetTransientPackage());
+	RecycledWidget->BeginRightClickHoldForTests(7002);
+	RecycledWidget->RecycleEntryForTests();
+	RecycledWidget->ExpireRightClickHoldForTests();
+	TestEqual(TEXT("A recycled merchant row cannot inspect its previous item"),
+		RecycledWidget->GetInspectionRequestCountForTests(), 0);
+
+	return true;
+}
+
 //----------------------------------------------------------------------------------------------------------------------
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMerchantItemListSelectionBroadcastsTest,

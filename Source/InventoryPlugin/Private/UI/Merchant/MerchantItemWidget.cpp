@@ -7,12 +7,14 @@
 #include "Kismet/KismetInputLibrary.h"
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
+#include "TimerManager.h"
 
 //----------------------------------------------------------------------------------------------------------------------
 
 void UMerchantItemWidget::NativeOnListItemObjectSet(UObject* ListItemObject)
 {
 	IUserObjectListEntry::NativeOnListItemObjectSet(ListItemObject);
+	ResetEntryState();
 
 	UMerchantItemData* Data = Cast<UMerchantItemData>(ListItemObject);
 
@@ -67,20 +69,114 @@ void UMerchantItemWidget::UpdateDisplay(const FMerchantItemDataStruct& ItemData)
 
 //----------------------------------------------------------------------------------------------------------------------
 
-FReply UMerchantItemWidget::NativeOnMouseButtonUp(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
+void UMerchantItemWidget::BeginRightClickHold(const FVector2D& ScreenPosition)
 {
-	if (UKismetInputLibrary::PointerEvent_GetEffectingButton(InMouseEvent) == FKey("RightMouseButton"))
+	CancelRightClickHold();
+	bRightClickPending = true;
+	RightClickScreenPosition = ScreenPosition;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UMerchantItemWidget::CancelRightClickHold()
+{
+	bRightClickPending = false;
+	if (UWorld* World = GetWorld())
 	{
-		if (IInventoryPlayerInterface* PC = Cast<IInventoryPlayerInterface>(GetOwningPlayer()))
-		{
-			PC->GetInventoryHUDInterface()->DisplayItemDescriptionFromSource(
-				UInventoryUtilities::GetItemFromID(ItemID, GetWorld()),
-				InMouseEvent.GetScreenSpacePosition().X,
-				InMouseEvent.GetScreenSpacePosition().Y, this);
-		}
+		World->GetTimerManager().ClearTimer(RightClickTimerHandle);
+	}
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UMerchantItemWidget::ResetEntryState()
+{
+	CancelRightClickHold();
+	ItemID = 0;
+	RightClickScreenPosition = FVector2D::ZeroVector;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UMerchantItemWidget::HandleRightClickHoldElapsed()
+{
+	if (!bRightClickPending)
+	{
+		return;
 	}
 
-	return Super::NativeOnMouseButtonUp(InGeometry, InMouseEvent);
+	bRightClickPending = false;
+	RequestItemInspection();
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UMerchantItemWidget::RequestItemInspection()
+{
+	if (ItemID <= 0)
+	{
+		return;
+	}
+
+#if WITH_AUTOMATION_WORKER
+	++InspectionRequestCountForTests;
+#endif
+
+	if (IInventoryPlayerInterface* PC = Cast<IInventoryPlayerInterface>(GetOwningPlayer()))
+	{
+		PC->GetInventoryHUDInterface()->DisplayItemDescriptionFromSource(
+			UInventoryUtilities::GetItemFromID(ItemID, GetWorld()),
+			RightClickScreenPosition.X,
+			RightClickScreenPosition.Y, this);
+	}
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+FReply UMerchantItemWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
+{
+	if (UKismetInputLibrary::PointerEvent_GetEffectingButton(InMouseEvent) != FKey("RightMouseButton"))
+	{
+		return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
+	}
+
+	BeginRightClickHold(InMouseEvent.GetScreenSpacePosition());
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().SetTimer(RightClickTimerHandle, this,
+			&UMerchantItemWidget::HandleRightClickHoldElapsed, RightClickHoldDuration, false);
+	}
+
+	return FReply::Handled();
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+FReply UMerchantItemWidget::NativeOnMouseButtonUp(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
+{
+	if (UKismetInputLibrary::PointerEvent_GetEffectingButton(InMouseEvent) != FKey("RightMouseButton"))
+	{
+		return Super::NativeOnMouseButtonUp(InGeometry, InMouseEvent);
+	}
+
+	CancelRightClickHold();
+	return FReply::Handled();
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UMerchantItemWidget::NativeOnEntryReleased()
+{
+	ResetEntryState();
+	IUserObjectListEntry::NativeOnEntryReleased();
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UMerchantItemWidget::NativeDestruct()
+{
+	ResetEntryState();
+	Super::NativeDestruct();
 }
 
 //----------------------------------------------------------------------------------------------------------------------

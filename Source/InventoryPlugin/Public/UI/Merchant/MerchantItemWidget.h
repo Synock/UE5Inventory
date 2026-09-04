@@ -85,6 +85,18 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = "Merchant|Item")
 	int32 ItemID = 0;
 
+	/** Match regular inventory items: inspection opens only after this right-click hold duration. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Merchant|Item|Click")
+	float RightClickHoldDuration = 0.5f;
+
+	bool bRightClickPending = false;
+	FVector2D RightClickScreenPosition = FVector2D::ZeroVector;
+	FTimerHandle RightClickTimerHandle;
+
+#if WITH_AUTOMATION_WORKER
+	int32 InspectionRequestCountForTests = 0;
+#endif
+
 	//------------------------------------------------------------------------------------------------------------------
 	// Internal Functions
 	//------------------------------------------------------------------------------------------------------------------
@@ -96,7 +108,19 @@ protected:
 	UFUNCTION(BlueprintCallable, Category = "Merchant|Item")
 	void UpdateDisplay(const FMerchantItemDataStruct& ItemData);
 
+	void BeginRightClickHold(const FVector2D& ScreenPosition);
+	void CancelRightClickHold();
+	void ResetEntryState();
+
+	UFUNCTION()
+	void HandleRightClickHoldElapsed();
+
+	void RequestItemInspection();
+
+	virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
 	virtual FReply NativeOnMouseButtonUp(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+	virtual void NativeOnEntryReleased() override;
+	virtual void NativeDestruct() override;
 
 public:
 	virtual void NativeOnListItemObjectSet(UObject* ListItemObject) override;
@@ -107,4 +131,17 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Merchant|Item")
 	int32 GetItemID() const { return ItemID; }
+
+#if WITH_AUTOMATION_WORKER
+	void BeginRightClickHoldForTests(int32 InItemID)
+	{
+		ItemID = InItemID;
+		BeginRightClickHold(FVector2D(640.f, 360.f));
+	}
+	void ReleaseRightClickHoldForTests() { CancelRightClickHold(); }
+	void ExpireRightClickHoldForTests() { HandleRightClickHoldElapsed(); }
+	void RecycleEntryForTests() { ResetEntryState(); }
+	int32 GetInspectionRequestCountForTests() const { return InspectionRequestCountForTests; }
+	bool IsRightClickPendingForTests() const { return bRightClickPending; }
+#endif
 };
