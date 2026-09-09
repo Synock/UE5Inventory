@@ -23,6 +23,10 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnEquipmentDurabilityChanged_Serve
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnEquipmentDurabilityWarning, EEquipmentSlot, Slot,
                                                float, DurabilityPercent, const UInventoryItemEquipable*, Item);
 
+#if WITH_DEV_AUTOMATION_TESTS
+class FEquipmentClothLODPolicyTest;
+#endif
+
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class INVENTORYPLUGIN_API UEquipmentComponent : public UActorComponent
 {
@@ -40,6 +44,15 @@ public:
 	bool AttachEquipmentComponentsToOwnerMeshIfReady();
 
 private:
+	/** Applies the LOD-0-only simulation policy to one cloth overlay. Returns true when simulation was reset and re-enabled. */
+	static bool ApplyClothSimulationLODPolicy(USkeletalMeshComponent* MeshComponent);
+	void UpdateClothSimulationLODPolicy();
+	void RefreshClothPolicyTickState();
+
+#if WITH_DEV_AUTOMATION_TESTS
+	friend class FEquipmentClothLODPolicyTest;
+#endif
+
 	/**
 	 * Allocates, configures, attaches, and registers a new USkeletalMeshComponent for the given slot.
 	 * Sets both ECC_Camera and ECC_Pawn to ECR_Ignore and sets LeaderPoseComponent.
@@ -67,6 +80,7 @@ private:
 protected:
 	// Called when the game starts
 	virtual void BeginPlay() override;
+	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
 	UPROPERTY(ReplicatedUsing = OnRep_ItemList)
 	TArray<const UInventoryItemEquipable*> Equipment;

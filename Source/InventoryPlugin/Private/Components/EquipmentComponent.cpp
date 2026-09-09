@@ -476,8 +476,7 @@ void UEquipmentComponent::UpdateEquipment_Implementation(USkeletalMeshComponent*
 				if (UMaterialInstanceDynamic* DynMat = SkeletalSocket->CreateAndSetMaterialInstanceDynamic(
 					Material.MaterialID))
 				{
-					DynMat->SetVectorParameterValue(TEXT("Tint"), Material.TintColor);
-					DynMat->SetScalarParameterValue(TEXT("TintIntensity"), Material.TintIntensity);
+					Material.ApplyTint(DynMat);
 				}
 			}
 		}
@@ -493,9 +492,10 @@ void UEquipmentComponent::UpdateEquipment_Implementation(USkeletalMeshComponent*
 // Sets default values for this component's properties
 UEquipmentComponent::UEquipmentComponent()
 {
-	// Set this component to be initialized when the game starts, and to be ticked every frame.  You can turn these features
-	// off to improve performance if you don't need them.
-	PrimaryComponentTick.bCanEverTick = false;
+	// Runtime cloth policy needs the current predicted LOD, but only while a cloth
+	// overlay exists. RefreshClothPolicyTickState controls the enabled state.
+	PrimaryComponentTick.bCanEverTick = true;
+	PrimaryComponentTick.bStartWithTickEnabled = false;
 
 	Equipment.Init(nullptr, 32);
 	EquipmentDurability.Init(100.0f, 32);
@@ -547,12 +547,73 @@ UEquipmentComponent::UEquipmentComponent()
 
 //----------------------------------------------------------------------------------------------------------------------
 
+bool UEquipmentComponent::ApplyClothSimulationLODPolicy(USkeletalMeshComponent* MeshComponent)
+{
+	if (!MeshComponent)
+		return false;
+
+	const USkeletalMesh* SkeletalMesh = MeshComponent->GetSkeletalMeshAsset();
+	if (!SkeletalMesh || SkeletalMesh->GetMeshClothingAssets().IsEmpty())
+		return false;
+
+	const bool bShouldDisableSimulation = MeshComponent->GetPredictedLODLevel() > 0;
+	if (MeshComponent->bDisableClothSimulation == bShouldDisableSimulation)
+		return false;
+
+	if (!bShouldDisableSimulation)
+	{
+		MeshComponent->ForceClothNextUpdateTeleportAndReset();
+	}
+
+	MeshComponent->bDisableClothSimulation = bShouldDisableSimulation;
+	return !bShouldDisableSimulation;
+}
+
+void UEquipmentComponent::UpdateClothSimulationLODPolicy()
+{
+	for (const TPair<EEquipmentSlot, USkeletalMeshComponent*>& Entry : VariableMeshesMap)
+	{
+		ApplyClothSimulationLODPolicy(Entry.Value);
+	}
+}
+
+void UEquipmentComponent::RefreshClothPolicyTickState()
+{
+	bool bHasClothOverlay = false;
+	for (const TPair<EEquipmentSlot, USkeletalMeshComponent*>& Entry : VariableMeshesMap)
+	{
+		const USkeletalMeshComponent* MeshComponent = Entry.Value;
+		const USkeletalMesh* SkeletalMesh = MeshComponent ? MeshComponent->GetSkeletalMeshAsset() : nullptr;
+		if (SkeletalMesh && !SkeletalMesh->GetMeshClothingAssets().IsEmpty())
+		{
+			bHasClothOverlay = true;
+			break;
+		}
+	}
+
+	SetComponentTickEnabled(bHasClothOverlay);
+	if (bHasClothOverlay)
+		UpdateClothSimulationLODPolicy();
+}
+
+void UEquipmentComponent::TickComponent(
+	const float DeltaTime,
+	const ELevelTick TickType,
+	FActorComponentTickFunction* ThisTickFunction)
+{
+	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+	UpdateClothSimulationLODPolicy();
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 void UEquipmentComponent::UpdateMasterMeshComponent(USkeletalMeshComponent* Mesh)
 {
 	for (auto&& [MeshPointer, MeshComponent] : VariableMeshesMap)
 	{
 		MeshComponent->SetLeaderPoseComponent(Mesh);
 	}
+	UpdateClothSimulationLODPolicy();
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -610,6 +671,8 @@ void UEquipmentComponent::TryUpdateDynamicMeshes(const TMap<EEquipmentSlot, USke
 		}
 		VariableMeshesMap.Remove(SlotToRemove);
 	}
+
+	RefreshClothPolicyTickState();
 }
 //----------------------------------------------------------------------------------------------------------------------
 
@@ -665,8 +728,7 @@ void UEquipmentComponent::ApplyMaterialOverrides(USkeletalMeshComponent* MeshCom
 		MeshComp->SetMaterial(Override.MaterialID, Override.OverrideMaterial);
 		if (UMaterialInstanceDynamic* DynMat = MeshComp->CreateAndSetMaterialInstanceDynamic(Override.MaterialID))
 		{
-			DynMat->SetVectorParameterValue(TEXT("Tint"), Override.TintColor);
-			DynMat->SetScalarParameterValue(TEXT("TintIntensity"), Override.TintIntensity);
+			Override.ApplyTint(DynMat);
 		}
 	}
 }
@@ -684,6 +746,7 @@ void UEquipmentComponent::UpdateSingleOverlayMesh(EEquipmentSlot Slot, USkeletal
 			Comp->MarkAsGarbage();
 			VariableMeshesMap.Remove(Slot);
 		}
+		RefreshClothPolicyTickState();
 		return;
 	}
 
@@ -709,6 +772,8 @@ void UEquipmentComponent::UpdateSingleOverlayMesh(EEquipmentSlot Slot, USkeletal
 
 	if (bMeshChanged)
 		ApplyMaterialOverrides(MeshComp, Overrides);
+
+	RefreshClothPolicyTickState();
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -785,6 +850,7 @@ bool UEquipmentComponent::AttachEquipmentComponentsToOwnerMeshIfReady()
 void UEquipmentComponent::BeginPlay()
 {
 	Super::BeginPlay();
+	RefreshClothPolicyTickState();
 
 	if (GetOwnerRole() == ROLE_Authority)
 	{

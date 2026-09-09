@@ -19,7 +19,10 @@ void ADroppedItem::InitializeFromItem(UInventoryItemBase* Item, bool AllowToRota
 			StaticItem->SetStaticMesh(Item->Mesh);
 
 			if (Item->OverrideMaterial.OverrideMaterial)
+			{
 				StaticItem->SetMaterial(Item->OverrideMaterial.MaterialID, Item->OverrideMaterial.OverrideMaterial);
+				Item->OverrideMaterial.ApplyTint(StaticItem->CreateAndSetMaterialInstanceDynamic(Item->OverrideMaterial.MaterialID));
+			}
 		}
 		//else initialize at some default mesh
 

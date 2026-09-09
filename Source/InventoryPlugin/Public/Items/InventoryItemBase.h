@@ -23,7 +23,7 @@ enum class EItemType : uint8
 };
 
 USTRUCT(BlueprintType)
-struct FMaterialOverride
+struct INVENTORYPLUGIN_API FMaterialOverride
 {
 	GENERATED_BODY()
 
@@ -38,6 +38,9 @@ struct FMaterialOverride
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Visual")
 	float TintIntensity = 1.0f;
+
+	/** Shared parameter contract for held, equipped, corpse and dropped representations. */
+	void ApplyTint(class UMaterialInstanceDynamic* Material) const;
 };
 
 class UTexture2D;
