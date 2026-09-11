@@ -25,6 +25,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnEquipmentDurabilityWarning, EE
 
 #if WITH_DEV_AUTOMATION_TESTS
 class FEquipmentClothLODPolicyTest;
+class FEquipmentAnimatedOverlayTest;
 #endif
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
@@ -51,11 +52,16 @@ private:
 
 #if WITH_DEV_AUTOMATION_TESTS
 	friend class FEquipmentClothLODPolicyTest;
+	friend class FEquipmentAnimatedOverlayTest;
 #endif
+
+	/** Selects independent AnimBP evaluation or the legacy leader-pose path for one overlay. */
+	void ConfigureOverlayAnimation(EEquipmentSlot Slot, USkeletalMeshComponent* MeshComponent,
+	                               USkeletalMeshComponent* MasterMesh) const;
 
 	/**
 	 * Allocates, configures, attaches, and registers a new USkeletalMeshComponent for the given slot.
-	 * Sets both ECC_Camera and ECC_Pawn to ECR_Ignore and sets LeaderPoseComponent.
+	 * Sets both ECC_Camera and ECC_Pawn to ECR_Ignore and configures the slot's animation mode.
 	 * Adds the result to VariableMeshesMap. Returns nullptr if the owner is not a valid ACharacter.
 	 */
 	USkeletalMeshComponent* CreateAndRegisterOverlayComponent(EEquipmentSlot Slot, USkeletalMesh* Mesh);

@@ -609,9 +609,9 @@ void UEquipmentComponent::TickComponent(
 
 void UEquipmentComponent::UpdateMasterMeshComponent(USkeletalMeshComponent* Mesh)
 {
-	for (auto&& [MeshPointer, MeshComponent] : VariableMeshesMap)
+	for (auto&& [Slot, MeshComponent] : VariableMeshesMap)
 	{
-		MeshComponent->SetLeaderPoseComponent(Mesh);
+		ConfigureOverlayAnimation(Slot, MeshComponent, Mesh);
 	}
 	UpdateClothSimulationLODPolicy();
 }
@@ -652,6 +652,11 @@ void UEquipmentComponent::TryUpdateDynamicMeshes(const TMap<EEquipmentSlot, USke
 			bMeshChanged = true;
 		}
 
+		if (ACharacter* Owner = Cast<ACharacter>(GetOwner()))
+		{
+			ConfigureOverlayAnimation(Slot, MeshComp, Owner->GetMesh());
+		}
+
 		// Only reapply overrides when the mesh actually changed.
 		// Avoids allocating new UMaterialInstanceDynamic objects on every rebuild
 		// when only an unrelated slot triggered UpdateMeshFromInternal.
@@ -674,6 +679,35 @@ void UEquipmentComponent::TryUpdateDynamicMeshes(const TMap<EEquipmentSlot, USke
 
 	RefreshClothPolicyTickState();
 }
+//----------------------------------------------------------------------------------------------------------------------
+
+void UEquipmentComponent::ConfigureOverlayAnimation(EEquipmentSlot Slot, USkeletalMeshComponent* MeshComponent,
+	USkeletalMeshComponent* MasterMesh) const
+{
+	if (!MeshComponent || !MasterMesh)
+		return;
+
+	const UInventoryItemEquipable* Item = GetItemAtSlot(Slot);
+	UClass* EquipmentAnimClass = Item ? Item->EquipmentAnimInstanceClass.Get() : nullptr;
+	if (EquipmentAnimClass)
+	{
+		MeshComponent->SetLeaderPoseComponent(nullptr);
+		if (MeshComponent->GetAnimClass() != EquipmentAnimClass)
+		{
+			MeshComponent->SetAnimInstanceClass(EquipmentAnimClass);
+		}
+		MeshComponent->AddTickPrerequisiteComponent(MasterMesh);
+		return;
+	}
+
+	MeshComponent->RemoveTickPrerequisiteComponent(MasterMesh);
+	if (MeshComponent->GetAnimClass())
+	{
+		MeshComponent->SetAnimInstanceClass(nullptr);
+	}
+	MeshComponent->SetLeaderPoseComponent(MasterMesh);
+}
+
 //----------------------------------------------------------------------------------------------------------------------
 
 void UEquipmentComponent::SellMaterialForAllMeshes(int MaterialID, UMaterialInstance* MaterialInstance)
@@ -713,7 +747,7 @@ USkeletalMeshComponent* UEquipmentComponent::CreateAndRegisterOverlayComponent(E
 	                                               EAttachmentRule::SnapToTarget,
 	                                               EAttachmentRule::SnapToTarget, true);
 	MeshComp->AttachToComponent(MasterMesh, TransformRules);
-	MeshComp->SetLeaderPoseComponent(MasterMesh);
+	ConfigureOverlayAnimation(Slot, MeshComp, MasterMesh);
 	VariableMeshesMap.Emplace(Slot, MeshComp);
 	return MeshComp;
 }
@@ -768,6 +802,11 @@ void UEquipmentComponent::UpdateSingleOverlayMesh(EEquipmentSlot Slot, USkeletal
 		if (!MeshComp)
 			return;
 		bMeshChanged = true;
+	}
+
+	if (ACharacter* Owner = Cast<ACharacter>(GetOwner()))
+	{
+		ConfigureOverlayAnimation(Slot, MeshComp, Owner->GetMesh());
 	}
 
 	if (bMeshChanged)

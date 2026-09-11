@@ -8,6 +8,8 @@
 
 #include "InventoryItemEquipable.generated.h"
 
+class UAnimInstance;
+
 /**
  * Base class for equipable items with durability support.
  * Implements both IInventoryItemEquipableInterface and IInventoryItemDurableInterface.
@@ -40,6 +42,14 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Equipable|Visual")
 	TArray<FMaterialOverride> EquipmentMeshMaterialOverride;
+
+	/**
+	 * Optional animation blueprint for an independently evaluated equipment overlay.
+	 * Leave unset for the normal merged/leader-pose path. This is intended for secondary-motion
+	 * solvers such as KawaiiPhysics whose garment bones must evaluate after the character pose.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Equipable|Visual")
+	TSubclassOf<UAnimInstance> EquipmentAnimInstanceClass;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Weapon")
 	bool Unsheathable = false;
