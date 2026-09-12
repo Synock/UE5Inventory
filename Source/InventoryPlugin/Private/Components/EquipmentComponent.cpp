@@ -861,7 +861,7 @@ bool UEquipmentComponent::AttachEquipmentComponentsToOwnerMeshIfReady()
 	bAttachedAnyComponent |= AttachComponentToEquipmentSocketIfAvailable(WristLComponent, PlayerMesh, FName("WristL"), Parent);
 	bAttachedAnyComponent |= AttachComponentToEquipmentSocketIfAvailable(WristRComponent, PlayerMesh, FName("WristR"), Parent);
 
-	for (auto&& [MeshPointer, MeshComponent] : VariableMeshesMap)
+	for (auto&& [Slot, MeshComponent] : VariableMeshesMap)
 	{
 		if (!MeshComponent)
 		{
@@ -877,7 +877,7 @@ bool UEquipmentComponent::AttachEquipmentComponentsToOwnerMeshIfReady()
 		{
 			bAttachedAnyComponent |= MeshComponent->AttachToComponent(PlayerMesh, TransformRules);
 		}
-		MeshComponent->SetLeaderPoseComponent(PlayerMesh);
+		ConfigureOverlayAnimation(Slot, MeshComponent, PlayerMesh);
 	}
 
 	return bAttachedAnyComponent;
