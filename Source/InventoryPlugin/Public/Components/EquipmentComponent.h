@@ -42,6 +42,8 @@ public:
 	/// Try to update the dynamic meshes handled by the equipment component
 	void TryUpdateDynamicMeshes(const TMap<EEquipmentSlot, USkeletalMesh*>& MeshArray,const TMap<EEquipmentSlot, TArray<FMaterialOverride>>& OverrideArray);
 	void SellMaterialForAllMeshes(int MaterialID, UMaterialInstance* MaterialInstance);
+	/** Applies a material only to dynamic overlays occupying modular body-part slots. */
+	void SellMaterialForBodyPartMeshes(int MaterialID, UMaterialInstance* MaterialInstance);
 	bool AttachEquipmentComponentsToOwnerMeshIfReady();
 
 private:

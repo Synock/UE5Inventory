@@ -722,6 +722,22 @@ void UEquipmentComponent::SellMaterialForAllMeshes(int MaterialID, UMaterialInst
 	}
 }
 
+void UEquipmentComponent::SellMaterialForBodyPartMeshes(int MaterialID, UMaterialInstance* MaterialInstance)
+{
+	IInventoryModularCharacterInterface* ModularCharacter = Cast<IInventoryModularCharacterInterface>(GetOwner());
+	if (!ModularCharacter || !MaterialInstance)
+		return;
+
+	for (const TPair<EEquipmentSlot, USkeletalMeshComponent*>& Pair : VariableMeshesMap)
+	{
+		USkeletalMeshComponent* Mesh = Pair.Value;
+		if (ModularCharacter->IsBodyPart(Pair.Key) && Mesh && Mesh->GetNumMaterials() > MaterialID)
+		{
+			Mesh->SetMaterial(MaterialID, MaterialInstance);
+		}
+	}
+}
+
 //----------------------------------------------------------------------------------------------------------------------
 
 USkeletalMeshComponent* UEquipmentComponent::CreateAndRegisterOverlayComponent(EEquipmentSlot Slot,
