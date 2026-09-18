@@ -209,6 +209,31 @@ bool UEquipmentSlotWidget::HandleItemDrop(UItemWidget* InputItem)
 	if (!CanEquipItem(InputItem->GetReferencedItem()))
 		return false;
 
+	// Multi-slot items require ALL their bitmask slots to be free simultaneously.
+	// CanEquipItemAtSlot (static widget helper) only checks the bitmask — it cannot see the
+	// live equipment state — so we perform the full occupancy check here before sending the RPC.
+	if (const UInventoryItemEquipable* Equipable = Cast<UInventoryItemEquipable>(InputItem->GetReferencedItem());
+		Equipable && Equipable->MultiSlotItem)
+	{
+		IInventoryPlayerInterface* PC = GetInventoryPlayerInterface();
+		const AActor* ActorOwner = PC ? PC->GetInventoryOwningActor() : nullptr;
+		const UEquipmentComponent* EquipComp = ActorOwner
+			? ActorOwner->GetComponentByClass<UEquipmentComponent>()
+			: nullptr;
+		if (EquipComp && !EquipComp->CanEquipItemAt(Equipable, SlotID))
+		{
+			if (PC)
+				PC->GetInventoryHUDInterface()->ShowSystemMessage(NSLOCTEXT("InventoryPlugin",
+					"MultiSlotOccupied",
+					"Cannot equip: one or more required slots are already occupied."));
+			// Returning true consumes the event (prevents ground-drop dialog), but UE
+			// won't call NativeOnDragCancelled on InputItem, so we restore the inventory
+			// display explicitly.
+			InputItem->StopDrag();
+			return true;
+		}
+	}
+
 	const int32 ItemID = InputItem->GetReferencedItem()->ItemID;
 
 	IInventoryPlayerInterface* PC = GetInventoryPlayerInterface();

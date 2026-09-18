@@ -594,4 +594,10 @@ public:
 	void LockEquipmentSlot(EEquipmentSlot EquipmentSlot, bool bLocked);
 
 	virtual void LockEquipmentSlot_Implementation(EEquipmentSlot EquipmentSlot, bool bLocked);
+
+	/**
+	 * Display a local system message to the player (e.g. a failed equip attempt).
+	 * Plugin raises this; game code overrides to route to chat/HUD. Default is a no-op.
+	 */
+	virtual void ShowSystemMessage(const FText& Message) {}
 };
