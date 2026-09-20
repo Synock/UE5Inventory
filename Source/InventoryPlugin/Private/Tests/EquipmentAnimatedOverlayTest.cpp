@@ -36,10 +36,17 @@ bool FEquipmentAnimatedOverlayTest::RunTest(const FString& Parameters)
 	Equipment->Equipment[SlotIndex] = Item;
 
 	Item->EquipmentAnimInstanceClass = UAnimInstance::StaticClass();
+	Equipment->SetOwnerNoSeeForSlot(EEquipmentSlot::Torso, true);
 	USkeletalMeshComponent* Overlay = Equipment->CreateAndRegisterOverlayComponent(EEquipmentSlot::Torso, OverlayMesh);
 	TestNotNull(TEXT("The animated overlay component is created"), Overlay);
 	if (Overlay)
 	{
+		TestTrue(TEXT("A newly-created overlay inherits its retained owner visibility"), Overlay->bOwnerNoSee);
+		TestTrue(TEXT("An owner-hidden overlay preserves its shadow"), Overlay->bCastHiddenShadow);
+		Equipment->SetOwnerNoSeeForSlot(EEquipmentSlot::Torso, false);
+		TestFalse(TEXT("Clearing slot visibility restores the overlay for its owner"), Overlay->bOwnerNoSee);
+		TestFalse(TEXT("A restored overlay no longer needs hidden-shadow rendering"), Overlay->bCastHiddenShadow);
+
 		TestNull(TEXT("Independent animation does not use leader pose"), Overlay->LeaderPoseComponent.Get());
 		TestEqual(TEXT("The configured equipment AnimBP is active"), Overlay->GetAnimClass(), UAnimInstance::StaticClass());
 

@@ -765,6 +765,7 @@ USkeletalMeshComponent* UEquipmentComponent::CreateAndRegisterOverlayComponent(E
 	MeshComp->AttachToComponent(MasterMesh, TransformRules);
 	ConfigureOverlayAnimation(Slot, MeshComp, MasterMesh);
 	VariableMeshesMap.Emplace(Slot, MeshComp);
+	ApplyOwnerVisibilityForSlot(Slot);
 	return MeshComp;
 }
 
@@ -896,7 +897,68 @@ bool UEquipmentComponent::AttachEquipmentComponentsToOwnerMeshIfReady()
 		ConfigureOverlayAnimation(Slot, MeshComponent, PlayerMesh);
 	}
 
+	for (const EEquipmentSlot HiddenSlot : OwnerNoSeeSlots)
+	{
+		ApplyOwnerVisibilityForSlot(HiddenSlot);
+	}
+
 	return bAttachedAnyComponent;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UEquipmentComponent::ApplyOwnerVisibilityToComponent(UPrimitiveComponent* Component, bool bOwnerNoSee)
+{
+	if (!Component)
+		return;
+
+	Component->SetOwnerNoSee(bOwnerNoSee);
+	Component->bCastHiddenShadow = bOwnerNoSee;
+}
+
+void UEquipmentComponent::ApplyOwnerVisibilityForSlot(EEquipmentSlot Slot)
+{
+	const bool bOwnerNoSee = OwnerNoSeeSlots.Contains(Slot);
+	ApplyOwnerVisibilityToComponent(GetOverlayComponentForSlot(Slot), bOwnerNoSee);
+
+	switch (Slot)
+	{
+	case EEquipmentSlot::EarL:
+		ApplyOwnerVisibilityToComponent(EarringLComponent, bOwnerNoSee);
+		break;
+	case EEquipmentSlot::EarR:
+		ApplyOwnerVisibilityToComponent(EarringRComponent, bOwnerNoSee);
+		break;
+	case EEquipmentSlot::BackPack1:
+		ApplyOwnerVisibilityToComponent(ShoulderBag1Component, bOwnerNoSee);
+		ApplyOwnerVisibilityToComponent(BackpackComponent,
+			OwnerNoSeeSlots.Contains(EEquipmentSlot::BackPack1) ||
+			OwnerNoSeeSlots.Contains(EEquipmentSlot::BackPack2));
+		break;
+	case EEquipmentSlot::BackPack2:
+		ApplyOwnerVisibilityToComponent(ShoulderBag2Component, bOwnerNoSee);
+		ApplyOwnerVisibilityToComponent(BackpackComponent,
+			OwnerNoSeeSlots.Contains(EEquipmentSlot::BackPack1) ||
+			OwnerNoSeeSlots.Contains(EEquipmentSlot::BackPack2));
+		break;
+	default:
+		ApplyOwnerVisibilityToComponent(GetStaticMeshComponentForSlot(Slot), bOwnerNoSee);
+		break;
+	}
+}
+
+void UEquipmentComponent::SetOwnerNoSeeForSlot(EEquipmentSlot Slot, bool bOwnerNoSee)
+{
+	if (bOwnerNoSee)
+	{
+		OwnerNoSeeSlots.Add(Slot);
+	}
+	else
+	{
+		OwnerNoSeeSlots.Remove(Slot);
+	}
+
+	ApplyOwnerVisibilityForSlot(Slot);
 }
 
 //----------------------------------------------------------------------------------------------------------------------

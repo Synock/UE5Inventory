@@ -7,6 +7,8 @@
 #include "Items/InventoryItemEquipable.h"
 #include "EquipmentComponent.generated.h"
 
+class UPrimitiveComponent;
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnEquipmentChanged);
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnEquipmentChanged_Server);
@@ -46,6 +48,12 @@ public:
 	void SellMaterialForBodyPartMeshes(int MaterialID, UMaterialInstance* MaterialInstance);
 	bool AttachEquipmentComponentsToOwnerMeshIfReady();
 
+	/**
+	 * Controls whether the component rendered for one equipment slot is hidden only from its owning player.
+	 * The state is retained and automatically applied to components created later by replication or mesh refreshes.
+	 */
+	void SetOwnerNoSeeForSlot(EEquipmentSlot Slot, bool bOwnerNoSee);
+
 private:
 	/** Applies the LOD-0-only simulation policy to one cloth overlay. Returns true when simulation was reset and re-enabled. */
 	static bool ApplyClothSimulationLODPolicy(USkeletalMeshComponent* MeshComponent);
@@ -84,6 +92,11 @@ private:
 	 * @param Overrides Material overrides to apply after setting the mesh.
 	 */
 	void UpdateSingleOverlayMesh(EEquipmentSlot Slot, USkeletalMesh* Mesh, const TArray<FMaterialOverride>& Overrides);
+	void ApplyOwnerVisibilityForSlot(EEquipmentSlot Slot);
+	static void ApplyOwnerVisibilityToComponent(UPrimitiveComponent* Component, bool bOwnerNoSee);
+
+	/** Slots whose rendered equipment is suppressed only for the owning player's view. */
+	TSet<EEquipmentSlot> OwnerNoSeeSlots;
 
 protected:
 	// Called when the game starts
