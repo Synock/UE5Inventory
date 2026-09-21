@@ -9,6 +9,7 @@ struct FMaterialOverride;
 class IInventoryItemAmmoInterface;
 class UInventoryItemEquipable;
 class UEquipmentComponent;
+class USkeletalMesh;
 
 // This class does not need to be modified.
 UINTERFACE(MinimalAPI, meta = (CannotImplementInterfaceInBlueprint))
@@ -196,7 +197,13 @@ public:
 
 	TArray<FMaterialOverride> GetMaterialOverridesForSlot(EEquipmentSlot Slot) const;
 
-	TMap<FString, FMaterialOverride> GetMaterialOverridesMapForSlot(EEquipmentSlot Slot) const;
+	/**
+	 * Builds the material-slot lookup used after a modular mesh merge.  When a race-specific
+	 * mesh has been resolved through the equipment LUT, its slot names are used while the
+	 * item's MaterialID remains the stable cross-race authoring contract.
+	 */
+	TMap<FString, FMaterialOverride> GetMaterialOverridesMapForSlot(EEquipmentSlot Slot,
+		const USkeletalMesh* ResolvedEquipmentMesh = nullptr) const;
 
 protected:
 	/**

@@ -376,7 +376,8 @@ TArray<FMaterialOverride> IEquipmentInterface::GetMaterialOverridesForSlot(EEqui
 
 //----------------------------------------------------------------------------------------------------------------------
 
-TMap<FString, FMaterialOverride> IEquipmentInterface::GetMaterialOverridesMapForSlot(EEquipmentSlot Slot) const
+TMap<FString, FMaterialOverride> IEquipmentInterface::GetMaterialOverridesMapForSlot(
+	EEquipmentSlot Slot, const USkeletalMesh* ResolvedEquipmentMesh) const
 {
 	TMap<FString, FMaterialOverride> MaterialOverrides;
 
@@ -388,7 +389,10 @@ TMap<FString, FMaterialOverride> IEquipmentInterface::GetMaterialOverridesMapFor
 		return MaterialOverrides;
 	}
 
-	const auto& MaterialList = Item->EquipmentMesh->GetMaterials();
+	// MaterialID is authored as the semantic material position shared by race variants.  The
+	// resolved mesh may use a different slot name, so use its names for the post-merge lookup.
+	const USkeletalMesh* MeshForSlotNames = ResolvedEquipmentMesh ? ResolvedEquipmentMesh : Item->EquipmentMesh;
+	const auto& MaterialList = MeshForSlotNames->GetMaterials();
 	for (const FMaterialOverride& Override : Item->EquipmentMeshMaterialOverride)
 	{
 		if (Override.MaterialID < MaterialList.Num())
