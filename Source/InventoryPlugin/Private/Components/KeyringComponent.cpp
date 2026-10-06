@@ -1,6 +1,7 @@
 
 #include "Components/KeyringComponent.h"
 
+#include "InventoryPlugin.h"
 #include "Items/InventoryItemKey.h"
 #include "Net/UnrealNetwork.h"
 
@@ -42,6 +43,18 @@ bool UKeyringComponent::TryAddKeyFromItem(const UInventoryItemKey* Item)
 
 void UKeyringComponent::AddKey(int32 KeyId, int32 ItemId)
 {
+	if (HasKey(KeyId))
+	{
+		const int32 ExistingItemId = GetItemFromKey(KeyId);
+		if (ExistingItemId != ItemId)
+		{
+			UE_LOG(LogInventoryPlugin, Warning,
+			       TEXT("Keyring: key %d already maps to item %d; ignoring conflicting item %d"),
+			       KeyId, ExistingItemId, ItemId);
+		}
+		return;
+	}
+
 	KeyringData.Add({KeyId, ItemId});
 	Keyring.Add(KeyId);
 	KeyRingToItemLUT.Add(KeyId, ItemId);
