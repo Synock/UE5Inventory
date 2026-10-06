@@ -252,7 +252,7 @@ float UCoinComponent::GetTotalWeight()
 	constexpr float cpw = 8.94f * 3.62f;
 	constexpr float spw = 10.49f * 3.62f;
 	constexpr float gpw = 19.3 * 2.5;
-	constexpr float ppw = 21.45 * 2.4;
+	constexpr float ppw = 21.45f * 2.4f;
 
 	return (PurseContent.CopperPieces * cpw + PurseContent.SilverPieces * spw + PurseContent.GoldPieces * gpw +
 		PurseContent.PlatinumPieces * ppw) / 1000.;

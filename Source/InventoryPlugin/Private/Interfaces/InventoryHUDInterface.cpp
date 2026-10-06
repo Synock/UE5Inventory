@@ -178,7 +178,9 @@ void IInventoryHUDInterface::ToggleInventoryDisplay_Implementation()
 
 	const bool bVisible = IInventoryWindowInterface::Execute_IsInventoryWindowVisible(WindowObj);
 
-	UObject* SelfObject = _getUObject();
+	UObject* SelfObject = Cast<UObject>(this);
+	if (!SelfObject)
+		return;
 	Execute_SetInventoryDisplay(SelfObject, !bVisible);
 }
 
@@ -289,7 +291,9 @@ void IInventoryHUDInterface::ToggleKeyringDisplay_Implementation()
 
 	const bool bVisible = IKeyringWindowInterface::Execute_IsKeyringWindowVisible(WindowObj);
 
-	UObject* SelfObject = _getUObject();
+	UObject* SelfObject = Cast<UObject>(this);
+	if (!SelfObject)
+		return;
 	Execute_SetKeyringDisplay(SelfObject, !bVisible);
 }
 
@@ -338,7 +342,8 @@ void IInventoryHUDInterface::ForceRefreshInventory_Implementation()
 {
 	// Plugin default: iterate bags + refresh grids.
 	// Game side prepends RefreshAllEquipments() on the InventoryWindow before calling this.
-	Execute_RefreshAllInventoryGrids(_getUObject());
+	if (UObject* SelfObject = Cast<UObject>(this))
+		Execute_RefreshAllInventoryGrids(SelfObject);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
