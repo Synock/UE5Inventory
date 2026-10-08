@@ -159,6 +159,10 @@ bool UInventoryNetComponent::CanRemoveEquippedItemFromComponents(const UEquipmen
 
 	if (EquipmentComponent->IsEquipmentSlotReserved(Slot))
 		return false;
+	if (Item == EquipmentComponent->GetItemCoveringSlot(EEquipmentSlot::Waist) &&
+		(EquipmentComponent->GetItemAtSlot(EEquipmentSlot::WaistBag1) ||
+		 EquipmentComponent->GetItemAtSlot(EEquipmentSlot::WaistBag2)))
+		return false;
 
 	if (Item->MultiSlotItem)
 	{
@@ -264,7 +268,12 @@ void UInventoryNetComponent::Server_PlayerEquipItemFromInventory_Implementation(
 bool UInventoryNetComponent::Server_PlayerEquipItemFromInventory_Validate(int32 InItemId, EEquipmentSlot InSlot,
                                                                            int32 OutTopLeft, EBagSlot OutSlot)
 {
-	return ValidatePlayerEquipItemFromInventory(InItemId, InSlot, OutTopLeft, OutSlot);
+	// Eligibility can change between drag and arrival (for example, the belt was removed).
+	// The handler checks current state and rejects softly without disconnecting the player.
+	const bool bValidSource = (OutSlot > EBagSlot::Unknown && OutSlot < EBagSlot::LastValidBag) ||
+		OutSlot == EBagSlot::StagingArea || OutSlot == EBagSlot::BankPool;
+	return InItemId > 0 && InSlot > EEquipmentSlot::Unknown && InSlot < EEquipmentSlot::Last &&
+		OutTopLeft >= 0 && bValidSource;
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -280,7 +289,10 @@ void UInventoryNetComponent::Server_PlayerSwapEquipment_Implementation(int32 Dro
 bool UInventoryNetComponent::Server_PlayerSwapEquipment_Validate(int32 DroppedItemId, EEquipmentSlot DroppedInSlot,
                                                                   int32 SwappedItemId, EEquipmentSlot DraggedOutSlot)
 {
-	return ValidatePlayerSwapEquipment(DroppedItemId, DroppedInSlot, SwappedItemId, DraggedOutSlot);
+	return DroppedItemId > 0 && SwappedItemId >= 0 &&
+		DroppedInSlot > EEquipmentSlot::Unknown && DroppedInSlot < EEquipmentSlot::Last &&
+		DraggedOutSlot > EEquipmentSlot::Unknown && DraggedOutSlot < EEquipmentSlot::Last &&
+		DroppedInSlot != DraggedOutSlot;
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -679,7 +691,7 @@ void UInventoryNetComponent::HandlePlayerUnequipItem(int32 InTopLeft, EBagSlot I
 void UInventoryNetComponent::HandlePlayerEquipItemFromInventory(int32 InItemId, EEquipmentSlot InSlot, int32 OutTopLeft,
                                                                  EBagSlot OutSlot)
 {
-	if (!PlayerInterface)
+	if (!PlayerInterface || !ValidatePlayerEquipItemFromInventory(InItemId, InSlot, OutTopLeft, OutSlot))
 		return;
 
 	IEquipmentInterface* Equipment = GetEquipmentInterface();
@@ -695,6 +707,8 @@ void UInventoryNetComponent::HandlePlayerEquipItemFromInventory(int32 InItemId, 
 void UInventoryNetComponent::HandlePlayerSwapEquipment(int32 DroppedItemId, EEquipmentSlot DroppedInSlot,
                                                         int32 SwappedItemId, EEquipmentSlot DraggedOutSlot)
 {
+	if (!ValidatePlayerSwapEquipment(DroppedItemId, DroppedInSlot, SwappedItemId, DraggedOutSlot))
+		return;
 	IEquipmentInterface* Equipment = GetEquipmentInterface();
 	if (!Equipment)
 		return;
@@ -898,6 +912,13 @@ void UInventoryNetComponent::HandlePlayerEquipItemFromLoot(int32 InItemId, EEqui
 	ILootableInterface* Loot = Cast<ILootableInterface>(LootedActor);
 	IEquipmentInterface* Equipment = GetEquipmentInterface();
 	if (!OwnsActiveLootSession(Loot) || !Equipment || Loot->GetItemData(OutTopLeft) != InItemId)
+	{
+		RejectLootRequest();
+		return;
+	}
+	const UInventoryItemEquipable* Item = Cast<UInventoryItemEquipable>(
+		UInventoryUtilities::GetItemFromID(InItemId, GetWorld()));
+	if (!Item || !Equipment->GetEquipmentComponent()->CanEquipItemAt(Item, InSlot))
 	{
 		RejectLootRequest();
 		return;
@@ -1615,6 +1636,14 @@ bool UInventoryNetComponent::ValidatePlayerSwapEquipment(int32 DroppedItemId, EE
 
 	const UInventoryItemEquipable* DroppedInItem = Equipment->GetEquippedItem(DroppedInSlot);
 	if (DroppedInItem && DroppedInItem->ItemID != SwappedItemId)
+		return false;
+	const UEquipmentComponent* EquipmentComponent = Equipment->GetEquipmentComponent();
+	const UInventoryComponent* InventoryComponent = PlayerInterface ? PlayerInterface->GetInventoryComponent() : nullptr;
+	if (!InventoryComponent ||
+		(DraggedItem && !CanRemoveEquippedItemFromComponents(EquipmentComponent, InventoryComponent,
+			DraggedOutSlot, DroppedItemId)) ||
+		(DroppedInItem && !CanRemoveEquippedItemFromComponents(EquipmentComponent, InventoryComponent,
+			DroppedInSlot, SwappedItemId)))
 		return false;
 
 	if (DraggedItem && DraggedItem->MultiSlotItem)

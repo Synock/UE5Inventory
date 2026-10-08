@@ -8,6 +8,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Interfaces/EquipmentInterface.h"
 #include "Interfaces/InventoryModularCharacterInterface.h"
+#include "Components/InventoryComponent.h"
 #include "Items/InventoryItemBag.h"
 #include "Items/InventoryItemEquipable.h"
 #include "Items/Interfaces/InventoryItemAmmoBagInterface.h"
@@ -114,6 +115,11 @@ USkeletalMeshComponent* UEquipmentComponent::GetSkeletalMeshComponentFromSocket(
 bool UEquipmentComponent::Equip(const UInventoryItemEquipable* Item, EEquipmentSlot EquipSlot)
 {
 	const EEquipmentSocket PossibleSocket = FindBestSocketForItem(Item, EquipSlot);
+	const bool bHipWeaponWithoutBelt = !GetItemCoveringSlot(EEquipmentSlot::Waist) &&
+		(PossibleSocket == EEquipmentSocket::PrimarySheath || PossibleSocket == EEquipmentSocket::SecondarySheath);
+	const EEquipmentSocket DisplaySocket = bHipWeaponWithoutBelt
+		? (PossibleSocket == EEquipmentSocket::PrimarySheath ? EEquipmentSocket::Primary : EEquipmentSocket::Secondary)
+		: PossibleSocket;
 
 	if (PossibleSocket == EEquipmentSocket::Unknown)
 	{
@@ -123,11 +129,19 @@ bool UEquipmentComponent::Equip(const UInventoryItemEquipable* Item, EEquipmentS
 	// skeletal mesh have precedence over static mesh
 	if (Item->EquipmentMesh)
 	{
-		USkeletalMeshComponent* SkeletalSocket = GetSkeletalMeshComponentFromSocket(PossibleSocket);
+		USkeletalMeshComponent* SkeletalSocket = GetSkeletalMeshComponentFromSocket(DisplaySocket);
 
 		if (SkeletalSocket)
 		{
 			UpdateEquipment(SkeletalSocket, Item->EquipmentMesh, Item->EquipmentMeshMaterialOverride);
+			if (bHipWeaponWithoutBelt)
+			{
+				if (PossibleSocket == EEquipmentSocket::PrimarySheath)
+					PrimaryWeaponOriginalSlot = PossibleSocket;
+				else
+					SecondaryWeaponOriginalSlot = PossibleSocket;
+				UpdateEquipment(GetSkeletalMeshComponentFromSocket(PossibleSocket), nullptr, {});
+			}
 			return true;
 		}
 	}
@@ -410,7 +424,9 @@ void UEquipmentComponent::Unsheath(EEquipmentSlot SlotToUnsheath)
 
 void UEquipmentComponent::Sheath()
 {
-	if (PrimaryWeaponComponent->GetSkeletalMeshAsset() != nullptr)
+	const bool bHasBelt = GetItemCoveringSlot(EEquipmentSlot::Waist) != nullptr;
+	if (PrimaryWeaponComponent->GetSkeletalMeshAsset() != nullptr &&
+		(bHasBelt || PrimaryWeaponOriginalSlot != EEquipmentSocket::PrimarySheath))
 	{
 		USkeletalMeshComponent* ReturnSocket = GetSkeletalMeshComponentFromSocket(PrimaryWeaponOriginalSlot);
 
@@ -433,7 +449,8 @@ void UEquipmentComponent::Sheath()
 		ReturnSocket->SetSkeletalMeshAsset(MeshPointer);
 	}
 
-	if (SecondaryWeaponComponent->GetSkeletalMeshAsset() != nullptr)
+	if (SecondaryWeaponComponent->GetSkeletalMeshAsset() != nullptr &&
+		(bHasBelt || SecondaryWeaponOriginalSlot != EEquipmentSocket::SecondarySheath))
 	{
 		USkeletalMeshComponent* ReturnSocket = GetSkeletalMeshComponentFromSocket(SecondaryWeaponOriginalSlot);
 
@@ -456,7 +473,8 @@ void UEquipmentComponent::Sheath()
 		ReturnSocket->SetSkeletalMeshAsset(MeshPointer);
 	}
 
-	IsHoldingATwoHandedWeapon = false;
+	if (!PrimaryWeaponComponent->GetSkeletalMeshAsset() && !SecondaryWeaponComponent->GetSkeletalMeshAsset())
+		IsHoldingATwoHandedWeapon = false;
 }
 
 void UEquipmentComponent::UpdateEquipment_Implementation(USkeletalMeshComponent* SkeletalSocket,
@@ -1183,6 +1201,14 @@ bool UEquipmentComponent::CanEquipItemAt(const UInventoryItemEquipable* Item, EE
 		return false;
 	if (Item->MultiSlotItem && (InSlot == EEquipmentSlot::WaistBag2 || InSlot == EEquipmentSlot::BackPack2))
 		return false;
+	const uint32 WaistBit = 1u << static_cast<uint32>(EEquipmentSlot::Waist);
+	const uint32 WaistBagBit = 1u << static_cast<uint32>(EEquipmentSlot::WaistBag1);
+	if (Item->MultiSlotItem && (static_cast<uint32>(Item->EquipableSlotBitMask) & (WaistBit | WaistBagBit)) ==
+		(WaistBit | WaistBagBit) && InSlot != EEquipmentSlot::Waist)
+		return false;
+	if ((InSlot == EEquipmentSlot::WaistBag1 || InSlot == EEquipmentSlot::WaistBag2) &&
+		!GetItemCoveringSlot(EEquipmentSlot::Waist))
+		return false;
 
 	TArray<EEquipmentSlot> RequiredSlots{InSlot};
 	if (Item->MultiSlotItem)
@@ -1379,6 +1405,20 @@ const UInventoryItemEquipable* UEquipmentComponent::GetItemAtSlot(EEquipmentSlot
 	return Equipment[static_cast<int>(InSlot)];
 }
 
+const UInventoryItemEquipable* UEquipmentComponent::GetItemCoveringSlot(EEquipmentSlot InSlot) const
+{
+	const int32 Index = static_cast<int32>(InSlot);
+	if (InSlot <= EEquipmentSlot::Unknown || InSlot >= EEquipmentSlot::Last || !Equipment.IsValidIndex(Index))
+		return nullptr;
+	if (Equipment[Index])
+		return Equipment[Index];
+	const uint32 SlotBit = 1u << static_cast<uint32>(Index);
+	for (const UInventoryItemEquipable* Item : Equipment)
+		if (Item && Item->MultiSlotItem && (static_cast<uint32>(Item->EquipableSlotBitMask) & SlotBit) != 0)
+			return Item;
+	return nullptr;
+}
+
 //----------------------------------------------------------------------------------------------------------------------
 
 bool UEquipmentComponent::RemoveItem(EEquipmentSlot InSlot)
@@ -1387,6 +1427,15 @@ bool UEquipmentComponent::RemoveItem(EEquipmentSlot InSlot)
 		return false;
 
 	const UInventoryItemEquipable* RemovedItem = Equipment[static_cast<int>(InSlot)];
+	const bool bRemovingBelt = RemovedItem == GetItemCoveringSlot(EEquipmentSlot::Waist);
+	if (bRemovingBelt && (GetItemAtSlot(EEquipmentSlot::WaistBag1) || GetItemAtSlot(EEquipmentSlot::WaistBag2)))
+		return false;
+	if (Cast<IInventoryItemBagInterface>(RemovedItem))
+	{
+		const UInventoryComponent* Inventory = GetOwner() ? GetOwner()->FindComponentByClass<UInventoryComponent>() : nullptr;
+		if (Inventory && !Inventory->IsLinkedEquipmentStorageEmptyAndUnreserved(InSlot))
+			return false;
+	}
 
 	UnEquip(RemovedItem, InSlot);
 
@@ -1394,6 +1443,26 @@ bool UEquipmentComponent::RemoveItem(EEquipmentSlot InSlot)
 	// that calls UpdateMeshFromInternal() sees the slot as already empty and
 	// rebuilds the merged mesh without the removed item.
 	Equipment[static_cast<int>(InSlot)] = nullptr;
+	if (bRemovingBelt)
+	{
+		for (const EEquipmentSlot WeaponSlot : {EEquipmentSlot::Primary, EEquipmentSlot::Secondary})
+		{
+			const UInventoryItemEquipable* Weapon = GetItemAtSlot(WeaponSlot);
+			const EEquipmentSocket HipSocket = WeaponSlot == EEquipmentSlot::Primary
+				? EEquipmentSocket::PrimarySheath : EEquipmentSocket::SecondarySheath;
+			if (!Weapon || FindBestSocketForItem(Weapon, WeaponSlot) != HipSocket)
+				continue;
+			USkeletalMeshComponent* SheathSocket = GetSkeletalMeshComponentFromSocket(HipSocket);
+			USkeletalMeshComponent* HandSocket = GetSkeletalMeshComponentFromSocket(
+				WeaponSlot == EEquipmentSlot::Primary ? EEquipmentSocket::Primary : EEquipmentSocket::Secondary);
+			if (SheathSocket && HandSocket && SheathSocket->GetSkeletalMeshAsset() &&
+				!HandSocket->GetSkeletalMeshAsset())
+			{
+				UpdateEquipment(HandSocket, SheathSocket->GetSkeletalMeshAsset(), Weapon->EquipmentMeshMaterialOverride);
+				UpdateEquipment(SheathSocket, nullptr, {});
+			}
+		}
+	}
 
 	ItemUnEquipedDispatcher_Server.Broadcast(InSlot, RemovedItem);
 	EquipmentDispatcher_Server.Broadcast();
@@ -1407,7 +1476,7 @@ bool UEquipmentComponent::RemoveItem(EEquipmentSlot InSlot)
 
 void UEquipmentComponent::RemoveAll()
 {
-	for (uint32 SlotId = 0; SlotId < static_cast<uint32>(EEquipmentSlot::Last); ++SlotId)
+	for (int32 SlotId = static_cast<int32>(EEquipmentSlot::Last) - 1; SlotId > 0; --SlotId)
 	{
 		RemoveItem(static_cast<EEquipmentSlot>(SlotId));
 	}
@@ -1469,6 +1538,9 @@ void UEquipmentComponent::UnsheathRanged()
 
 void UEquipmentComponent::SheathRanged()
 {
+	if (PrimaryWeaponOriginalSlot == EEquipmentSocket::PrimarySheath &&
+		!GetItemCoveringSlot(EEquipmentSlot::Waist))
+		return;
 	if (PrimaryWeaponComponent->GetSkeletalMeshAsset() != nullptr)
 	{
 		USkeletalMeshComponent* ReturnSocket = GetSkeletalMeshComponentFromSocket(PrimaryWeaponOriginalSlot);

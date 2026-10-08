@@ -3,6 +3,7 @@
 #include "InventoryUtilities.h"
 #include "Components/BankComponent.h"
 #include "Components/InventoryNetComponent.h"
+#include "Components/EquipmentComponent.h"
 #include "Components/InventoryDeliveryComponent.h"
 #include "Components/KeyringComponent.h"
 #include "Components/StagingAreaComponent.h"
@@ -103,7 +104,15 @@ const TArray<FMinimalItemStorage>& IInventoryPlayerInterface::GetAllItemsInBag(E
 
 bool IInventoryPlayerInterface::CanUnequipBag(EEquipmentSlot Slot) const
 {
-	if (Slot != EEquipmentSlot::WaistBag1 && Slot != EEquipmentSlot::WaistBag2 &&
+	if (Slot == EEquipmentSlot::Waist)
+	{
+		const IEquipmentInterface* Equipment = GetConstEquipmentForInventory();
+		const UEquipmentComponent* Component = Equipment ? Equipment->GetEquipmentComponentConst() : nullptr;
+		if (Component && (Component->GetItemAtSlot(EEquipmentSlot::WaistBag1) ||
+			Component->GetItemAtSlot(EEquipmentSlot::WaistBag2)))
+			return false;
+	}
+	if (Slot != EEquipmentSlot::Waist && Slot != EEquipmentSlot::WaistBag1 && Slot != EEquipmentSlot::WaistBag2 &&
 		Slot != EEquipmentSlot::BackPack1 && Slot != EEquipmentSlot::BackPack2)
 		return true;
 

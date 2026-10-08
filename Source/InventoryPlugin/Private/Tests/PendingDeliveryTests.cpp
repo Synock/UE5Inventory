@@ -251,6 +251,9 @@ bool FPendingDeliveryEquipmentReservationTest::RunTest(const FString& Parameters
 		RingEquipment->FindSuitableSlot(RingItem), EEquipmentSlot::Unknown);
 
 	UEquipmentComponent* MultiSlotEquipment = NewObject<UEquipmentComponent>(Owner);
+	UInventoryItemEquipable* Belt = NewObject<UInventoryItemEquipable>();
+	Belt->EquipableSlotBitMask = 1 << static_cast<uint8>(EEquipmentSlot::Waist);
+	MultiSlotEquipment->EquipItem(Belt, EEquipmentSlot::Waist);
 	UInventoryItemEquipable* MultiSlotBag = NewObject<UInventoryItemEquipable>();
 	MultiSlotBag->MultiSlotItem = true;
 	MultiSlotBag->EquipableSlotBitMask = (1 << static_cast<uint8>(EEquipmentSlot::WaistBag1)) |

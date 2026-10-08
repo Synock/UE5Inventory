@@ -385,7 +385,8 @@ void IInventoryHUDInterface::HandleBag_Implementation(EBagSlot InputBagSlot,
 		return;
 
 	const EEquipmentSlot EquipSlot = UInventoryComponent::GetInventorySlotFromBagSlot(InputBagSlot);
-	const UInventoryItemEquipable* BagItem = EquipInterface->GetEquippedItem(EquipSlot);
+	const UEquipmentComponent* Equipment = EquipInterface->GetEquipmentComponentConst();
+	const UInventoryItemEquipable* BagItem = Equipment ? Equipment->GetItemCoveringSlot(EquipSlot) : nullptr;
 	if (!BagItem)
 		return;
 

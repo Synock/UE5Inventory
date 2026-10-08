@@ -168,6 +168,9 @@ bool FMerchantEquippedSourceValidationTest::RunTest(const FString& Parameters)
 	EquippedBag->Bag = true;
 	EquippedBag->EquipableSlotBitMask = 1 << static_cast<uint8>(EEquipmentSlot::WaistBag1);
 	UEquipmentComponent* BagEquipment = NewObject<UEquipmentComponent>(Owner);
+	UInventoryItemEquipable* Belt = NewObject<UInventoryItemEquipable>();
+	Belt->EquipableSlotBitMask = 1 << static_cast<uint8>(EEquipmentSlot::Waist);
+	BagEquipment->EquipItem(Belt, EEquipmentSlot::Waist);
 	BagEquipment->EquipItem(EquippedBag, EEquipmentSlot::WaistBag1);
 	Inventory->BagSet(EBagSlot::WaistBag1, true, 2, 2);
 	TestTrue(TEXT("An empty equipped container is removable for sale"),

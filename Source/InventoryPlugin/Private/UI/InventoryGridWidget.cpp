@@ -9,6 +9,7 @@
 #include "Blueprint/WidgetBlueprintLibrary.h"
 #include "Components/BankComponent.h"
 #include "Components/Border.h"
+#include "Components/EquipmentComponent.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Components/InventoryComponent.h"
 #include "Components/InventoryNetComponent.h"
@@ -384,8 +385,9 @@ void UInventoryGridWidget::InitData(AActor* Owner, EBagSlot InputBagSlot, int32 
 	{
 		const EEquipmentSlot RelatedSlot = UInventoryComponent::GetInventorySlotFromBagSlot(BagID);
 
+		const UEquipmentComponent* Equipment = PC->GetEquipmentForInventory()->GetEquipmentComponentConst();
 		const IInventoryItemBagInterface* BagItem = Cast<IInventoryItemBagInterface>(
-			PC->GetEquipmentForInventory()->GetEquippedItem(RelatedSlot));
+			Equipment ? Equipment->GetItemCoveringSlot(RelatedSlot) : nullptr);
 
 		if (!BagItem)
 		{

@@ -362,6 +362,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Equipment")
 	const UInventoryItemEquipable* GetItemAtSlot(EEquipmentSlot InSlot) const;
 
+	/** Return the equipped item occupying a slot, including a multi-slot item's secondary slots. */
+	const UInventoryItemEquipable* GetItemCoveringSlot(EEquipmentSlot InSlot) const;
+
 	/**
 	 *
 	 */

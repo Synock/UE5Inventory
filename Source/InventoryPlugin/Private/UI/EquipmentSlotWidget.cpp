@@ -428,6 +428,14 @@ bool UEquipmentSlotWidget::CanEquipItem(const UInventoryItemBase* InputItem) con
 
 	if (!CanEquipItemAtSlot(InputItem, SlotID))
 		return false;
+	if (SlotID == EEquipmentSlot::WaistBag1 || SlotID == EEquipmentSlot::WaistBag2)
+	{
+		const IInventoryPlayerInterface* Player = GetInventoryPlayerInterface();
+		const IEquipmentInterface* Equipment = Player ? Player->GetConstEquipmentForInventory() : nullptr;
+		const UEquipmentComponent* Component = Equipment ? Equipment->GetEquipmentComponentConst() : nullptr;
+		if (!Component || !Component->GetItemCoveringSlot(EEquipmentSlot::Waist))
+			return false;
+	}
 
 	//Other check are performed here
 	return true;
@@ -459,6 +467,11 @@ bool UEquipmentSlotWidget::CanEquipItemAtSlot(const UInventoryItemBase* InputIte
 	if (Equipable->MultiSlotItem)
 	{
 		if (InputSlot == EEquipmentSlot::WaistBag2 || InputSlot == EEquipmentSlot::BackPack2)
+			return false;
+		const int32 CombinedWaistMask = (1u << static_cast<uint32>(EEquipmentSlot::Waist)) |
+			(1u << static_cast<uint32>(EEquipmentSlot::WaistBag1));
+		if ((Equipable->EquipableSlotBitMask & CombinedWaistMask) == CombinedWaistMask &&
+			InputSlot != EEquipmentSlot::Waist)
 			return false;
 	}
 

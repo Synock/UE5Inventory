@@ -464,6 +464,7 @@ EBagSlot UInventoryComponent::GetBagSlotFromInventory(EEquipmentSlot ConsideredI
 {
 	switch (ConsideredInventory)
 	{
+	case EEquipmentSlot::Waist: return EBagSlot::WaistBag1; // integrated belt pouch
 	case EEquipmentSlot::WaistBag1: return EBagSlot::WaistBag1;
 	case EEquipmentSlot::WaistBag2: return EBagSlot::WaistBag2;
 	case EEquipmentSlot::BackPack1: return EBagSlot::BackPack1;

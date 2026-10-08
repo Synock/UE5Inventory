@@ -218,6 +218,8 @@ bool FInventoryUtilitiesSlotConversionTest::RunTest(const FString& Parameters)
 		UInventoryComponent::GetInventorySlotFromBagSlot(EBagSlot::Pocket1), EEquipmentSlot::Unknown);
 
 	// EquipmentSlot → BagSlot
+	TestEqual(TEXT("EqWaist integrated pouch → WaistBag1"),
+		UInventoryComponent::GetBagSlotFromInventory(EEquipmentSlot::Waist), EBagSlot::WaistBag1);
 	TestEqual(TEXT("EqBackPack1 → BackPack1"),
 		UInventoryComponent::GetBagSlotFromInventory(EEquipmentSlot::BackPack1), EBagSlot::BackPack1);
 	TestEqual(TEXT("EqAmmo → Quiver"),

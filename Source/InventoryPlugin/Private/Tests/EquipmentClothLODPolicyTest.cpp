@@ -15,10 +15,10 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEquipmentClothLODPolicyTest,
 bool FEquipmentClothLODPolicyTest::RunTest(const FString& Parameters)
 {
 	USkeletalMesh* ClothMesh = LoadObject<USkeletalMesh>(
-		nullptr, TEXT("/Game/Equipment/Human_Male/Hum_M_SmallCape.Hum_M_SmallCape"));
+		nullptr, TEXT("/Game/Equipment/Human_Female/ClothesNew/Human_Female_SimpleWorkDres_Uknee_Chaos.Human_Female_SimpleWorkDres_Uknee_Chaos"));
 	if (!ClothMesh || ClothMesh->GetMeshClothingAssets().IsEmpty())
 	{
-		AddError(TEXT("Hum_M_SmallCape must remain a valid tracked cloth test fixture"));
+		AddError(TEXT("The cloth LOD policy test requires the SimpleWorkDres_Uknee_Chaos mesh with clothing data"));
 		return false;
 	}
 
