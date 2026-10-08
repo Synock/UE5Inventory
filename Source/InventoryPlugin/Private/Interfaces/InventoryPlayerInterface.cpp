@@ -1,17 +1,21 @@
-﻿// Copyright 2022 Maximilien (Synock) Guislain
-
 #include "Interfaces/InventoryPlayerInterface.h"
 
 #include "InventoryUtilities.h"
 #include "Components/BankComponent.h"
+#include "Components/InventoryNetComponent.h"
+#include "Components/InventoryDeliveryComponent.h"
 #include "Components/KeyringComponent.h"
+#include "Components/StagingAreaComponent.h"
+#include "Components/TradeComponent.h"
 #include "Interfaces/EquipmentInterface.h"
+#include "Interfaces/MerchantInterface.h"
 #include "GameFramework/Actor.h"
 #include "Interfaces/InventoryHUDInterface.h"
 #include "Interfaces/LootableInterface.h"
-#include "Items/InventoryItemActionnable.h"
 #include "Items/InventoryItemEquipable.h"
 #include "Items/InventoryItemKey.h"
+#include "Items/Interfaces/InventoryItemDrinkInterface.h"
+#include "Items/Interfaces/InventoryItemFoodInterface.h"
 
 UCoinComponent* IInventoryPlayerInterface::GetBankCoin() const
 {
@@ -103,7 +107,9 @@ bool IInventoryPlayerInterface::CanUnequipBag(EEquipmentSlot Slot) const
 		Slot != EEquipmentSlot::BackPack1 && Slot != EEquipmentSlot::BackPack2)
 		return true;
 
-	return GetInventoryComponentConst()->GetBagConst(UInventoryComponent::GetBagSlotFromInventory(Slot)).Num() == 0;
+	const EBagSlot BagSlot = UInventoryComponent::GetBagSlotFromInventory(Slot);
+	return GetInventoryComponentConst()->GetBagConst(BagSlot).Num() == 0 &&
+		!GetInventoryComponentConst()->HasReservationsInBag(BagSlot);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -185,15 +191,56 @@ void IInventoryPlayerInterface::PlayerAddItem(int32 InTopLeft, EBagSlot InSlot, 
 
 //----------------------------------------------------------------------------------------------------------------------
 
-void IInventoryPlayerInterface::PlayerRemoveItem(int32 TopLeft, EBagSlot Slot)
+void IInventoryPlayerInterface::PlayerAddItemWithDurability(int32 InTopLeft, EBagSlot InSlot, int32 InItemId,
+                                                            float Durability)
 {
 	if (!GetInventoryOwningActor()->HasAuthority())
 		return;
 
-	if (Slot == EBagSlot::BankPool)
-		GetBankComponent()->RemoveItem(TopLeft);
+	if (InSlot == EBagSlot::BankPool)
+		GetBankComponent()->AddItem(InItemId, InTopLeft, Durability);
 	else
+		GetInventoryComponent()->AddItemAt(InSlot, InItemId, InTopLeft, Durability);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+float IInventoryPlayerInterface::PlayerRemoveItem(int32 TopLeft, EBagSlot Slot)
+{
+	if (!GetInventoryOwningActor()->HasAuthority())
+		return 100.0f;
+
+	// Capture durability before removing
+	float Durability = 100.0f;
+
+	if (Slot == EBagSlot::BankPool)
+	{
+		const TArray<FMinimalItemStorage>& BankItems = GetBankComponent()->GetBagConst();
+		for (const FMinimalItemStorage& Item : BankItems)
+		{
+			if (Item.TopLeftID == TopLeft)
+			{
+				Durability = Item.Durability;
+				break;
+			}
+		}
+		GetBankComponent()->RemoveItem(TopLeft);
+	}
+	else
+	{
+		const TArray<FMinimalItemStorage>& BagItems = GetInventoryComponent()->GetBagConst(Slot);
+		for (const FMinimalItemStorage& Item : BagItems)
+		{
+			if (Item.TopLeftID == TopLeft)
+			{
+				Durability = Item.Durability;
+				break;
+			}
+		}
 		GetInventoryComponent()->RemoveItem(Slot, TopLeft);
+	}
+
+	return Durability;
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -212,7 +259,10 @@ void IInventoryPlayerInterface::PlayerMoveItem(int32 InTopLeft, EBagSlot InSlot,
                                                EBagSlot OutSlot)
 {
 	if (GetTransactionBoolean())
+	{
+		GetInventoryHUDInterface()->Execute_ForceRefreshInventory(GetInventoryHUDObject());
 		return;
+	}
 
 	SetTransactionBoolean(true);
 
@@ -235,6 +285,13 @@ void IInventoryPlayerInterface::TransferCoinTo(UCoinComponent* GivingComponent, 
 void IInventoryPlayerInterface::CancelStagingArea()
 {
 	Server_CancelStagingArea();
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryPlayerInterface::ReturnStagingItem(FGuid ReservationId)
+{
+	Server_ReturnStagingItem(ReservationId);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -394,6 +451,13 @@ IEquipmentInterface* IInventoryPlayerInterface::GetEquipmentForInventory()
 
 //----------------------------------------------------------------------------------------------------------------------
 
+const IEquipmentInterface* IInventoryPlayerInterface::GetConstEquipmentForInventory() const
+{
+	return Cast<IEquipmentInterface>(GetInventoryOwningActorConst());
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 //----------------------------------------------------------------------------------------------------------------------
 // Merchant related functions -- Client
 //----------------------------------------------------------------------------------------------------------------------
@@ -409,6 +473,13 @@ void IInventoryPlayerInterface::TryPresentSellItem(EBagSlot OutSlot, int32 ItemI
 {
 	GetInventoryHUDInterface()->Execute_TryPresentSellItem(GetInventoryHUDObject(), OutSlot,
 	                                                       ItemId, TopLeft);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryPlayerInterface::TryPresentEquippedSellItem(EEquipmentSlot Slot, int32 ItemId)
+{
+	GetInventoryHUDInterface()->Execute_TryPresentEquippedSellItem(GetInventoryHUDObject(), Slot, ItemId);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -435,6 +506,13 @@ void IInventoryPlayerInterface::PlayerSellToMerchant(EBagSlot OutSlot, int32 Ite
 
 //----------------------------------------------------------------------------------------------------------------------
 
+void IInventoryPlayerInterface::PlayerSellEquippedItemToMerchant(EEquipmentSlot Slot, int32 ExpectedItemId)
+{
+	Server_PlayerSellEquippedItemToMerchant(Slot, ExpectedItemId);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 void IInventoryPlayerInterface::MerchantTrade(AActor* InputMerchantActor)
 {
 	Server_MerchantTrade(InputMerchantActor);
@@ -449,10 +527,52 @@ void IInventoryPlayerInterface::StopMerchantTrade()
 
 //----------------------------------------------------------------------------------------------------------------------
 
+void IInventoryPlayerInterface::RepairTrade(AActor* InputRepairerActor)
+{
+	Server_RepairTrade(InputRepairerActor);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryPlayerInterface::StopRepairTrade()
+{
+	Server_StopRepairTrade();
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryPlayerInterface::PlayerRepairEquipment(EEquipmentSlot Slot, const FCoinValue& Price)
+{
+	Server_PlayerRepairEquipment(Slot, Price);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryPlayerInterface::PlayerRepairAllEquipment(const FCoinValue& TotalPrice)
+{
+	Server_PlayerRepairAllEquipment(TotalPrice);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 float IInventoryPlayerInterface::GetTotalWeight()
 {
-	return GetInventoryComponent()->GetTotalWeight() + GetEquipmentForInventory()->GetTotalWeight() +
-		GetCoinComponent()->GetTotalWeight();
+	float Weight = 0.0f;
+	if (const UInventoryComponent* Inventory = GetInventoryComponent())
+		Weight += Inventory->GetTotalWeight();
+	if (const IEquipmentInterface* Equipment = GetEquipmentForInventory())
+		Weight += Equipment->GetTotalWeight();
+	if (UCoinComponent* Coin = GetCoinComponent())
+		Weight += Coin->GetTotalWeight();
+	if (const UStagingAreaComponent* Staging = GetStagingAreaItems())
+		Weight += Staging->GetEscrowWeight();
+	if (UCoinComponent* StagingCoin = GetStagingAreaCoin())
+		Weight += StagingCoin->GetTotalWeight();
+	if (const UTradeComponent* Trade = GetLocalTradeComponent())
+		Weight += Trade->GetEscrowWeight();
+	if (const UInventoryDeliveryComponent* Deliveries = GetInventoryDeliveryComponent())
+		Weight += Deliveries->GetPendingDeliveryWeight();
+	return Weight;
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -541,10 +661,12 @@ bool IInventoryPlayerInterface::TryToEat()
 		const TArray<FMinimalItemStorage>& BagItems = Inventory->GetBagConst(BagSlot);
 		for (const FMinimalItemStorage& ItemStorage : BagItems)
 		{
-			const UInventoryItemBase* Item = UInventoryUtilities::GetItemFromID(ItemStorage.ItemID, GetInventoryOwningActor()->GetWorld());
-			if (const UInventoryItemActionnable* ActionnableItem = Cast<UInventoryItemActionnable>(Item))
+			const UInventoryItemBase* Item = UInventoryUtilities::GetItemFromID(
+				ItemStorage.ItemID, GetInventoryOwningActor()->GetWorld());
+			if (const IInventoryItemFoodInterface* FoodItem = Cast<IInventoryItemFoodInterface>(Item))
 			{
-				if (ActionnableItem->HungerValue > 0.f)
+				const float HungerValue = FoodItem->Execute_GetHungerRestoration(Item);
+				if (HungerValue > 0.f)
 				{
 					HandleActivation(ItemStorage.ItemID, ItemStorage.TopLeftID, BagSlot);
 					return true;
@@ -555,6 +677,8 @@ bool IInventoryPlayerInterface::TryToEat()
 
 	return false;
 }
+
+//----------------------------------------------------------------------------------------------------------------------
 
 bool IInventoryPlayerInterface::TryToDrink()
 {
@@ -570,10 +694,12 @@ bool IInventoryPlayerInterface::TryToDrink()
 		const TArray<FMinimalItemStorage>& BagItems = Inventory->GetBagConst(BagSlot);
 		for (const FMinimalItemStorage& ItemStorage : BagItems)
 		{
-			const UInventoryItemBase* Item = UInventoryUtilities::GetItemFromID(ItemStorage.ItemID, GetInventoryOwningActor()->GetWorld());
-			if (const UInventoryItemActionnable* ActionnableItem = Cast<UInventoryItemActionnable>(Item))
+			const UInventoryItemBase* Item = UInventoryUtilities::GetItemFromID(
+				ItemStorage.ItemID, GetInventoryOwningActor()->GetWorld());
+			if (const IInventoryItemDrinkInterface* DrinkItem = Cast<IInventoryItemDrinkInterface>(Item))
 			{
-				if (ActionnableItem->ThirstValue > 0.f)
+				const float ThirstValue = DrinkItem->Execute_GetThirstRestoration(Item);
+				if (ThirstValue > 0.f)
 				{
 					HandleActivation(ItemStorage.ItemID, ItemStorage.TopLeftID, BagSlot);
 					return true;
@@ -584,3 +710,353 @@ bool IInventoryPlayerInterface::TryToDrink()
 
 	return false;
 }
+
+//----------------------------------------------------------------------------------------------------------------------
+
+bool IInventoryPlayerInterface::CanSpendAmmo(EAmmoType AmmoType) const
+{
+	if (GetConstEquipmentForInventory()->HasCompatibleAmmoEquipped(AmmoType))
+		return true;
+
+	return GetInventoryComponentConst()->HasCompatibleAmmoInQuiver(AmmoType);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+TScriptInterface<IInventoryItemAmmoInterface> IInventoryPlayerInterface::SpendAmmo(EAmmoType AmmoType)
+{
+	// first if we have ammo directly in the ammo slot we remove it
+	if (auto EquippedAmmo = GetEquipmentForInventory()->RemoveAmmoEquipped(AmmoType))
+		return EquippedAmmo;
+	// Otherwise, if we have a quiver, we try to remove ammo from it
+	if (GetInventoryComponent()->HasCompatibleAmmoInQuiver(AmmoType))
+	{
+		return GetInventoryComponent()->RemoveAmmoFromQuiver(AmmoType);
+	}
+
+	return nullptr;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+// Trade related functions -- Client (Wrappers for Server RPCs)
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryPlayerInterface::PlayerRequestTrade(ACharacter* OtherPlayerCharacter)
+{
+	Server_PlayerRequestTrade(OtherPlayerCharacter);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryPlayerInterface::PlayerRequestTradeWithItem(ACharacter* OtherPlayerCharacter, int32 ItemID,
+                                                           EBagSlot BagSlot, int32 TopLeft)
+{
+	Server_PlayerRequestTradeWithItem(OtherPlayerCharacter, ItemID, BagSlot, TopLeft);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryPlayerInterface::PlayerAcceptTradeRequest(ACharacter* RequestingPlayerCharacter)
+{
+	Server_PlayerAcceptTradeRequest(RequestingPlayerCharacter);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryPlayerInterface::PlayerDeclineTradeRequest(ACharacter* RequestingPlayerCharacter)
+{
+	Server_PlayerDeclineTradeRequest(RequestingPlayerCharacter);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryPlayerInterface::PlayerAddItemToTrade(int32 ItemID, EBagSlot BagSlot, int32 TopLeft)
+{
+	Server_PlayerAddItemToTrade(ItemID, BagSlot, TopLeft);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryPlayerInterface::PlayerRemoveItemFromTrade(int32 SlotIndex)
+{
+	Server_PlayerRemoveItemFromTrade(SlotIndex);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryPlayerInterface::PlayerSetTradeCoin(const FCoinValue& CoinAmount)
+{
+	Server_PlayerSetTradeCoin(CoinAmount);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryPlayerInterface::PlayerToggleTradeAcceptance(bool bAccept)
+{
+	Server_PlayerToggleTradeAcceptance(bAccept);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryPlayerInterface::PlayerCancelTrade()
+{
+	Server_PlayerCancelTrade();
+}
+
+//======================================================================================================================
+// Default Server_ implementations - forward to UInventoryNetComponent
+//======================================================================================================================
+
+void IInventoryPlayerInterface::Server_MerchantTrade(AActor* InputMerchantActor)
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_MerchantTrade(InputMerchantActor);
+}
+
+void IInventoryPlayerInterface::Server_StopMerchantTrade()
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_StopMerchantTrade();
+}
+
+void IInventoryPlayerInterface::Server_PlayerBuyFromMerchant(int32 ItemId, const FCoinValue& Price)
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_PlayerBuyFromMerchant(ItemId, Price);
+}
+
+void IInventoryPlayerInterface::Server_PlayerSellToMerchant(EBagSlot OutSlot, int32 ItemId, int32 TopLeft,
+                                                             const FCoinValue& Price)
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_PlayerSellToMerchant(OutSlot, ItemId, TopLeft, Price);
+}
+
+void IInventoryPlayerInterface::Server_PlayerSellEquippedItemToMerchant(EEquipmentSlot Slot, int32 ExpectedItemId)
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_PlayerSellEquippedItemToMerchant(Slot, ExpectedItemId);
+}
+
+void IInventoryPlayerInterface::Server_RepairTrade(AActor* InputRepairerActor)
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_RepairTrade(InputRepairerActor);
+}
+
+void IInventoryPlayerInterface::Server_StopRepairTrade()
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_StopRepairTrade();
+}
+
+void IInventoryPlayerInterface::Server_PlayerRepairEquipment(EEquipmentSlot Slot, const FCoinValue& Price)
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_PlayerRepairEquipment(Slot, Price);
+}
+
+void IInventoryPlayerInterface::Server_PlayerRepairAllEquipment(const FCoinValue& TotalPrice)
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_PlayerRepairAllEquipment(TotalPrice);
+}
+
+void IInventoryPlayerInterface::Server_PlayerAutoEquipItem(int32 InTopLeft, EBagSlot InSlot, int32 InItemId)
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_PlayerAutoEquipItem(InTopLeft, InSlot, InItemId);
+}
+
+void IInventoryPlayerInterface::Server_LootActor(AActor* InputLootedActor)
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_LootActor(InputLootedActor);
+}
+
+void IInventoryPlayerInterface::Server_StopLooting()
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_StopLooting();
+}
+
+void IInventoryPlayerInterface::Server_PlayerLootItem(int32 InTopLeft, EBagSlot InSlot, int32 InItemId,
+                                                       int32 OutTopLeft)
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_PlayerLootItem(InTopLeft, InSlot, InItemId, OutTopLeft);
+}
+
+void IInventoryPlayerInterface::Server_PlayerEquipItemFromLoot(int32 InItemId, EEquipmentSlot InSlot, int32 OutTopLeft)
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_PlayerEquipItemFromLoot(InItemId, InSlot, OutTopLeft);
+}
+
+void IInventoryPlayerInterface::Server_PlayerAutoLootAll()
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_PlayerAutoLootAll();
+}
+
+void IInventoryPlayerInterface::Server_PlayerMoveItem(int32 InTopLeft, EBagSlot InSlot, int32 InItemId,
+                                                       int32 OutTopLeft, EBagSlot OutSlot)
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_PlayerMoveItem(InTopLeft, InSlot, InItemId, OutTopLeft, OutSlot);
+}
+
+void IInventoryPlayerInterface::Server_PlayerUnequipItem(int32 InTopLeft, EBagSlot InSlot, int32 InItemId,
+                                                          EEquipmentSlot OutSlot)
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_PlayerUnequipItem(InTopLeft, InSlot, InItemId, OutSlot);
+}
+
+void IInventoryPlayerInterface::Server_PlayerEquipItemFromInventory(int32 InItemId, EEquipmentSlot InSlot,
+                                                                     int32 OutTopLeft, EBagSlot OutSlot)
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_PlayerEquipItemFromInventory(InItemId, InSlot, OutTopLeft, OutSlot);
+}
+
+void IInventoryPlayerInterface::Server_PlayerSwapEquipment(int32 DroppedItemId, EEquipmentSlot DroppedInSlot,
+                                                            int32 SwappedItemId, EEquipmentSlot DraggedOutSlot)
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_PlayerSwapEquipment(DroppedItemId, DroppedInSlot, SwappedItemId, DraggedOutSlot);
+}
+
+void IInventoryPlayerInterface::Server_TransferCoinTo(UCoinComponent* GivingComponent,
+                                                       UCoinComponent* ReceivingComponent,
+                                                       const FCoinValue& RemovedCoinValue,
+                                                       const FCoinValue& AddedCoinValue)
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_TransferCoinTo(GivingComponent, ReceivingComponent, RemovedCoinValue, AddedCoinValue);
+}
+
+void IInventoryPlayerInterface::Server_DropItemFromInventory(int32 TopLeft, EBagSlot Slot, FVector DropLocation)
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_DropItemFromInventory(TopLeft, Slot, DropLocation);
+}
+
+void IInventoryPlayerInterface::Server_DropItemFromEquipment(EEquipmentSlot Slot, FVector DropLocation)
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_DropItemFromEquipment(Slot, DropLocation);
+}
+
+void IInventoryPlayerInterface::Server_CancelStagingArea()
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_CancelStagingArea();
+}
+
+void IInventoryPlayerInterface::Server_ReturnStagingItem(FGuid ReservationId)
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_ReturnStagingItem(ReservationId);
+}
+
+void IInventoryPlayerInterface::Server_TransferStagingToActor(AActor* TargetActor)
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_TransferStagingToActor(TargetActor);
+}
+
+void IInventoryPlayerInterface::Server_MoveEquipmentToStagingArea(int32 InItemId, EEquipmentSlot OutSlot)
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_MoveEquipmentToStagingArea(InItemId, OutSlot);
+}
+
+void IInventoryPlayerInterface::Server_MoveInventoryItemToStagingArea(int32 InItemId, int32 OutTopLeft,
+                                                                       EBagSlot OutSlot)
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_MoveInventoryItemToStagingArea(InItemId, OutTopLeft, OutSlot);
+}
+
+void IInventoryPlayerInterface::Server_PlayerAddKeyFromInventory(int32 InTopLeft, EBagSlot InSlot, int32 InItemId)
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_PlayerAddKeyFromInventory(InTopLeft, InSlot, InItemId);
+}
+
+void IInventoryPlayerInterface::Server_PlayerRemoveKeyToInventory(int32 KeyId)
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_PlayerRemoveKeyToInventory(KeyId);
+}
+
+void IInventoryPlayerInterface::Server_PlayerRequestTrade(ACharacter* OtherPlayerCharacter)
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_PlayerRequestTrade(OtherPlayerCharacter);
+}
+
+void IInventoryPlayerInterface::Server_PlayerRequestTradeWithItem(ACharacter* OtherPlayerCharacter, int32 ItemID,
+                                                                   EBagSlot BagSlot, int32 TopLeft)
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_PlayerRequestTradeWithItem(OtherPlayerCharacter, ItemID, BagSlot, TopLeft);
+}
+
+void IInventoryPlayerInterface::Server_PlayerAcceptTradeRequest(ACharacter* RequestingPlayerCharacter)
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_PlayerAcceptTradeRequest(RequestingPlayerCharacter);
+}
+
+void IInventoryPlayerInterface::Server_PlayerDeclineTradeRequest(ACharacter* RequestingPlayerCharacter)
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_PlayerDeclineTradeRequest(RequestingPlayerCharacter);
+}
+
+void IInventoryPlayerInterface::Server_PlayerAddItemToTrade(int32 ItemID, EBagSlot BagSlot, int32 TopLeft)
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_PlayerAddItemToTrade(ItemID, BagSlot, TopLeft);
+}
+
+void IInventoryPlayerInterface::Server_PlayerRemoveItemFromTrade(int32 SlotIndex)
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_PlayerRemoveItemFromTrade(SlotIndex);
+}
+
+void IInventoryPlayerInterface::Server_PlayerSetTradeCoin(const FCoinValue& CoinAmount)
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_PlayerSetTradeCoin(CoinAmount);
+}
+
+void IInventoryPlayerInterface::Server_PlayerToggleTradeAcceptance(bool bAccept)
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_PlayerToggleTradeAcceptance(bAccept);
+}
+
+void IInventoryPlayerInterface::Server_PlayerCancelTrade()
+{
+	if (UInventoryNetComponent* Comp = GetInventoryNetComponent())
+		Comp->Server_PlayerCancelTrade();
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+// Drop wrappers
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryPlayerInterface::DropItemFromInventory(int32 TopLeft, EBagSlot Slot, FVector DropLocation)
+{
+	Server_DropItemFromInventory(TopLeft, Slot, DropLocation);
+}
+
+void IInventoryPlayerInterface::DropItemFromEquipment(EEquipmentSlot Slot, FVector DropLocation)
+{
+	Server_DropItemFromEquipment(Slot, DropLocation);
+}
+

@@ -1,5 +1,3 @@
-// Copyright 2022 Maximilien (Synock) Guislain
-
 
 #include "Components/BankComponent.h"
 
@@ -96,10 +94,15 @@ void UBankComponent::RemoveItem_Implementation(int32 TopLeftIndex)
 
 //----------------------------------------------------------------------------------------------------------------------
 
-void UBankComponent::AddItem_Implementation(int32 ItemID, int32 TopLeftIndex)
+void UBankComponent::AddItem_Implementation(int32 ItemID, int32 TopLeftIndex, float Durability)
 {
-	Items.Add({ItemID, TopLeftIndex});
-	BankItemAddDispatcher.Broadcast(ItemID, TopLeftIndex);
+	FMinimalItemStorage NewItem;
+	NewItem.ItemID = ItemID;
+	NewItem.TopLeftID = TopLeftIndex;
+	NewItem.Durability = Durability;
+
+	Items.Add(NewItem);
+	BankItemAddDispatcher.Broadcast(ItemID, TopLeftIndex, Durability);
 }
 
 //----------------------------------------------------------------------------------------------------------------------

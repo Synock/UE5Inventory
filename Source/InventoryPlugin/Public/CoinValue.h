@@ -1,5 +1,3 @@
-// Copyright 2022 Maximilien (Synock) Guislain
-
 #pragma once
 
 #include <CoreMinimal.h>
@@ -46,8 +44,17 @@ struct INVENTORYPLUGIN_API FCoinValue
 	//@brief Convert coins to float.
 	float ToFloat() const;
 
+	//@brief Convert coins to their copper-piece value using 64-bit arithmetic.
+	int64 ToCopperValue() const;
+
 	//@brief return if the coin value is empty.
 	bool IsEmpty() const;
+
+	//@brief Return true if all coin denominations are zero or positive.
+	bool IsNonNegative() const;
+
+	//@brief Return true if both values have the same total copper-piece value.
+	bool HasSameValue(const FCoinValue& OtherCoinValue) const;
 
 	//@brief Adjust both AvailableCoins and NeededCoins to allow for a payment without changing the actual value.
 	static bool RetrieveValue(FCoinValue& AvailableCoins, FCoinValue& NeededCoins);

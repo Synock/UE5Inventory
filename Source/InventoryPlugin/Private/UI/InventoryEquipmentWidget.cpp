@@ -1,8 +1,7 @@
-// Copyright 2022 Maximilien (Synock) Guislain
-
 
 #include "UI/InventoryEquipmentWidget.h"
 
+#include "InventoryPlugin.h"
 #include "Interfaces/InventoryPlayerInterface.h"
 #include "Items/InventoryItemBase.h"
 #include "UI/EquipmentSlotWidget.h"
@@ -48,7 +47,7 @@ void UInventoryEquipmentWidget::RegisterSlotWidget(UEquipmentSlotWidget* NewSlot
 	}
 	else
 	{
-		UE_LOG(LogTemp, Log, TEXT("Trying to register a slot that is already known : %d"), NewSlotWidget->GetSlotID());
+		UE_LOG(LogInventoryPlugin, Verbose, TEXT("RegisterSlotWidget: slot %d already known — skipping"), static_cast<int32>(NewSlotWidget->GetSlotID()));
 	}
 }
 

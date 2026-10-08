@@ -1,5 +1,3 @@
-// Copyright 2022 Maximilien (Synock) Guislain
-
 
 #include "Interfaces/MerchantInterface.h"
 
@@ -73,7 +71,12 @@ bool IMerchantInterface::CanPayAmount(const FCoinValue& CoinValue) const
 FCoinValue IMerchantInterface::AdjustPriceBuy(const FCoinValue& CoinValue) const
 {
 	FCoinValue Value = AdjustPriceForInflation(CoinValue);
+	const int64 InflatedBaseValue = Value.ToCopperValue();
 	Value *= GetMerchantRatio();
+	if (InflatedBaseValue > 0 && Value.ToCopperValue() >= InflatedBaseValue)
+	{
+		Value = FCoinValue(static_cast<float>(InflatedBaseValue - 1));
+	}
 	return Value;
 }
 
@@ -82,7 +85,12 @@ FCoinValue IMerchantInterface::AdjustPriceBuy(const FCoinValue& CoinValue) const
 FCoinValue IMerchantInterface::AdjustPriceSell(const FCoinValue& CoinValue) const
 {
 	FCoinValue Value = AdjustPriceForInflation(CoinValue);
+	const int64 InflatedBaseValue = Value.ToCopperValue();
 	Value *= (2.0 - GetMerchantRatio());
+	if (InflatedBaseValue > 0 && Value.ToCopperValue() <= InflatedBaseValue)
+	{
+		Value = FCoinValue(static_cast<float>(InflatedBaseValue + 1));
+	}
 	return Value;
 }
 
@@ -91,10 +99,12 @@ FCoinValue IMerchantInterface::AdjustPriceSell(const FCoinValue& CoinValue) cons
 FCoinValue IMerchantInterface::AdjustPriceForInflation(const FCoinValue& CoinValue) const
 {
 	float InflationPriceMultiplier = 1.0;
-	if (IInventoryGameModeInterface* GM = Cast<IInventoryGameModeInterface>(
-		GetMerchantWorldContext()->GetAuthGameMode()); GM)
+	if (UWorld* MerchantWorld = GetMerchantWorldContext())
 	{
-		InflationPriceMultiplier += GM->GetCurrentInflationValue();
+		if (IInventoryGameModeInterface* GM = Cast<IInventoryGameModeInterface>(MerchantWorld->GetAuthGameMode()))
+		{
+			InflationPriceMultiplier += GM->GetCurrentInflationValue();
+		}
 	}
 
 	constexpr float MinimalPriceDrop = 1.0;
@@ -127,3 +137,13 @@ void IMerchantInterface::AddDynamicItem(int32 ItemID)
 {
 	GetMerchantComponent()->AddItem(ItemID);
 }
+
+//----------------------------------------------------------------------------------------------------------------------
+
+bool IMerchantInterface::CanAcceptItemType(const UInventoryItemBase* Item, FText& OutReason) const
+{
+	// Default implementation: accept all items
+	// Derived classes can override to implement type restrictions
+	return true;
+}
+

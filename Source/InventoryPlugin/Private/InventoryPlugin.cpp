@@ -2,6 +2,8 @@
 
 #include "InventoryPlugin.h"
 
+DEFINE_LOG_CATEGORY(LogInventoryPlugin);
+
 #define LOCTEXT_NAMESPACE "FInventoryPluginModule"
 
 void FInventoryPluginModule::StartupModule()

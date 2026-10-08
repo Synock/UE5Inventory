@@ -1,17 +1,21 @@
-// Copyright 2023 Maximilien (Synock) Guislain
-
 #pragma once
 
 #include "CoreMinimal.h"
 #include "InventoryItemBase.h"
+#include "Items/Interfaces/InventoryItemEquipableInterface.h"
+#include "Items/Interfaces/InventoryItemWeaponInterface.h"
+#include "Items/Interfaces/InventoryItemDurableInterface.h"
 
 #include "InventoryItemEquipable.generated.h"
 
+class UAnimInstance;
+
 /**
- *
+ * Base class for equipable items with durability support.
+ * Implements both IInventoryItemEquipableInterface and IInventoryItemDurableInterface.
  */
 UCLASS()
-class INVENTORYPLUGIN_API UInventoryItemEquipable : public UInventoryItemBase
+class INVENTORYPLUGIN_API UInventoryItemEquipable : public UInventoryItemBase, public IInventoryItemEquipableInterface, public IInventoryItemWeaponInterface, public IInventoryItemDurableInterface
 {
 public:
 	GENERATED_BODY()
@@ -39,5 +43,35 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Equipable|Visual")
 	TArray<FMaterialOverride> EquipmentMeshMaterialOverride;
 
+	/**
+	 * Optional animation blueprint for an independently evaluated equipment overlay.
+	 * Leave unset for the normal merged/leader-pose path. This is intended for secondary-motion
+	 * solvers such as KawaiiPhysics whose garment bones must evaluate after the character pose.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Equipable|Visual")
+	TSubclassOf<UAnimInstance> EquipmentAnimInstanceClass;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Weapon")
+	bool Unsheathable = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Equipable|Durability")
+	float TotalDurability = 100.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Equipable|Durability")
+	float DurabilityModifier = 1.0f;
+
+	// IInventoryItemEquipableInterface Implementation
+	virtual bool IsEquipable() const override { return Equipable; }
+	virtual int32 GetEquipableSlotBitMask() const override { return EquipableSlotBitMask; }
+	virtual bool IsMultiSlotItem() const override { return MultiSlotItem; }
+	virtual bool IsShield() const override { return Shield; }
+	virtual bool IsWeapon() const override { return Weapon; }
+	virtual USkeletalMesh* GetEquipmentMesh() const override { return EquipmentMesh; }
+	virtual const TArray<FMaterialOverride>& GetEquipmentMeshMaterialOverride() const override { return EquipmentMeshMaterialOverride; }
+	virtual bool IsUnsheathable() const override { return Unsheathable; }
+
+	// IInventoryItemDurableInterface Implementation
+	virtual float GetTotalDurability() const override { return TotalDurability; }
+	virtual float GetDurabilityModifier() const override { return DurabilityModifier; }
 
 };

@@ -1,6 +1,4 @@
-﻿// Copyright 2022 Maximilien (Synock) Guislain
-
-#pragma once
+﻿#pragma once
 
 #include <CoreMinimal.h>
 #include "InventoryItem.h"
@@ -12,6 +10,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FBagStorageModified);
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FBagStorageDispatcher_Server);
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FBagUsageChanged, EBagSlot, ConsideredBag, float, BagUsage);
+
 class UInventoryItemBase;
 /**
  * @brief Helper class to find out what slot is available
@@ -22,6 +22,7 @@ public:
 	GridBagSolver(int32 InputWidth, int32 InputHeight);
 
 	void RecordData(const UInventoryItemBase* Item, int32 TopLeft);
+	void RecordBlockedCell(int32 CellIndex);
 
 	bool IsRoomAvailable(const UInventoryItemBase* Item, int TopLeftIndex);
 
@@ -29,7 +30,7 @@ public:
 private:
 	int32 Width = 1;
 	int32 Height = 1;
-	TArray<const  UInventoryItemBase*> Grid;
+	TArray<bool> Grid;
 };
 
 /**
@@ -66,16 +67,34 @@ protected:
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Inventory|Bag")
 	float BagWeight = 0.f;
 
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Inventory|Bag")
+	int32 BagSlotUsage = 0;
+
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Inventory|Bag")
+	float WeightReductionRatio = 1.f;
+
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Inventory|Bag")
+	bool IsQuiver = false;
+
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Inventory|Bag")
+	EAmmoType AmmoTypeLimitation = EAmmoType::Unknown;
+
 public:
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Bag")
 	bool InitializeData(EBagSlot InputBagSlot, int32 InputWidth, int32 InputHeight,
-	                    EItemSize InputMaxStoreSize = EItemSize::Giant);
+	                    EItemSize InputMaxStoreSize = EItemSize::Giant, float InputWeightReduction = 1.f);
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Bag")
+	void InitializeQuiverData(EAmmoType AmmoType);
 
 	UPROPERTY(BlueprintAssignable, Category = "Inventory|Bag")
 	FBagStorageModified BagDispatcher;
 
 	UPROPERTY(BlueprintAssignable, Category = "Inventory|Bag")
 	FBagStorageDispatcher_Server BagStorageDispatcher_Server;
+
+	UPROPERTY(BlueprintAssignable, Category = "Inventory")
+	FBagUsageChanged BagUsageStorageChanged;
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Bag")
 	bool IsValidBag() const { return BagValidity; }
@@ -90,7 +109,7 @@ public:
 	int32 GetItemAtIndex(int32 ID) const;
 
 	UFUNCTION(Server, reliable, BlueprintCallable, Category = "Inventory|Bag")
-	void AddItemAt(int32 ItemID, int32 TopLeftIndex);
+	virtual void AddItemAt(int32 ItemID, int32 TopLeftIndex, float Durability = 100.0f);
 
 	UFUNCTION(Server, reliable, BlueprintCallable, Category = "Inventory|Bag")
 	void RemoveItem(int32 TopLeftIndex);
@@ -114,7 +133,11 @@ public:
 	const TArray<FMinimalItemStorage>& GetBagConst() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Bag")
-	float GetBagWeight() const { return BagWeight; }
+	float GetBagWeight() const { return BagWeight * WeightReductionRatio; }
+	float GetWeightReductionRatio() const { return WeightReductionRatio; }
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Bag")
+	float GetBagSlotUsage() const;
 
 	GridBagSolver GetSolver() const;
 
@@ -126,4 +149,34 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category="Inventory|Bag")
 	int32 GetFirstTopLeftID(int32 ItemID);
+
+	/**
+	 * Update the lock state for an item at a specific TopLeft position
+	 * @param TopLeft - The grid position of the item
+	 * @param bLocked - Whether the item should be locked
+	 */
+	UFUNCTION(BlueprintCallable, Category="Inventory|Bag|Lock")
+	void SetItemLockState(int32 TopLeft, bool bLocked);
+
+	/**
+	 * Update the durability of an item at a specific TopLeft position
+	 * This is more efficient than removing and re-adding the item
+	 * Authority check is performed inside the function
+	 * @param TopLeft - The grid position of the item
+	 * @param ItemID - The item ID to verify we're updating the correct item
+	 * @param NewDurability - The new durability value to set
+	 * @return True if the item was found and updated, false otherwise
+	 */
+	UFUNCTION(BlueprintCallable, Category="Inventory|Bag|Durability")
+	bool UpdateItemDurability(int32 TopLeft, int32 ItemID, float NewDurability);
+
+	[[nodiscard]] bool GetIsQuiver() const
+	{
+		return IsQuiver;
+	}
+
+	[[nodiscard]] EAmmoType GetAmmoTypeLimitation() const
+	{
+		return AmmoTypeLimitation;
+	}
 };

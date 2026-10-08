@@ -1,9 +1,9 @@
-// Copyright 2023 Maximilien (Synock) Guislain
-
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
+#include "Engine/DataTable.h"
+#include "Interfaces/InventoryItemInterface.h"
 #include "InventoryItemBase.generated.h"
 
 UENUM(BlueprintType)
@@ -16,8 +16,14 @@ enum class EItemSize : uint8
 	Giant UMETA(DisplayName = "Giant")
 };
 
+UENUM(BlueprintType)
+enum class EItemType : uint8
+{
+	Unknown = 0 UMETA(DisplayName = "Unknown"),
+};
+
 USTRUCT(BlueprintType)
-struct FMaterialOverride
+struct INVENTORYPLUGIN_API FMaterialOverride
 {
 	GENERATED_BODY()
 
@@ -32,15 +38,19 @@ struct FMaterialOverride
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Visual")
 	float TintIntensity = 1.0f;
+
+	/** Shared parameter contract for held, equipped, corpse and dropped representations. */
+	void ApplyTint(class UMaterialInstanceDynamic* Material) const;
 };
 
 class UTexture2D;
 class UStaticMesh;
 /**
- * 
+ * Base class for all inventory items in the plugin.
+ * Implements IInventoryItemInterface to provide standard access patterns.
  */
 UCLASS()
-class INVENTORYPLUGIN_API UInventoryItemBase : public UPrimaryDataAsset
+class INVENTORYPLUGIN_API UInventoryItemBase : public UPrimaryDataAsset, public IInventoryItemInterface
 {
 public:
 	GENERATED_BODY()
@@ -86,5 +96,48 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|ItemData")
 	float Weight = 0.f;
-	
+
+	//------------------------------------------------------------------------------------------------------------------
+	// IInventoryItemInterface Implementation
+	//------------------------------------------------------------------------------------------------------------------
+
+	virtual int32 GetItemID() const override { return ItemID; }
+	virtual FString GetItemName() const override { return Name; }
+	virtual FString GetItemDescription() const override { return Description; }
+
+	virtual UTexture2D* GetIcon() const override { return Icon; }
+	virtual UStaticMesh* GetMesh() const override { return Mesh; }
+	virtual const FMaterialOverride& GetMaterialOverride() const override { return OverrideMaterial; }
+
+	virtual float GetWeight() const override { return Weight; }
+	virtual float GetBaseValue() const override { return BaseValue; }
+	virtual uint8 GetWidth() const override { return Width; }
+	virtual uint8 GetHeight() const override { return Height; }
+	virtual EItemSize GetItemSize() const override { return ItemSize; }
+
+	virtual bool IsLoreItem() const override { return LoreItem; }
+	virtual bool IsMagicItem() const override { return MagicItem; }
+	virtual bool IsTemporary() const override { return Temporary; }
+};
+
+
+/**
+ * DataTable row structure for bulk item registration.
+ * Use this as the Row Structure when creating item DataTables in the editor.
+ *
+ * Example usage in GameInstance:
+ *   for (auto& Row : ItemDataTable->GetRowMap())
+ *   {
+ *       FItemContainerLine* ItemRow = reinterpret_cast<FItemContainerLine*>(Row.Value);
+ *       if (ItemRow && ItemRow->Item)
+ *           ItemLUT.Add(ItemRow->Item->ItemID, ItemRow->Item);
+ *   }
+ */
+USTRUCT(BlueprintType)
+struct INVENTORYPLUGIN_API FItemContainerLine : public FTableRowBase
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Inventory")
+	UInventoryItemBase* Item = nullptr;
 };

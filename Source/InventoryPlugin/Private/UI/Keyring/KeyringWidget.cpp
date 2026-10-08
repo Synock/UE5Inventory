@@ -1,6 +1,3 @@
-// Copyright 2023 Maximilien (Synock) Guislain
-
-
 #include "UI/Keyring/KeyringWidget.h"
 
 #include "InventoryUtilities.h"
@@ -12,6 +9,31 @@
 #include "UI/Keyring/KeyLineWidget.h"
 
 //----------------------------------------------------------------------------------------------------------------------
+// IKeyringWindowInterface
+//----------------------------------------------------------------------------------------------------------------------
+
+void UKeyringWidget::ShowKeyringWindow_Implementation()
+{
+	SetVisibility(ESlateVisibility::Visible);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UKeyringWidget::HideKeyringWindow_Implementation()
+{
+	SetVisibility(ESlateVisibility::Hidden);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+bool UKeyringWidget::IsKeyringWindowVisible_Implementation() const
+{
+	return IsVisible();
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+// Internal logic
+//----------------------------------------------------------------------------------------------------------------------
 
 void UKeyringWidget::InternalSetup()
 {
@@ -22,6 +44,26 @@ void UKeyringWidget::InternalSetup()
 
 	if(PlayerInterface->GetKeyring())
 		PlayerInterface->GetKeyring()->KeyringChangedDelegate.AddUniqueDynamic(this, &UKeyringWidget::RefreshList);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UKeyringWidget::ClearList_Implementation()
+{
+	if (KeyDataList)
+		KeyDataList->ClearListItems();
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UKeyringWidget::AddKey_Implementation(const FkeyLineDataStruct& KeyLineData)
+{
+	if (!KeyDataList)
+		return;
+
+	UKeyLineData* DataObj = NewObject<UKeyLineData>(this);
+	DataObj->Data = KeyLineData;
+	KeyDataList->AddItem(DataObj);
 }
 
 //----------------------------------------------------------------------------------------------------------------------

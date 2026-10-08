@@ -1,9 +1,8 @@
-// Copyright 2022 Maximilien (Synock) Guislain
-
 #pragma once
 
 #include <CoreMinimal.h>
 #include <Components/ActorComponent.h>
+#include <Net/UnrealNetwork.h>
 #include "InventoryItem.h"
 #include "LootPoolComponent.generated.h"
 
@@ -20,7 +19,13 @@ public:
 	// Sets default values for this component's properties
 	ULootPoolComponent();
 
+#if WITH_AUTOMATION_WORKER
+	static ELifetimeCondition GetItemsReplicationConditionForTests() { return ItemsReplicationCondition; }
+#endif
+
 protected:
+	static constexpr ELifetimeCondition ItemsReplicationCondition = COND_OwnerOnly;
+
 	// Called when the game starts
 	virtual void BeginPlay() override;
 
@@ -48,6 +53,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory|LootPool")
 	void Init(const TArray<int32>& LootableItems);
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory|LootPool")
+	void InitWithDurability(const TArray<FMinimalItemStorage>& LootableItems);
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory|LootPool")
 	int32 GetItemAtIndex(int32 ID) const;

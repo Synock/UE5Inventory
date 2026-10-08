@@ -1,8 +1,7 @@
-﻿// Copyright 2022 Maximilien (Synock) Guislain
-
 
 #include "UI/GenericSlotWidget.h"
 
+#include "InventoryPlugin.h"
 #include "Interfaces/InventoryPlayerInterface.h"
 #include "UI/ItemWidget.h"
 
@@ -10,8 +9,8 @@
 
 void UGenericSlotWidget::UpdateItemImageVisibility()
 {
-	if (ItemImagePointer)
-		ItemImagePointer->SetVisibility(Item ? ESlateVisibility::Visible : ESlateVisibility::Hidden);
+	if (ItemImage)
+		ItemImage->SetVisibility(Item ? ESlateVisibility::Visible : ESlateVisibility::Hidden);
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -27,6 +26,8 @@ bool UGenericSlotWidget::HandleItemDrop(UItemWidget* InputItem)
 {
 	return true;
 }
+
+//----------------------------------------------------------------------------------------------------------------------
 
 IInventoryPlayerInterface* UGenericSlotWidget::GetInventoryPlayerInterface() const
 {
@@ -68,7 +69,10 @@ bool UGenericSlotWidget::CanDropItem(const UInventoryItemBase* InputItem) const
 {
 	if (Item || !EnabledSlot)
 	{
-		UE_LOG(LogTemp, Log, TEXT("Slot is currently unvailable"));
+		UE_LOG(LogInventoryPlugin, Verbose, TEXT("CanDropItem: slot '%s' unavailable (HasItem=%s, Enabled=%s)"),
+		       *GetName(),
+		       Item ? TEXT("true") : TEXT("false"),
+		       EnabledSlot ? TEXT("true") : TEXT("false"));
 		return false;
 	}
 

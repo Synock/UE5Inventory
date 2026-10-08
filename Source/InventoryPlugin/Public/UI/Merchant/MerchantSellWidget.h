@@ -1,9 +1,8 @@
-// Copyright 2022 Maximilien (Synock) Guislain
-
 #pragma once
 
 #include <CoreMinimal.h>
 #include <Blueprint/UserWidget.h>
+#include <TimerManager.h>
 
 #include "MerchantItemListWidget.h"
 #include "MerchantItemWidget.h"
@@ -12,15 +11,23 @@
 #include "Components/TextBlock.h"
 #include "InventoryPlugin/Public/Interfaces/MerchantInterface.h"
 #include "InventoryItem.h"
+#include "UI/InventoryMerchantWindowInterface.h"
 #include "UI/PurseWidget.h"
 #include "MerchantSellWidget.generated.h"
 
+class UCoinDisplayWidget;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FNotEnoughPlayerMoney);
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FNotEnoughPlayerSpace);
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FNotEnoughMerchantMoney);
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FMerchantRejectsItemType, const FString&, MerchantName, const FString&, ItemName);
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FMerchantOffersPriceQuote, const FString&, MerchantName, const FString&, ItemName, const FCoinValue&, OfferPrice);
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FMerchantOffersItemForSale, const FString&, MerchantName, const FString&, ItemName, const FCoinValue&, SalePrice);
 
 UENUM(BlueprintType)
 enum class EMerchantWindowMode : uint8
@@ -30,44 +37,65 @@ enum class EMerchantWindowMode : uint8
 };
 
 /**
+ * @class UMerchantSellWidget
  *
+ * Modernized merchant sell/buy widget that uses BindWidget pattern.
+ * Displays merchant inventory, handles buy/sell transactions, and shows item preview.
  */
 UCLASS()
-class INVENTORYPLUGIN_API UMerchantSellWidget : public UUserWidget
+class INVENTORYPLUGIN_API UMerchantSellWidget : public UUserWidget, public IInventoryMerchantWindowInterface
 {
 	GENERATED_BODY()
 
 protected:
 	//------------------------------------------------------------------------------------------------------------------
-	// UI Elements
+	// UI Elements (BindWidget)
 	//------------------------------------------------------------------------------------------------------------------
-	UPROPERTY(BlueprintReadOnly, Category="Inventory|Merchant|UI")
-	UButton* BuySellButtonPointer = nullptr;
 
-	UPROPERTY(BlueprintReadOnly, Category="Inventory|Merchant|UI")
-	UImage* ImageIconPreviewPointer = nullptr;
+	/** Button to execute buy/sell transaction */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "Inventory|Merchant|UI")
+	UButton* BuySellButton = nullptr;
 
-	UPROPERTY(BlueprintReadOnly, Category="Inventory|Merchant|UI")
-	UTextBlock* CurrentItemNamePointer = nullptr;
+	/** Optional button to close merchant window */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "Inventory|Merchant|UI")
+	UButton* DoneButton = nullptr;
 
-	UPROPERTY(BlueprintReadOnly, Category="Inventory|Merchant|UI")
-	UTextBlock* BuySellButtonTextPointer = nullptr;
+	/** Preview image of selected item */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "Inventory|Merchant|UI")
+	UImage* ItemIconPreview = nullptr;
 
-	UPROPERTY(BlueprintReadOnly, Category="Inventory|Merchant|UI")
-	UTextBlock* CurrentItemPricePointer = nullptr;
+	/** Name of selected item */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "Inventory|Merchant|UI")
+	UTextBlock* ItemName = nullptr;
 
-	UPROPERTY(BlueprintReadOnly, Category="Inventory|Merchant|UI")
-	UTextBlock* MerchantNameTextPointer = nullptr;
+	/** Text on buy/sell button */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "Inventory|Merchant|UI")
+	UTextBlock* BuySellButtonText = nullptr;
 
-	UPROPERTY(BlueprintReadOnly, Category="Inventory|Merchant|UI")
-	UMerchantItemListWidget* ListWidgetPointer = nullptr;
+	/** Price display for selected item (can be TextBlock or CoinDisplayWidget) */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "Inventory|Merchant|UI")
+	UTextBlock* ItemPriceText = nullptr;
 
-	UPROPERTY(BlueprintReadOnly, Category="Inventory|Merchant|UI")
-	UPurseWidget* MerchantPursePointer = nullptr;
+	/** Optional: Coin display widget for item price (alternative to ItemPriceText) */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional), Category = "Inventory|Merchant|UI")
+	UCoinDisplayWidget* ItemPrice = nullptr;
+
+	/** Merchant's name display */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "Inventory|Merchant|UI")
+	UTextBlock* MerchantNameText = nullptr;
+
+	/** List widget showing merchant's items */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "Inventory|Merchant|UI")
+	UMerchantItemListWidget* ItemList = nullptr;
+
+	/** Purse widget showing merchant's money */
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget), Category = "Inventory|Merchant|UI")
+	UPurseWidget* MerchantPurse = nullptr;
 
 	//------------------------------------------------------------------------------------------------------------------
-	// Internal data
+	// Internal Data
 	//------------------------------------------------------------------------------------------------------------------
+
 	UPROPERTY(BlueprintReadOnly, Category = "Inventory|Merchant")
 	TScriptInterface<IMerchantInterface> MerchantActor = nullptr;
 
@@ -80,23 +108,65 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = "Inventory|Merchant|Buy")
 	bool MerchantCanBuy = true;
 
+	/** Prevent list rebuilds/restoration from being treated as new player selections. */
+	bool bRefreshingItemList = false;
+
 	UPROPERTY(BlueprintReadWrite, Category = "Inventory|Merchant|Buy")
 	EBagSlot MerchantBuyOriginSlot = EBagSlot::Unknown;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Inventory|Merchant|Buy")
 	int32 MerchantBuyOriginTopLeft = -1;
 
+	UPROPERTY(BlueprintReadWrite, Category = "Inventory|Merchant|Buy")
+	EEquipmentSlot MerchantBuyOriginEquipmentSlot = EEquipmentSlot::Unknown;
+
 	UPROPERTY(BlueprintReadWrite, Category = "Inventory|Merchant")
 	EMerchantWindowMode MerchantMode = EMerchantWindowMode::Sell;
 
-	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Inventory|Merchant")
-	void InitUIInternal(UButton* BuySellButton, UImage* ImageIconPreview, UTextBlock* CurrentItemName,
-	                    UTextBlock* BuySellButtonText, UTextBlock* CurrentItemPrice,
-	                    UMerchantItemListWidget* ItemListWidget,
-	                    UPurseWidget* MerchantPurseWidget, UTextBlock* MerchantNameText);
+	/** Last stock item for which a sale quote was emitted this merchant session. */
+	int32 LastQuotedMerchantItemId = INDEX_NONE;
+
+	/** Pending post-transaction refresh. Cleared when the merchant session closes. */
+	FTimerHandle TransactionRefreshTimer;
+
+#if WITH_AUTOMATION_WORKER
+	int32 RefreshCountForTests = 0;
+	int32 ItemOfferBroadcastCountForTests = 0;
+#endif
+
 	//------------------------------------------------------------------------------------------------------------------
-	// Internal Functions - Sell
+	// Internal Functions
 	//------------------------------------------------------------------------------------------------------------------
+
+	/**
+	 * @brief Handle BuySellButton click - calls HandleBuyClick or HandleSellClick based on merchant mode
+	 */
+	UFUNCTION()
+	void OnBuySellButtonClicked();
+
+	/**
+	 * @brief Handle DoneButton click - calls StopTrading
+	 */
+	UFUNCTION()
+	void OnDoneButtonClicked();
+
+	/**
+	 * @brief Update the item preview display
+	 */
+	void UpdateItemPreview();
+
+	/**
+	 * @brief Hide the item preview display
+	 */
+	void HideItemPreview();
+
+	/**
+	 * @brief Update the price preview display
+	 */
+	void UpdatePricePreview();
+
+	/** Present the currently selected player-owned item and emit its merchant quote. */
+	void PresentPlayerItemForSale();
 
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Inventory|Merchant")
 	TArray<FMerchantItemDataStruct> GetStaticDataDisplayable();
@@ -113,6 +183,14 @@ protected:
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Inventory|Merchant")
 	bool MerchantCanSell(int32 ItemID) const;
 
+	/**
+	 * @brief Check if merchant accepts this item type for purchase from player
+	 * @param ItemID The ID of the item player wants to sell
+	 * @return True if merchant accepts this item type, false otherwise
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Inventory|Merchant")
+	bool CanMerchantAcceptItem(const UInventoryItemBase* Item) const;
+
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Merchant")
 	FCoinValue GetCorrectPrice(float FloatValue) const;
 
@@ -123,31 +201,26 @@ protected:
 	void HandleSellClick();
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Merchant")
-	void UpdateItemPreview();
-
-	UFUNCTION(BlueprintCallable, Category = "Inventory|Merchant")
-	void HideItemPreview();
-
-	UFUNCTION(BlueprintCallable, Category = "Inventory|Merchant")
-	void UpdatePricePreview();
-
-	UFUNCTION(BlueprintCallable, Category = "Inventory|Merchant")
 	FCoinValue GetSelectedItemPrice() const;
 
 	bool IsWorthless();
+
+	/** Clear transient transaction state and all merchant-facing UI. */
+	void ResetMerchantSessionState();
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Merchant")
 	void StopTrading();
 
 public:
+	//------------------------------------------------------------------------------------------------------------------
+	// Public Interface
+	//------------------------------------------------------------------------------------------------------------------
+
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Inventory|Merchant")
 	void InitMerchantData(AActor* InputMerchantActor);
 
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Inventory|Merchant")
 	void DeInitMerchantData();
-
-	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, BlueprintCosmetic, Category = "Inventory|Merchant")
-	void InitUI();
 
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Inventory|Merchant")
 	void Refresh();
@@ -155,17 +228,86 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Merchant")
 	void ResetSellData();
 
-	//------------------------------------------------------------------------------------------------------------------
-	// Buy
-	//------------------------------------------------------------------------------------------------------------------
+	/** Returns the optional Done button so external owners can rebind it. */
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Inventory|Merchant")
+	UButton* GetDoneButton() const { return DoneButton; }
+
+#if WITH_AUTOMATION_WORKER
+	bool MerchantCanSellForTests(int32 ItemID) const { return MerchantCanSell(ItemID); }
+	int32 GetRefreshCountForTests() const { return RefreshCountForTests; }
+	UMerchantItemListWidget* GetItemListForTests() const { return ItemList; }
+	void SetItemListForTests(UMerchantItemListWidget* InItemList) { ItemList = InItemList; }
+	int32 GetDynamicStartIDForTests() const { return DynamicStartID; }
+	int32 GetSelectedItemIdForTests() const { return SelectedItemId; }
+	EMerchantWindowMode GetMerchantModeForTests() const { return MerchantMode; }
+	int32 GetItemOfferBroadcastCountForTests() const { return ItemOfferBroadcastCountForTests; }
+	bool IsBuySellButtonEnabledForTests() const { return BuySellButton && BuySellButton->GetIsEnabled(); }
+	void SetRefreshingItemListForTests(bool bRefreshing) { bRefreshingItemList = bRefreshing; }
+	void SetMerchantSessionStateForTests(int32 ItemID, int32 TopLeft, EBagSlot OriginBag, EMerchantWindowMode Mode)
+	{
+		SelectedItemId = ItemID;
+		MerchantBuyOriginTopLeft = TopLeft;
+		MerchantBuyOriginSlot = OriginBag;
+		MerchantBuyOriginEquipmentSlot = EEquipmentSlot::Unknown;
+		MerchantMode = Mode;
+	}
+	void SetEquippedMerchantSessionStateForTests(int32 ItemID, EEquipmentSlot OriginSlot,
+		EMerchantWindowMode Mode)
+	{
+		SelectedItemId = ItemID;
+		MerchantBuyOriginTopLeft = -1;
+		MerchantBuyOriginSlot = EBagSlot::Unknown;
+		MerchantBuyOriginEquipmentSlot = OriginSlot;
+		MerchantMode = Mode;
+	}
+	EEquipmentSlot GetMerchantBuyOriginEquipmentSlotForTests() const
+	{
+		return MerchantBuyOriginEquipmentSlot;
+	}
+	EBagSlot GetMerchantBuyOriginSlotForTests() const { return MerchantBuyOriginSlot; }
+	int32 GetMerchantBuyOriginTopLeftForTests() const { return MerchantBuyOriginTopLeft; }
+	bool HasMerchantSessionStateForTests() const
+	{
+		return SelectedItemId != 0 || MerchantBuyOriginTopLeft != -1 ||
+			MerchantBuyOriginSlot != EBagSlot::Unknown ||
+			MerchantBuyOriginEquipmentSlot != EEquipmentSlot::Unknown ||
+			MerchantMode != EMerchantWindowMode::Sell;
+	}
+#endif
+
+	// ---- IInventoryMerchantWindowInterface ----------------------------------
+
+	virtual void InitMerchantWindow_Implementation(AActor* NewMerchantActor) override;
+	virtual void DeInitMerchantWindow_Implementation() override;
+	virtual void ShowMerchantWindow_Implementation() override;
+	virtual void HideMerchantWindow_Implementation() override;
+	virtual void RefreshMerchantWindow_Implementation() override;
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Merchant|Buy")
 	void AssignSellData(int32 ItemID, int32 TopLeft, EBagSlot OriginBag);
 
-	//these functions are intended for player notification of the possible results.
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Merchant|Buy")
+	void AssignEquippedSellData(int32 ItemID, EEquipmentSlot OriginEquipmentSlot);
+
+	/**
+	 * @brief Handle item selection from merchant list
+	 * Sets the selected item, merchant mode to Sell, and updates preview
+	 * @param ItemID The ID of the selected item
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Merchant")
+	void OnItemListSelectionChanged(int32 ItemID);
+
+	//------------------------------------------------------------------------------------------------------------------
+	// Notification Callbacks
+	//------------------------------------------------------------------------------------------------------------------
+
+	// These functions are intended for player notification of the possible results
 	virtual void OnNotEnoughPlayerMoney();
 	virtual void OnNotEnoughPlayerSpace();
 	virtual void OnNotEnoughMerchantMoney();
+	virtual void OnMerchantRejectsItemType(const FString& MerchantName,const FString& RefusedItemName);
+	virtual void OnMerchantOffersPriceQuote(const FString& MerchantName, const FString& ItemName, const FCoinValue& OfferPrice);
+	virtual void OnMerchantOffersItemForSale(const FString& MerchantName, const FString& ItemName, const FCoinValue& SalePrice);
 
 	UPROPERTY(BlueprintAssignable, Category = "Inventory|Merchant")
 	FNotEnoughPlayerMoney OnNotEnoughPlayerMoneyDelegate;
@@ -175,4 +317,13 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "Inventory|Merchant")
 	FNotEnoughMerchantMoney OnNotEnoughMerchantMoneyDelegate;
+
+	UPROPERTY(BlueprintAssignable, Category = "Inventory|Merchant")
+	FMerchantRejectsItemType OnMerchantRejectsItemTypeDelegate;
+
+	UPROPERTY(BlueprintAssignable, Category = "Inventory|Merchant")
+	FMerchantOffersPriceQuote OnMerchantOffersPriceQuoteDelegate;
+
+	UPROPERTY(BlueprintAssignable, Category = "Inventory|Merchant")
+	FMerchantOffersItemForSale OnMerchantOffersItemForSaleDelegate;
 };

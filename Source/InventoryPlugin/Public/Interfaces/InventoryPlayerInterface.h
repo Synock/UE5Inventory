@@ -1,6 +1,4 @@
-﻿// Copyright 2022 Maximilien (Synock) Guislain
-
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "EquipmentInterface.h"
@@ -14,8 +12,11 @@
 #include "Items/InventoryItemBase.h"
 #include "InventoryPlayerInterface.generated.h"
 
+class UInventoryNetComponent;
+class UInventoryDeliveryComponent;
 class UKeyringComponent;
 class UBankComponent;
+class UTradeComponent;
 // This class does not need to be modified.
 UINTERFACE(MinimalAPI, meta = (CannotImplementInterfaceInBlueprint))
 class UInventoryPlayerInterface : public UInterface
@@ -209,6 +210,16 @@ public:
 	 */
 	virtual UStagingAreaComponent* GetStagingAreaItems() = 0;
 
+	/** Optional protected-delivery queue. Generic consumers may return nullptr. */
+	virtual UInventoryDeliveryComponent* GetInventoryDeliveryComponent() { return nullptr; }
+
+	/**
+	 * @brief Get the inventory net component that owns the Server RPCs.
+	 * This is the only new pure virtual that consumers must implement.
+	 * @return Pointer to the UInventoryNetComponent (or subclass) attached to the owner.
+	 */
+	virtual UInventoryNetComponent* GetInventoryNetComponent() = 0;
+
 	/**
 	 * @brief Retrieves the bank coin of the player.
 	 *
@@ -243,6 +254,12 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Keys")
 	virtual UKeyringComponent* GetKeyring() const;
+
+	/**
+	 * Returns the local trade component for player-to-player trading.
+	 * Default returns nullptr; override in the player controller to return LocalTradeComponent.
+	 */
+	virtual UTradeComponent* GetLocalTradeComponent() const { return nullptr; }
 
 	//------------------------------------------------------------------------------------------------------------------
 	// Equipment
@@ -366,6 +383,13 @@ public:
 	 * @return Pointer to an object implementing the IEquipmentInterface.
 	 */
 	IEquipmentInterface* GetEquipmentForInventory();
+
+		/**
+	 * @brief Get the equipment for the inventory.
+	 *
+	 * @return Pointer to an object implementing the IEquipmentInterface.
+	 */
+	const IEquipmentInterface* GetConstEquipmentForInventory() const;
 
 	/**
 	 * @brief Get the weight changed delegate.
@@ -495,6 +519,16 @@ public:
 	virtual void PlayerAddItem(int32 InTopLeft, EBagSlot InSlot, int32 InItemId);
 
 	/**
+	 * Add an item with specific durability to the player's inventory.
+	 * @param InTopLeft The top left position in the bag grid.
+	 * @param InSlot The bag slot where the item will be added.
+	 * @param InItemId The ID of the item to add.
+	 * @param Durability The current durability of the item.
+	 */
+	UFUNCTION()
+	virtual void PlayerAddItemWithDurability(int32 InTopLeft, EBagSlot InSlot, int32 InItemId, float Durability);
+
+	/**
 	 * \brief Removes an item from the player's inventory or bank.
 	 *
 	 * This function checks if the owning actor has authority before removing the item.
@@ -505,10 +539,10 @@ public:
 	 * \param TopLeft The index of the item to be removed.
 	 * \param Slot The slot from which the item is to be removed.
 	 *
-	 * \return None.
+	 * \return The durability of the removed item (100.0f if not found).
 	 */
 	UFUNCTION()
-	virtual void PlayerRemoveItem(int32 TopLeft, EBagSlot Slot);
+	virtual float PlayerRemoveItem(int32 TopLeft, EBagSlot Slot);
 
 	/**
 	 * Retrieves the item at the specified position in the player's inventory.
@@ -559,6 +593,10 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	virtual void CancelStagingArea();
+
+	/** Return one staged escrow item to its reserved source (or protected delivery fallback). */
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	virtual void ReturnStagingItem(FGuid ReservationId);
 
 	/**
 	 * Transfers staged inventory items to the specified target actor.
@@ -726,6 +764,10 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Inventory|Merchant")
 	virtual void TryPresentSellItem(EBagSlot OutSlot, int32 ItemId, int32 TopLeft);
 
+	/** Present an equipped item to the active merchant without first moving it into inventory. */
+	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Inventory|Merchant")
+	virtual void TryPresentEquippedSellItem(EEquipmentSlot Slot, int32 ItemId);
+
 	/**
 	 * @brief Resets the sell item in the inventory merchant category.
 	 *
@@ -763,6 +805,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Merchant")
 	virtual void PlayerSellToMerchant(EBagSlot OutSlot, int32 ItemId, int32 TopLeft, const FCoinValue& Price);
 
+	/** Request sale of the item currently occupying Slot. The server derives the price. */
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Merchant")
+	virtual void PlayerSellEquippedItemToMerchant(EEquipmentSlot Slot, int32 ExpectedItemId);
+
 	/**
 	 * @brief Initiates a trade with a merchant actor.
 	 *
@@ -784,6 +830,41 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Merchant")
 	virtual void StopMerchantTrade();
+
+	//------------------------------------------------------------------------------------------------------------------
+	// Repair
+	//------------------------------------------------------------------------------------------------------------------
+
+	/**
+	 * @brief Initiates a repair interaction with a repairer NPC.
+	 *
+	 * @param InputRepairerActor The repairer NPC actor with whom the repair is being initiated.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Repair")
+	virtual void RepairTrade(AActor* InputRepairerActor);
+
+	/**
+	 * @brief Stops the repair trade interaction.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Repair")
+	virtual void StopRepairTrade();
+
+	/**
+	 * @brief Repair a specific equipment slot item.
+	 *
+	 * @param Slot The equipment slot to repair
+	 * @param Price The cost to repair the item
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Repair")
+	virtual void PlayerRepairEquipment(EEquipmentSlot Slot, const FCoinValue& Price);
+
+	/**
+	 * @brief Repair all equipped items at once.
+	 *
+	 * @param TotalPrice The total cost to repair all items
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Repair")
+	virtual void PlayerRepairAllEquipment(const FCoinValue& TotalPrice);
 
 	/**
 	 * \brief Calculate the total weight of the player's inventory.
@@ -858,97 +939,223 @@ public:
 	UFUNCTION(Blueprintable)
 	virtual bool TryToDrink();
 
+	UFUNCTION(BlueprintCallable)
+	virtual bool CanSpendAmmo(EAmmoType AmmoType) const;
+
+	UFUNCTION(BlueprintCallable)
+	virtual TScriptInterface<IInventoryItemAmmoInterface> SpendAmmo(EAmmoType AmmoType);
+
+	//------------------------------------------------------------------------------------------------------------------
+	// Drop
+	//------------------------------------------------------------------------------------------------------------------
+
+	/**
+	 * @brief Drop an item from inventory into the world.
+	 * Calls Server_DropItemFromInventory on the server.
+	 * @param TopLeft The top-left index of the item in the inventory.
+	 * @param Slot The bag slot containing the item.
+	 * @param DropLocation The world location where the item should be dropped.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	virtual void DropItemFromInventory(int32 TopLeft, EBagSlot Slot, FVector DropLocation = FVector::ZeroVector);
+
+	/**
+	 * @brief Drop an item from equipment into the world.
+	 * Calls Server_DropItemFromEquipment on the server.
+	 * @param Slot The equipment slot containing the item.
+	 * @param DropLocation The world location where the item should be dropped.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Equipment")
+	virtual void DropItemFromEquipment(EEquipmentSlot Slot, FVector DropLocation = FVector::ZeroVector);
+
 protected:
 	//------------------------------------------------------------------------------------------------------------------
-	// Merchant -- Server
+	// Merchant -- Server (forwarded to UInventoryNetComponent)
 	//------------------------------------------------------------------------------------------------------------------
-	//UFUNCTION(Server, Reliable, Category = "Inventory|Merchant")
-	virtual void Server_MerchantTrade(AActor* InputMerchantActor) = 0;
+	virtual void Server_MerchantTrade(AActor* InputMerchantActor);
 
-	//UFUNCTION(Server, Reliable, Category = "Inventory|Merchant")
-	virtual void Server_StopMerchantTrade() = 0;
+	virtual void Server_StopMerchantTrade();
 
 	//Buy selected stuff from merchant
-	//UFUNCTION(Server, Reliable, WithValidation,  Category = "Inventory|Merchant")
-	virtual void Server_PlayerBuyFromMerchant(int32 ItemId, const FCoinValue& Price) = 0;
+	virtual void Server_PlayerBuyFromMerchant(int32 ItemId, const FCoinValue& Price);
 
 	//Sell selected stuff to merchant
-	//UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory|Merchant")
-	virtual void Server_PlayerSellToMerchant(EBagSlot OutSlot, int32 ItemId, int32 TopLeft, const FCoinValue& Price) =
-	0;
+	virtual void Server_PlayerSellToMerchant(EBagSlot OutSlot, int32 ItemId, int32 TopLeft, const FCoinValue& Price);
 
-	//UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory")
-	virtual void Server_PlayerAutoEquipItem(int32 InTopLeft, EBagSlot InSlot, int32 InItemId) = 0;
+	// Sell directly from equipment; the expected id protects against stale UI state.
+	virtual void Server_PlayerSellEquippedItemToMerchant(EEquipmentSlot Slot, int32 ExpectedItemId);
 
 	//------------------------------------------------------------------------------------------------------------------
-	// Loot -- Server
+	// Repair -- Server (forwarded to UInventoryNetComponent)
 	//------------------------------------------------------------------------------------------------------------------
-	//UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory|Loot")
-	virtual void Server_LootActor(AActor* InputLootedActor) = 0;
+	virtual void Server_RepairTrade(AActor* InputRepairerActor);
 
-	//UFUNCTION(Server, Reliable, Category = "Inventory|Loot")
-	virtual void Server_StopLooting() = 0;
+	virtual void Server_StopRepairTrade();
 
-	//UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory|Loot")
-	virtual void Server_PlayerLootItem(int32 InTopLeft, EBagSlot InSlot, int32 InItemId, int32 OutTopLeft) = 0;
+	//Repair specific equipment slot
+	virtual void Server_PlayerRepairEquipment(EEquipmentSlot Slot, const FCoinValue& Price);
 
-	//UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory|Loot")
-	virtual void Server_PlayerEquipItemFromLoot(int32 InItemId, EEquipmentSlot InSlot, int32 OutTopLeft) = 0;
+	//Repair all equipped items
+	virtual void Server_PlayerRepairAllEquipment(const FCoinValue& TotalPrice);
+
+	virtual void Server_PlayerAutoEquipItem(int32 InTopLeft, EBagSlot InSlot, int32 InItemId);
+
+	//------------------------------------------------------------------------------------------------------------------
+	// Loot -- Server (forwarded to UInventoryNetComponent)
+	//------------------------------------------------------------------------------------------------------------------
+	virtual void Server_LootActor(AActor* InputLootedActor);
+
+	virtual void Server_StopLooting();
+
+	virtual void Server_PlayerLootItem(int32 InTopLeft, EBagSlot InSlot, int32 InItemId, int32 OutTopLeft);
+
+	virtual void Server_PlayerEquipItemFromLoot(int32 InItemId, EEquipmentSlot InSlot, int32 OutTopLeft);
 
 	//Try to loot all items in the lootPool, return false is at least one item cannot be looted
-	//UFUNCTION(Server, Reliable, BlueprintCallable, Category = "Inventory|Loot")
-	virtual void Server_PlayerAutoLootAll() = 0;
+	virtual void Server_PlayerAutoLootAll();
 
 	//------------------------------------------------------------------------------------------------------------------
-	// Inventory -- Server
+	// Inventory -- Server (forwarded to UInventoryNetComponent)
 	//------------------------------------------------------------------------------------------------------------------
-	//UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory")
 	virtual void Server_PlayerMoveItem(int32 InTopLeft, EBagSlot InSlot, int32 InItemId, int32 OutTopLeft,
-	                                   EBagSlot OutSlot) = 0;
+	                                   EBagSlot OutSlot);
 
-	//UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory|Equipment")
-	virtual void Server_PlayerUnequipItem(int32 InTopLeft, EBagSlot InSlot, int32 InItemId, EEquipmentSlot OutSlot) = 0;
+	virtual void Server_PlayerUnequipItem(int32 InTopLeft, EBagSlot InSlot, int32 InItemId, EEquipmentSlot OutSlot);
 
-	//UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory|Equipment")
 	virtual void Server_PlayerEquipItemFromInventory(int32 InItemId, EEquipmentSlot InSlot, int32 OutTopLeft,
-	                                                 EBagSlot OutSlot) = 0;
+	                                                 EBagSlot OutSlot);
 
-	//UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory|Equipment")
 	virtual void Server_PlayerSwapEquipment(int32 DroppedItemId, EEquipmentSlot DroppedInSlot, int32 SwappedItemId,
-	                                        EEquipmentSlot DraggedOutSlot) = 0;
+	                                        EEquipmentSlot DraggedOutSlot);
 
-	//UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory")
 	virtual void Server_TransferCoinTo(UCoinComponent* GivingComponent, UCoinComponent* ReceivingComponent,
-	                                   const FCoinValue& RemovedCoinValue, const FCoinValue& AddedCoinValue) = 0;
+	                                   const FCoinValue& RemovedCoinValue, const FCoinValue& AddedCoinValue);
 
-	//UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory")
-	virtual void Server_DropItemFromInventory(int32 TopLeft, EBagSlot Slot, FVector DropLocation = {}) = 0;
+	virtual void Server_DropItemFromInventory(int32 TopLeft, EBagSlot Slot, FVector DropLocation = {});
 
-	//UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory")
-	virtual void Server_DropItemFromEquipment(EEquipmentSlot Slot, FVector DropLocation = {}) = 0;
+	virtual void Server_DropItemFromEquipment(EEquipmentSlot Slot, FVector DropLocation = {});
 
 	//------------------------------------------------------------------------------------------------------------------
-	// Staging -- Server
+	// Staging -- Server (forwarded to UInventoryNetComponent)
 	//------------------------------------------------------------------------------------------------------------------
 
-	//UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory|Staging")
-	virtual void Server_CancelStagingArea() = 0;
+	virtual void Server_CancelStagingArea();
 
-	//UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory|Staging")
-	virtual void Server_TransferStagingToActor(AActor* TargetActor) = 0;
+	virtual void Server_ReturnStagingItem(FGuid ReservationId);
 
-	//UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory|Staging")
-	virtual void Server_MoveEquipmentToStagingArea(int32 InItemId, EEquipmentSlot OutSlot) = 0;
+	virtual void Server_TransferStagingToActor(AActor* TargetActor);
 
-	//UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory|Staging")
-	virtual void Server_MoveInventoryItemToStagingArea(int32 InItemId, int32 OutTopLeft, EBagSlot OutSlot) = 0;
+	virtual void Server_MoveEquipmentToStagingArea(int32 InItemId, EEquipmentSlot OutSlot);
+
+	virtual void Server_MoveInventoryItemToStagingArea(int32 InItemId, int32 OutTopLeft, EBagSlot OutSlot);
 
 	//------------------------------------------------------------------------------------------------------------------
-	// Keys
+	// Keys (forwarded to UInventoryNetComponent)
 	//------------------------------------------------------------------------------------------------------------------
-	//UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory|Key")
-	virtual void Server_PlayerAddKeyFromInventory(int32 InTopLeft, EBagSlot InSlot, int32 InItemId) = 0;
+	virtual void Server_PlayerAddKeyFromInventory(int32 InTopLeft, EBagSlot InSlot, int32 InItemId);
 
-	//UFUNCTION(Server, Reliable, WithValidation, Category = "Inventory|Key")
-	virtual void Server_PlayerRemoveKeyToInventory(int32 KeyId) = 0;
+	virtual void Server_PlayerRemoveKeyToInventory(int32 KeyId);
+
+	//------------------------------------------------------------------------------------------------------------------
+	// Trade -- Server (forwarded to UInventoryNetComponent)
+	//------------------------------------------------------------------------------------------------------------------
+
+	virtual void Server_PlayerRequestTrade(ACharacter* OtherPlayerCharacter);
+
+	virtual void Server_PlayerRequestTradeWithItem(ACharacter* OtherPlayerCharacter, int32 ItemID, EBagSlot BagSlot, int32 TopLeft);
+
+	virtual void Server_PlayerAcceptTradeRequest(ACharacter* RequestingPlayerCharacter);
+
+	virtual void Server_PlayerDeclineTradeRequest(ACharacter* RequestingPlayerCharacter);
+
+	virtual void Server_PlayerAddItemToTrade(int32 ItemID, EBagSlot BagSlot, int32 TopLeft);
+
+	virtual void Server_PlayerRemoveItemFromTrade(int32 SlotIndex);
+
+	virtual void Server_PlayerSetTradeCoin(const FCoinValue& CoinAmount);
+
+	virtual void Server_PlayerToggleTradeAcceptance(bool bAccept);
+
+	virtual void Server_PlayerCancelTrade();
+
+public:
+	//------------------------------------------------------------------------------------------------------------------
+	// Trade -- Local Wrappers (Call Server_ counterparts)
+	//------------------------------------------------------------------------------------------------------------------
+
+	/**
+	 * @brief Request to start a trade with another player
+	 * Calls Server_PlayerRequestTrade on the server
+	 * @param OtherPlayerCharacter The player character to trade with
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Trade")
+	virtual void PlayerRequestTrade(ACharacter* OtherPlayerCharacter);
+
+	/**
+	 * @brief Request to start a trade with another player with an item
+	 * Calls Server_PlayerRequestTradeWithItem on the server
+	 * @param OtherPlayerCharacter The player character to trade with
+	 * @param ItemID The item ID
+	 * @param BagSlot The source bag
+	 * @param TopLeft The source position
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Trade")
+	virtual void PlayerRequestTradeWithItem(ACharacter* OtherPlayerCharacter, int32 ItemID, EBagSlot BagSlot, int32 TopLeft);
+
+	/**
+	 * @brief Accept an incoming trade request
+	 * Calls Server_PlayerAcceptTradeRequest on the server
+	 * @param RequestingPlayerCharacter The player character who requested the trade
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Trade")
+	virtual void PlayerAcceptTradeRequest(ACharacter* RequestingPlayerCharacter);
+
+	/**
+	 * @brief Decline an incoming trade request
+	 * Calls Server_PlayerDeclineTradeRequest on the server
+	 * @param RequestingPlayerCharacter The player character who requested the trade
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Trade")
+	virtual void PlayerDeclineTradeRequest(ACharacter* RequestingPlayerCharacter);
+
+	/**
+	 * @brief Add an item to our trade offer
+	 * Calls Server_PlayerAddItemToTrade on the server
+	 * @param ItemID The item ID
+	 * @param BagSlot The source bag
+	 * @param TopLeft The source position
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Trade")
+	virtual void PlayerAddItemToTrade(int32 ItemID, EBagSlot BagSlot, int32 TopLeft);
+
+	/**
+	 * @brief Remove an item from our trade offer
+	 * Calls Server_PlayerRemoveItemFromTrade on the server
+	 * @param SlotIndex The trade slot to clear (0-7)
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Trade")
+	virtual void PlayerRemoveItemFromTrade(int32 SlotIndex);
+
+	/**
+	 * @brief Set coin amount for our trade offer
+	 * Calls Server_PlayerSetTradeCoin on the server
+	 * @param CoinAmount The coin to offer
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Trade")
+	virtual void PlayerSetTradeCoin(const FCoinValue& CoinAmount);
+
+	/**
+	 * @brief Toggle trade acceptance
+	 * Calls Server_PlayerToggleTradeAcceptance on the server
+	 * @param bAccept True to accept, false to unaccept
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Trade")
+	virtual void PlayerToggleTradeAcceptance(bool bAccept);
+
+	/**
+	 * @brief Cancel the current trade
+	 * Calls Server_PlayerCancelTrade on the server
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Trade")
+	virtual void PlayerCancelTrade();
 };

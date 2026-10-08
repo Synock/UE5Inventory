@@ -1,5 +1,3 @@
-﻿// Copyright 2022 Maximilien (Synock) Guislain
-
 #pragma once
 
 #include <CoreMinimal.h>
@@ -29,4 +27,10 @@ struct FMinimalItemStorage
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Item")
 	int32 TopLeftID = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Item|Durability")
+	float Durability = 100.0f;
+
+	UPROPERTY(Transient, BlueprintReadWrite, Category = "Inventory|Item|Lock")
+	bool bIsLocked = false;
 };

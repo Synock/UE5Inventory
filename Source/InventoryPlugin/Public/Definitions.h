@@ -1,5 +1,3 @@
-﻿// Copyright 2022 Maximilien (Synock) Guislain
-
 #pragma once
 
 #include "CoreMinimal.h"
@@ -30,7 +28,9 @@ enum class EAmmoType : uint8
 {
 	Unknown UMETA(DisplayName = "Unknown"),
 	Throwable UMETA(DisplayName = "Throwable"),
+	SmallBolts UMETA(DisplayName = "SmallBolts"),
 	Bolts UMETA(DisplayName = "Bolts"),
+	GreatBolts UMETA(DisplayName = "GreatBolts"),
 	Arrows UMETA(DisplayName = "Arrows")
 };
 
@@ -49,6 +49,7 @@ enum class EEquipmentSocket : uint8
 	PrimarySheath,
 	SecondarySheath,
 	BackSheath,
+	RangedSheath,
 	EarL,
 	EarR,
 	RingL,
@@ -82,7 +83,7 @@ enum class EEquipmentSlot : uint8
 	FingerR = 17,
 	Waist = 18,
 	Legs = 19,
-	Foot = 20,
+	Feet = 20,
 	Arms = 21,
 	WaistBag1 = 22,
 	WaistBag2 = 23,
@@ -101,7 +102,8 @@ enum class EBagSlot : uint8
 	WaistBag2 = 4 UMETA(DisplayName = "WaistBag2"),
 	BackPack1 = 5 UMETA(DisplayName = "Backpack1"),
 	BackPack2 = 6 UMETA(DisplayName = "Backpack2"),
-	LastValidBag = 7,
+	Quiver = 7 UMETA(DisplayName = "Quiver"),
+	LastValidBag = 8,
 
 	LootPool = 20 UMETA(DisplayName = "Lootpool"),
 	StagingArea = 21 UMETA(DisplayName = "StagingArea"),

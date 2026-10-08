@@ -40,6 +40,7 @@ public class InventoryPlugin : ModuleRules
 				"InputCore",
 				"UMG",
 				"Engine",
+				"NetCore",
 				"Slate",
 				"SlateCore",
 				// ... add private dependencies that you statically link with here ...	

@@ -1,5 +1,3 @@
-// Copyright 2022 Maximilien (Synock) Guislain
-
 #pragma once
 
 #include "CoreMinimal.h"
@@ -24,7 +22,7 @@ protected:
 	// Called when the game starts
 	virtual void BeginPlay() override;
 
-	UPROPERTY(Replicated, BlueprintReadWrite, Category = "Inventory|Merchant")
+	UPROPERTY(ReplicatedUsing=OnRep_StaticPool, BlueprintReadWrite, Category = "Inventory|Merchant")
 	TArray<int32> StaticMerchantPool;
 
 	UPROPERTY(ReplicatedUsing=OnRep_DynamicPool, BlueprintReadWrite, Category = "Inventory|Merchant")
@@ -35,6 +33,9 @@ protected:
 public:
 	UPROPERTY(BlueprintAssignable, Category = "Inventory|Merchant")
 	FOnMerchantDynamicPoolChangedDelegate MerchantPoolDispatcher;
+
+	UFUNCTION()
+	void OnRep_StaticPool();
 
 	UFUNCTION()
 	void OnRep_DynamicPool();
@@ -82,4 +83,14 @@ public:
 	//Get all the static items
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Merchant")
 	bool HasItem(int32 ItemID) const;
+
+#if WITH_AUTOMATION_WORKER
+	void SetStaticMerchantPoolForTests(const TArray<int32>& Items);
+	int32 GetStaticPoolRepNotifyCountForTests() const { return StaticPoolRepNotifyCountForTests; }
+#endif
+
+private:
+#if WITH_AUTOMATION_WORKER
+	int32 StaticPoolRepNotifyCountForTests = 0;
+#endif
 };

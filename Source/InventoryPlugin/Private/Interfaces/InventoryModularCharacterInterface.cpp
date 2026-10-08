@@ -1,5 +1,3 @@
-// Copyright 2023 Maximilien (Synock) Guislain
-
 
 #include "Interfaces/InventoryModularCharacterInterface.h"
 
@@ -81,8 +79,7 @@ void IInventoryModularCharacterInterface::SetEquipment(const UInventoryItemEquip
 			SkeletaComponent->SetMaterial(Material.MaterialID, Material.OverrideMaterial);
 			if (UMaterialInstanceDynamic* DynMat = SkeletaComponent->CreateAndSetMaterialInstanceDynamic(Material.MaterialID))
 			{
-				DynMat->SetVectorParameterValue(TEXT("Tint"), Material.TintColor);
-				DynMat->SetScalarParameterValue(TEXT("TintIntensity"), Material.TintIntensity);
+				Material.ApplyTint(DynMat);
 			}
 		}
 	}
@@ -114,7 +111,7 @@ USkeletalMeshComponent* IInventoryModularCharacterInterface::GetEquipmentCompone
 		break;
 	case EEquipmentSlot::Legs:
 		return GetLegsComponent();
-	case EEquipmentSlot::Foot:
+	case EEquipmentSlot::Feet:
 		return GetFootComponent();
 	case EEquipmentSlot::Arms:
 		return GetArmsComponent();
@@ -132,9 +129,33 @@ USkeletalMeshComponent* IInventoryModularCharacterInterface::GetEquipmentCompone
 	return nullptr;
 }
 
+USkeletalMesh* IInventoryModularCharacterInterface::GetEquipmentOverlayMesh(EEquipmentSlot Slot,
+	const UInventoryItemEquipable* Item) const
+{
+	if (!Item)
+		return nullptr;
+
+	// Weapon/ammo slots use dedicated USkeletalMeshComponents that are already attached to
+	// named bone sockets (PrimarySheath, SecondarySheath, BackSheath, RangedSheath,
+	// SOCKET_RightHandWeapon, etc.) via EquipmentComponent.  Returning a mesh here would
+	// cause CreateAndRegisterOverlayComponent to spawn a second component with no socket
+	// name, snapping it to the mesh root and producing a duplicate weapon between the legs.
+	if (Slot == EEquipmentSlot::Primary   ||
+		Slot == EEquipmentSlot::Secondary ||
+		Slot == EEquipmentSlot::Range     ||
+		Slot == EEquipmentSlot::Ammo)
+	{
+		return nullptr;
+	}
+
+	return Item->EquipmentMesh;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 bool IInventoryModularCharacterInterface::IsBodyPart(EEquipmentSlot Slot)
 {
-	return Slot == EEquipmentSlot::Legs || Slot == EEquipmentSlot::Foot || Slot == EEquipmentSlot::Arms || Slot ==
+	return Slot == EEquipmentSlot::Legs || Slot == EEquipmentSlot::Feet || Slot == EEquipmentSlot::Arms || Slot ==
 		EEquipmentSlot::Torso || Slot == EEquipmentSlot::Hands;
 }
 

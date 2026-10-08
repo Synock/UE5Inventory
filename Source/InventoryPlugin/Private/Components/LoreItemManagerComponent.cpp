@@ -1,5 +1,3 @@
-// Copyright 2024 Maximilien (Synock) Guislain
-
 
 #include "Components/LoreItemManagerComponent.h"
 

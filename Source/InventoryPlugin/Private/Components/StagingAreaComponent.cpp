@@ -1,5 +1,3 @@
-// Copyright 2022 Maximilien (Synock) Guislain
-
 
 #include "Components/StagingAreaComponent.h"
 
@@ -29,13 +27,44 @@ void UStagingAreaComponent::OnRep_StagingAreaItems()
 void UStagingAreaComponent::ClearStagingArea()
 {
 	StagingAreaItems.Empty();
+	StagingAreaDispatcher.Broadcast();
 }
 
 //----------------------------------------------------------------------------------------------------------------------
 
-void UStagingAreaComponent::AddItemToStagingArea(int32 ItemID)
+bool UStagingAreaComponent::AddItemToStagingArea(const FInventoryEscrowItem& ItemStorage)
 {
-	StagingAreaItems.Add(ItemID);
+	if (!ItemStorage.IsValid() || !HasCapacity())
+		return false;
+	StagingAreaItems.Add(ItemStorage);
+	StagingAreaDispatcher.Broadcast();
+	return true;
+}
+
+bool UStagingAreaComponent::RemoveItemFromStagingArea(FGuid ReservationId)
+{
+	const int32 ItemIndex = StagingAreaItems.IndexOfByPredicate(
+		[ReservationId](const FInventoryEscrowItem& Item) { return Item.ReservationId == ReservationId; });
+	if (!StagingAreaItems.IsValidIndex(ItemIndex))
+		return false;
+
+	StagingAreaItems.RemoveAt(ItemIndex);
+	StagingAreaDispatcher.Broadcast();
+	return true;
+}
+
+void UStagingAreaComponent::SetStagingAreaItems(const TArray<FInventoryEscrowItem>& Items)
+{
+	StagingAreaItems = Items;
+	StagingAreaDispatcher.Broadcast();
+}
+
+float UStagingAreaComponent::GetEscrowWeight() const
+{
+	float Weight = 0.0f;
+	for (const FInventoryEscrowItem& Item : StagingAreaItems)
+		Weight += FMath::Max(0.0f, Item.EffectiveWeight);
+	return Weight;
 }
 
 //----------------------------------------------------------------------------------------------------------------------
