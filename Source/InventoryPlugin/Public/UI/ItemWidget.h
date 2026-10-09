@@ -49,6 +49,7 @@ protected:
 	virtual void NativeOnMouseEnter(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	// C++ override to handle mouse leave
 	virtual void NativeOnMouseLeave(const FPointerEvent& MouseEvent) override;
+	virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
 	// C++ override to handle drag-cancelled (calls StopDrag)
 	virtual void NativeOnDragCancelled(const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
 

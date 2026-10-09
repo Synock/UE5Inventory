@@ -59,9 +59,19 @@ bool FBeltPouchDependencyTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("Server sale and swap removal guard rejects the belt"),
 		UInventoryNetComponent::CanRemoveEquippedItemFromComponentsForTests(
 			Equipment, Inventory, EEquipmentSlot::Waist, Belt->ItemID));
+	UInventoryNetComponent* Net = NewObject<UInventoryNetComponent>(Owner);
+	TestTrue(TEXT("A well-formed blocked unequip RPC passes network validation"),
+		Net->Server_PlayerUnequipItem_Validate(0, EBagSlot::Pocket1, Belt->ItemID, EEquipmentSlot::Waist));
+	TestTrue(TEXT("A well-formed blocked drop RPC passes network validation"),
+		Net->Server_DropItemFromEquipment_Validate(EEquipmentSlot::Waist, FVector::ZeroVector));
+	TestFalse(TEXT("Invalid unequip slot still fails network validation"),
+		Net->Server_PlayerUnequipItem_Validate(0, EBagSlot::Pocket1, Belt->ItemID, EEquipmentSlot::Unknown));
 	Equipment->RemoveItem(EEquipmentSlot::WaistBag1);
 	TestFalse(TEXT("Second pouch still blocks belt removal"), Equipment->RemoveItem(EEquipmentSlot::Waist));
 	Equipment->RemoveItem(EEquipmentSlot::WaistBag2);
+	TestTrue(TEXT("Removal guard permits the belt after both pouches are removed"),
+		UInventoryNetComponent::CanRemoveEquippedItemFromComponentsForTests(
+			Equipment, Inventory, EEquipmentSlot::Waist, Belt->ItemID));
 	TestTrue(TEXT("Belt can be removed after both pouches"), Equipment->RemoveItem(EEquipmentSlot::Waist));
 	Equipment->EquipItem(Belt, EEquipmentSlot::Waist);
 	Equipment->EquipItem(FirstPouch, EEquipmentSlot::WaistBag1);
@@ -89,6 +99,9 @@ bool FBeltMultiSlotPouchTest::RunTest(const FString& Parameters)
 		Equipment->CanEquipItemAt(Pouch, EEquipmentSlot::WaistBag1));
 	Equipment->EquipItem(Pouch, EEquipmentSlot::WaistBag1);
 	TestFalse(TEXT("Removing covering armor cannot orphan its pouch"), Equipment->RemoveItem(EEquipmentSlot::Torso));
+	TestFalse(TEXT("Removal guard blocks multi-slot Waist covering gear"),
+		UInventoryNetComponent::CanRemoveEquippedItemFromComponentsForTests(
+			Equipment, Inventory, EEquipmentSlot::Torso, ArmorBelt->ItemID));
 	Equipment->RemoveItem(EEquipmentSlot::WaistBag1);
 	Equipment->RemoveItem(EEquipmentSlot::Torso);
 
@@ -164,6 +177,22 @@ bool FBeltHipSheathTest::RunTest(const FString& Parameters)
 		Hand->GetSkeletalMeshAsset(), Weapon->EquipmentMesh);
 	TestNull(TEXT("Removed belt leaves hip sheath empty"), Sheath->GetSkeletalMeshAsset());
 
+	UEquipmentComponent* LoadedEquipment = NewObject<UEquipmentComponent>(Owner);
+	USkeletalMeshComponent* LoadedHand = LoadedEquipment->GetSkeletalMeshComponentFromSocket(EEquipmentSocket::Primary);
+	USkeletalMeshComponent* LoadedSheath = LoadedEquipment->GetSkeletalMeshComponentFromSocket(EEquipmentSocket::PrimarySheath);
+	LoadedEquipment->EquipItem(Belt, EEquipmentSlot::Waist);
+	LoadedEquipment->EquipItem(Weapon, EEquipmentSlot::Primary);
+	LoadedEquipment->OnRep_ItemList();
+	TestEqual(TEXT("Loading belt before weapon leaves the weapon sheathed"),
+		LoadedSheath->GetSkeletalMeshAsset(), Weapon->EquipmentMesh);
+	TestNull(TEXT("Loaded weapon is absent from hand"), LoadedHand->GetSkeletalMeshAsset());
+	LoadedEquipment->UnsheathMelee();
+	LoadedEquipment->OnRep_ItemList();
+	TestEqual(TEXT("Equipment refresh preserves a drawn hip weapon"),
+		LoadedHand->GetSkeletalMeshAsset(), Weapon->EquipmentMesh);
+	TestNull(TEXT("Equipment refresh does not duplicate a drawn hip weapon"),
+		LoadedSheath->GetSkeletalMeshAsset());
+
 	UEquipmentComponent* OtherEquipment = NewObject<UEquipmentComponent>(Owner);
 	UInventoryItemEquipable* Offhand = MakeItem(Owner, 81009, BeltSlotBit(EEquipmentSlot::Secondary));
 	Offhand->Weapon = true;
@@ -182,6 +211,8 @@ bool FBeltHipSheathTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Belt allows offhand sheathing"), OffhandSheath->GetSkeletalMeshAsset(), Offhand->EquipmentMesh);
 	OtherEquipment->RemoveItem(EEquipmentSlot::Waist);
 	TestEqual(TEXT("Belt removal draws offhand weapon"), OffhandSocket->GetSkeletalMeshAsset(), Offhand->EquipmentMesh);
+	OtherEquipment->OnRep_ItemList();
+	TestNull(TEXT("Offhand refresh does not duplicate the drawn weapon"), OffhandSheath->GetSkeletalMeshAsset());
 
 	UEquipmentComponent* BackEquipment = NewObject<UEquipmentComponent>(Owner);
 	UInventoryItemEquipable* Shield = MakeItem(Owner, 81010, BeltSlotBit(EEquipmentSlot::Secondary));
@@ -198,6 +229,13 @@ bool FBeltHipSheathTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Ranged weapon remains stowed without a belt"),
 		BackEquipment->GetSkeletalMeshComponentFromSocket(EEquipmentSocket::RangedSheath)->GetSkeletalMeshAsset(),
 		Ranged->EquipmentMesh);
+	BackEquipment->UnsheathRanged();
+	BackEquipment->OnRep_ItemList();
+	TestEqual(TEXT("Equipment refresh preserves a drawn ranged weapon"),
+		BackEquipment->GetSkeletalMeshComponentFromSocket(EEquipmentSocket::Primary)->GetSkeletalMeshAsset(),
+		Ranged->EquipmentMesh);
+	TestNull(TEXT("Equipment refresh does not duplicate a drawn ranged weapon"),
+		BackEquipment->GetSkeletalMeshComponentFromSocket(EEquipmentSocket::RangedSheath)->GetSkeletalMeshAsset());
 	return true;
 }
 

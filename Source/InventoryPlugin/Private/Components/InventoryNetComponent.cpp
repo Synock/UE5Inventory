@@ -20,6 +20,7 @@
 #include "Components/TradeComponent.h"
 #include "InventoryPlugin.h"
 #include "Interfaces/EquipmentInterface.h"
+#include "Interfaces/InventoryHUDInterface.h"
 #include "InventoryPlugin.h"
 #include "Interfaces/InventoryPlayerInterface.h"
 #include "InventoryPlugin.h"
@@ -116,6 +117,20 @@ void UInventoryNetComponent::Client_LootRequestRejected_Implementation()
 		{
 			Lootable->GetLootPoolDelegate().Broadcast();
 		}
+	}
+}
+
+void UInventoryNetComponent::Client_EquipmentRequestRejected_Implementation(EEquipmentSlot Slot)
+{
+	if (!PlayerInterface)
+		PlayerInterface = Cast<IInventoryPlayerInterface>(GetOwner());
+	if (PlayerInterface)
+	{
+		PlayerInterface->ResetTransaction();
+		PlayerInterface->NotifyEquipmentRemovalBlocked(Slot);
+		if (UObject* HUD = PlayerInterface->GetInventoryHUDObject())
+			if (IInventoryHUDInterface* Interface = PlayerInterface->GetInventoryHUDInterface())
+				Interface->Execute_ForceRefreshInventory(HUD);
 	}
 }
 
@@ -248,13 +263,20 @@ bool UInventoryNetComponent::Server_PlayerMoveItem_Validate(int32 InTopLeft, EBa
 void UInventoryNetComponent::Server_PlayerUnequipItem_Implementation(int32 InTopLeft, EBagSlot InSlot, int32 InItemId,
                                                                       EEquipmentSlot OutSlot)
 {
+	if (!ValidatePlayerUnequipItem(InTopLeft, InSlot, InItemId, OutSlot))
+	{
+		Client_EquipmentRequestRejected(OutSlot);
+		return;
+	}
 	HandlePlayerUnequipItem(InTopLeft, InSlot, InItemId, OutSlot);
 }
 
 bool UInventoryNetComponent::Server_PlayerUnequipItem_Validate(int32 InTopLeft, EBagSlot InSlot, int32 InItemId,
                                                                 EEquipmentSlot OutSlot)
 {
-	return ValidatePlayerUnequipItem(InTopLeft, InSlot, InItemId, OutSlot);
+	return InTopLeft >= 0 && InItemId > 0 &&
+		((InSlot > EBagSlot::Unknown && InSlot < EBagSlot::LastValidBag) || InSlot == EBagSlot::BankPool) &&
+		OutSlot > EEquipmentSlot::Unknown && OutSlot < EEquipmentSlot::Last;
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -343,12 +365,13 @@ bool UInventoryNetComponent::Server_DropItemFromInventory_Validate(int32 TopLeft
 
 void UInventoryNetComponent::Server_DropItemFromEquipment_Implementation(EEquipmentSlot Slot, FVector DropLocation)
 {
-	HandleDropItemFromEquipment(Slot, DropLocation);
+	if (ValidateDropItemFromEquipment(Slot, DropLocation))
+		HandleDropItemFromEquipment(Slot, DropLocation);
 }
 
 bool UInventoryNetComponent::Server_DropItemFromEquipment_Validate(EEquipmentSlot Slot, FVector DropLocation)
 {
-	return ValidateDropItemFromEquipment(Slot, DropLocation);
+	return Slot > EEquipmentSlot::Unknown && Slot < EEquipmentSlot::Last && !DropLocation.ContainsNaN();
 }
 
 // --- Loot ---
@@ -683,6 +706,11 @@ void UInventoryNetComponent::HandlePlayerUnequipItem(int32 InTopLeft, EBagSlot I
 	float ItemDurability = 100.0f;
 	Equipment->GetEquipmentComponent()->GetEquipmentDurability(OutSlot, ItemDurability);
 	Equipment->UnequipItem(OutSlot);
+	if (Equipment->GetEquippedItem(OutSlot))
+	{
+		Client_EquipmentRequestRejected(OutSlot);
+		return;
+	}
 	PlayerInterface->PlayerAddItemWithDurability(InTopLeft, InSlot, InItemId, ItemDurability);
 }
 
@@ -1394,7 +1422,7 @@ void UInventoryNetComponent::HandleTransferStagingToActor(AActor* TargetActor)
 
 void UInventoryNetComponent::HandleMoveEquipmentToStagingArea(int32 InItemId, EEquipmentSlot OutSlot)
 {
-	if (!PlayerInterface)
+	if (!PlayerInterface || !CanRemoveEquippedItem(OutSlot, InItemId))
 		return;
 
 	IEquipmentInterface* Equipment = GetEquipmentInterface();
@@ -1417,6 +1445,8 @@ void UInventoryNetComponent::HandleMoveEquipmentToStagingArea(int32 InItemId, EE
 	EquipComp->GetEquipmentDurability(OutSlot, Escrow.Durability);
 
 	Equipment->UnequipItem(OutSlot);
+	if (Equipment->GetEquippedItem(OutSlot))
+		return;
 	if (!EquipComp->ReservePendingDelivery(Escrow.ReservationId, Item, OutSlot) ||
 		!StagingItems->AddItemToStagingArea(Escrow))
 	{

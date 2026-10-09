@@ -15,10 +15,27 @@
 #include "InventoryPlugin.h"
 #include "Items/Interfaces/InventoryItemBagInterface.h"
 #include "Components/InventoryComponent.h"
+#include "Components/InventoryNetComponent.h"
 #include "Items/InventoryItemEquipable.h"
 #include "InventoryPlugin.h"
 #include "UI/InventoryGridWidget.h"
 #include "InventoryPlugin.h"
+
+FReply UItemWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
+{
+	if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton && IsFromEquipment() && Item)
+	{
+		IInventoryPlayerInterface* Player = GetInventoryPlayerInterface();
+		const UInventoryNetComponent* Net = Player ? Player->GetInventoryNetComponent() : nullptr;
+		if (!Net || !Net->CanRemoveEquippedItem(OriginalSlotID, Item->ItemID))
+		{
+			if (Player)
+				Player->NotifyEquipmentRemovalBlocked(OriginalSlotID);
+			return FReply::Handled();
+		}
+	}
+	return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
+}
 
 void UItemWidget::HandleAutoEquip()
 {
@@ -87,14 +104,11 @@ void UItemWidget::HandleSellClick()
 
 	if (IsFromEquipment())
 	{
-		if (Cast<IInventoryItemBagInterface>(Item))
+		const UInventoryNetComponent* Net = PC->GetInventoryNetComponent();
+		if (!Net || !Net->CanRemoveEquippedItem(OriginalSlotID, Item->ItemID))
 		{
-			UInventoryComponent* Inventory = PC->GetInventoryComponent();
-			if (!Inventory || !Inventory->IsLinkedEquipmentStorageEmptyAndUnreserved(OriginalSlotID))
-			{
-				NotifyInteractionBlocked(FText::FromString(TEXT("Empty this container before selling it.")));
-				return;
-			}
+			PC->NotifyEquipmentRemovalBlocked(OriginalSlotID);
+			return;
 		}
 
 		PC->TryPresentEquippedSellItem(OriginalSlotID, Item->ItemID);

@@ -48,19 +48,18 @@ FReply UEquipmentSlotWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry
 	const bool bCanPresentToMerchant = CanHandleMerchantSaleClick(bLeftClick,
 		Player && Player->IsTrading(), EnabledSlot, bIsLocked, Item && Item->ItemID > 0,
 		SlotID > EEquipmentSlot::Unknown && SlotID < EEquipmentSlot::Last);
-
-	if (!bCanPresentToMerchant)
-		return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
-
-	if (Cast<IInventoryItemBagInterface>(Item))
+	if (bLeftClick && EnabledSlot && Item && Item->ItemID > 0 && Player)
 	{
-		UInventoryComponent* Inventory = Player->GetInventoryComponent();
-		if (!Inventory || !Inventory->IsLinkedEquipmentStorageEmptyAndUnreserved(SlotID))
+		const UInventoryNetComponent* Net = Player->GetInventoryNetComponent();
+		if (!Net || !Net->CanRemoveEquippedItem(SlotID, Item->ItemID))
 		{
-			NotifyInteractionBlocked(FText::FromString(TEXT("Empty this container before selling it.")));
+			Player->NotifyEquipmentRemovalBlocked(SlotID);
 			return FReply::Handled();
 		}
 	}
+
+	if (!bCanPresentToMerchant)
+		return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
 
 	Player->TryPresentEquippedSellItem(SlotID, Item->ItemID);
 	return FReply::Handled();

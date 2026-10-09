@@ -15,6 +15,7 @@
 #include "Interfaces/LootableInterface.h"
 #include "Items/InventoryItemEquipable.h"
 #include "Items/InventoryItemKey.h"
+#include "Items/Interfaces/InventoryItemBagInterface.h"
 #include "Items/Interfaces/InventoryItemDrinkInterface.h"
 #include "Items/Interfaces/InventoryItemFoodInterface.h"
 
@@ -44,9 +45,50 @@ void IInventoryPlayerInterface::PlayerUnequipItem(int32 InTopLeft, EBagSlot InSl
 {
 	if (GetTransactionBoolean())
 		return;
+	if (const UInventoryNetComponent* Net = GetInventoryNetComponent();
+		Net && !Net->CanRemoveEquippedItem(OutSlot, InItemId))
+	{
+		NotifyEquipmentRemovalBlocked(OutSlot);
+		if (UObject* HUD = GetInventoryHUDObject())
+			if (IInventoryHUDInterface* Interface = GetInventoryHUDInterface())
+				Interface->Execute_ForceRefreshInventory(HUD);
+		return;
+	}
 
 	SetTransactionBoolean(true);
 	Server_PlayerUnequipItem(InTopLeft, InSlot, InItemId, OutSlot);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void IInventoryPlayerInterface::NotifyEquipmentRemovalBlocked(EEquipmentSlot Slot)
+{
+	IInventoryHUDInterface* HUD = GetInventoryHUDInterface();
+	if (!HUD)
+		return;
+
+	FText Message = NSLOCTEXT("InventoryPlugin", "EquipmentRemovalBlocked",
+		"This equipped item cannot be moved right now.");
+	const IEquipmentInterface* Equipment = GetConstEquipmentForInventory();
+	const UEquipmentComponent* Component = Equipment ? Equipment->GetEquipmentComponentConst() : nullptr;
+	const UInventoryItemEquipable* Item = Component ? Component->GetItemAtSlot(Slot) : nullptr;
+	if (Item && Item == Component->GetItemCoveringSlot(EEquipmentSlot::Waist) &&
+		(Component->GetItemAtSlot(EEquipmentSlot::WaistBag1) ||
+		 Component->GetItemAtSlot(EEquipmentSlot::WaistBag2)))
+	{
+		Message = Slot == EEquipmentSlot::Waist
+			? NSLOCTEXT("InventoryPlugin", "BeltSupportsPouch",
+				"Remove the attached waist pouch before removing this belt.")
+			: NSLOCTEXT("InventoryPlugin", "WaistGearSupportsPouch",
+				"Remove the attached waist pouch before removing this item.");
+	}
+	else if (Item && Cast<IInventoryItemBagInterface>(Item) && GetInventoryComponentConst() &&
+		!GetInventoryComponentConst()->IsLinkedEquipmentStorageEmptyAndUnreserved(Slot))
+	{
+		Message = NSLOCTEXT("InventoryPlugin", "EquippedBagNotEmpty",
+			"Empty this container before moving it.");
+	}
+	HUD->ShowSystemMessage(Message);
 }
 
 //----------------------------------------------------------------------------------------------------------------------

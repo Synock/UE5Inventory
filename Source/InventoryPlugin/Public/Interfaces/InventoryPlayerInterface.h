@@ -283,6 +283,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Equipment")
 	virtual void PlayerUnequipItem(int32 InTopLeft, EBagSlot InSlot, int32 InItemId, EEquipmentSlot OutSlot);
 
+	/** Show the reason an equipped item cannot be removed through the game's system-message HUD. */
+	void NotifyEquipmentRemovalBlocked(EEquipmentSlot Slot);
+
 	/**
 	 * \brief Equips an item from the inventory to the specified equipment slot.
 	 *

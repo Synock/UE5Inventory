@@ -1059,10 +1059,19 @@ void UEquipmentComponent::OnRep_ItemList()
 	if (PrimaryWeaponComponent)
 	{
 		if (const UInventoryItemEquipable* PrimaryWeapon = GetItemAtSlot(EEquipmentSlot::Primary))
-			Equip(PrimaryWeapon, EEquipmentSlot::Primary);
+		{
+			if (PrimaryWeapon->EquipmentMesh &&
+				PrimaryWeaponComponent->GetSkeletalMeshAsset() == PrimaryWeapon->EquipmentMesh)
+				PrimaryWeaponSheath->SetSkeletalMeshAsset(nullptr);
+			else
+				Equip(PrimaryWeapon, EEquipmentSlot::Primary);
+		}
 		else
 		{
-			PrimaryWeaponComponent->SetSkeletalMeshAsset(nullptr);
+			const UInventoryItemEquipable* RangedWeapon = GetItemAtSlot(EEquipmentSlot::Range);
+			if (!RangedWeapon || !RangedWeapon->EquipmentMesh ||
+				PrimaryWeaponComponent->GetSkeletalMeshAsset() != RangedWeapon->EquipmentMesh)
+				PrimaryWeaponComponent->SetSkeletalMeshAsset(nullptr);
 			if (PrimaryWeaponSheath)
 				PrimaryWeaponSheath->SetSkeletalMeshAsset(nullptr);
 		}
@@ -1070,7 +1079,17 @@ void UEquipmentComponent::OnRep_ItemList()
 	if (SecondaryWeaponComponent)
 	{
 		if (const UInventoryItemEquipable* SecWeapon = GetItemAtSlot(EEquipmentSlot::Secondary))
-			Equip(SecWeapon, EEquipmentSlot::Secondary);
+		{
+			if (SecWeapon->EquipmentMesh &&
+				SecondaryWeaponComponent->GetSkeletalMeshAsset() == SecWeapon->EquipmentMesh)
+			{
+				if (USkeletalMeshComponent* Sheath = GetSkeletalMeshComponentFromSocket(
+					FindBestSocketForItem(SecWeapon, EEquipmentSlot::Secondary)))
+					Sheath->SetSkeletalMeshAsset(nullptr);
+			}
+			else
+				Equip(SecWeapon, EEquipmentSlot::Secondary);
+		}
 		else
 		{
 			SecondaryWeaponComponent->SetSkeletalMeshAsset(nullptr);
@@ -1083,7 +1102,13 @@ void UEquipmentComponent::OnRep_ItemList()
 	if (RangedWeaponSheath)
 	{
 		if (const UInventoryItemEquipable* RangedWeapon = GetItemAtSlot(EEquipmentSlot::Range))
-			Equip(RangedWeapon, EEquipmentSlot::Range);
+		{
+			if (RangedWeapon->EquipmentMesh && PrimaryWeaponComponent &&
+				PrimaryWeaponComponent->GetSkeletalMeshAsset() == RangedWeapon->EquipmentMesh)
+				RangedWeaponSheath->SetSkeletalMeshAsset(nullptr);
+			else
+				Equip(RangedWeapon, EEquipmentSlot::Range);
+		}
 		else
 			RangedWeaponSheath->SetSkeletalMeshAsset(nullptr);
 	}

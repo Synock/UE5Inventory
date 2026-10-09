@@ -48,6 +48,9 @@ public:
 	/** Cached reference to the owner's IInventoryPlayerInterface. Set in BeginPlay. */
 	IInventoryPlayerInterface* GetPlayerInterface() const { return PlayerInterface; }
 
+	/** Read-only removal check for both local UI and authoritative handlers. */
+	bool CanRemoveEquippedItem(EEquipmentSlot Slot, int32 ExpectedItemId = INDEX_NONE) const;
+
 #if WITH_AUTOMATION_WORKER
 	bool ValidatePlayerBuyFromMerchantForTests(int32 ItemId, const FCoinValue& Price)
 	{
@@ -182,6 +185,10 @@ public:
 	/** Clears a client-side transaction after the server softly rejects stale loot state. */
 	UFUNCTION(Client, Reliable, Category = "Inventory|Loot")
 	void Client_LootRequestRejected();
+
+	/** Clears a pending client transaction when equipment removal is refused. */
+	UFUNCTION(Client, Reliable, Category = "Inventory|Equipment")
+	void Client_EquipmentRequestRejected(EEquipmentSlot Slot);
 
 	//==================================================================================================================
 	// Merchant RPCs
@@ -418,7 +425,6 @@ protected:
 	IEquipmentInterface* GetEquipmentInterface() const;
 
 	/** Validate that an equipped item can leave its slot without orphaning storage or racing a reservation. */
-	bool CanRemoveEquippedItem(EEquipmentSlot Slot, int32 ExpectedItemId = INDEX_NONE) const;
 	static bool CanRemoveEquippedItemFromComponents(const UEquipmentComponent* EquipmentComponent,
 		const UInventoryComponent* InventoryComponent, EEquipmentSlot Slot, int32 ExpectedItemId = INDEX_NONE);
 
