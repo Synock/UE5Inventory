@@ -163,3 +163,11 @@ bool IInventoryModularCharacterInterface::IsEquipmentPart(EEquipmentSlot Slot)
 {
 	return !IsBodyPart(Slot);
 }
+
+//----------------------------------------------------------------------------------------------------------------------
+
+bool IInventoryModularCharacterInterface::GetEquipmentAttachmentOverride(FName SocketName, USkeletalMeshComponent*& Parent) const
+{
+	Parent = nullptr;
+	return false;
+}

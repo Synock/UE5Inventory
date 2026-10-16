@@ -41,6 +41,9 @@ public:
 
 	virtual USkeletalMeshComponent* GetEquipmentComponentFromSlot(EEquipmentSlot Slot);
 
+	// Optional presentation mount; false retains the ordinary character socket.
+	virtual bool GetEquipmentAttachmentOverride(FName SocketName, USkeletalMeshComponent*& Parent) const;
+
 	/**
 	 * Returns the skeletal mesh to display as a dynamic overlay component for the given slot.
 	 * The plugin calls this immediately on equip/unequip to drive UpdateSingleOverlayMesh.

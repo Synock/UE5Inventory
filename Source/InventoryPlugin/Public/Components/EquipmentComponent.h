@@ -47,6 +47,7 @@ public:
 	/** Applies a material only to dynamic overlays occupying modular body-part slots. */
 	void SellMaterialForBodyPartMeshes(int MaterialID, UMaterialInstance* MaterialInstance);
 	bool AttachEquipmentComponentsToOwnerMeshIfReady();
+	bool AttachEquipmentAccessory(FName SocketName, bool OverrideOnly = false);
 
 	/**
 	 * Controls whether the component rendered for one equipment slot is hidden only from its owning player.

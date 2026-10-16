@@ -852,6 +852,44 @@ void UEquipmentComponent::UpdateSingleOverlayMesh(EEquipmentSlot Slot, USkeletal
 
 //----------------------------------------------------------------------------------------------------------------------
 
+bool UEquipmentComponent::AttachEquipmentAccessory(FName SocketName, bool OverrideOnly)
+{
+	ACharacter* Character = Cast<ACharacter>(GetOwner());
+	if (!Character || !Character->GetMesh())
+		return false;
+
+	USceneComponent* Accessory = nullptr;
+	if (SocketName == TEXT("SOCKET_WaistBag1"))
+		Accessory = WaistBag1Component;
+	else if (SocketName == TEXT("SOCKET_WaistBag2"))
+		Accessory = WaistBag2Component;
+	else if (SocketName == TEXT("PrimarySheath"))
+		Accessory = PrimaryWeaponSheath;
+	else if (SocketName == TEXT("SecondarySheath"))
+		Accessory = SecondaryWeaponSheath;
+	if (!Accessory)
+		return false;
+
+	USkeletalMeshComponent* MountParent = nullptr;
+	const IInventoryModularCharacterInterface* ModularCharacter = Cast<IInventoryModularCharacterInterface>(Character);
+	const bool Override = ModularCharacter && ModularCharacter->GetEquipmentAttachmentOverride(SocketName, MountParent);
+	if (Override && IsValid(MountParent) && MountParent != Accessory && MountParent->DoesSocketExist(SocketName) &&
+		!MountParent->IsAttachedTo(Accessory))
+	{
+		if (!AttachComponentToEquipmentSocketIfAvailable(Accessory, MountParent, SocketName, Character))
+			return false;
+		Accessory->SetRelativeLocationAndRotation(FVector::ZeroVector, FQuat::Identity);
+		// Cancel belt-only bulk scaling while retaining the character's scale.
+		Accessory->SetWorldScale3D(Character->GetMesh()->GetComponentScale());
+		return true;
+	}
+	if (OverrideOnly)
+		return false;
+	return AttachComponentToEquipmentSocketIfAvailable(Accessory, Character->GetMesh(), SocketName, Character);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
 bool UEquipmentComponent::AttachEquipmentComponentsToOwnerMeshIfReady()
 {
 	ACharacter* Parent = Cast<ACharacter>(GetOwner());
@@ -876,13 +914,13 @@ bool UEquipmentComponent::AttachEquipmentComponentsToOwnerMeshIfReady()
 	bAttachedAnyComponent |= AttachComponentToEquipmentSocketIfAvailable(SecondaryWeaponComponent, PlayerMesh, FName("SOCKET_LeftHandWeapon"), Parent);
 	bAttachedAnyComponent |= AttachComponentToEquipmentSocketIfAvailable(AmmoComponent, PlayerMesh, FName("SOCKET_AmmoBag"), Parent);
 	bAttachedAnyComponent |= AttachComponentToEquipmentSocketIfAvailable(AmmoVariableComponent, PlayerMesh, FName("SOCKET_AmmoBag"), Parent);
-	bAttachedAnyComponent |= AttachComponentToEquipmentSocketIfAvailable(PrimaryWeaponSheath, PlayerMesh, FName("PrimarySheath"), Parent);
-	bAttachedAnyComponent |= AttachComponentToEquipmentSocketIfAvailable(SecondaryWeaponSheath, PlayerMesh, FName("SecondarySheath"), Parent);
+	bAttachedAnyComponent |= AttachEquipmentAccessory(TEXT("PrimarySheath"));
+	bAttachedAnyComponent |= AttachEquipmentAccessory(TEXT("SecondarySheath"));
 	bAttachedAnyComponent |= AttachComponentToEquipmentSocketIfAvailable(BackWeaponSheath, PlayerMesh, FName("BackSheath"), Parent);
 	bAttachedAnyComponent |= AttachComponentToEquipmentSocketIfAvailable(RangedWeaponSheath, PlayerMesh, FName("LowerBackSheath"), Parent);
 
-	bAttachedAnyComponent |= AttachComponentToEquipmentSocketIfAvailable(WaistBag1Component, PlayerMesh, FName("SOCKET_WaistBag1"), Parent);
-	bAttachedAnyComponent |= AttachComponentToEquipmentSocketIfAvailable(WaistBag2Component, PlayerMesh, FName("SOCKET_WaistBag2"), Parent);
+	bAttachedAnyComponent |= AttachEquipmentAccessory(TEXT("SOCKET_WaistBag1"));
+	bAttachedAnyComponent |= AttachEquipmentAccessory(TEXT("SOCKET_WaistBag2"));
 	bAttachedAnyComponent |= AttachComponentToEquipmentSocketIfAvailable(ShoulderBag1Component, PlayerMesh, FName("SOCKET_ShoulderBag1"), Parent);
 	bAttachedAnyComponent |= AttachComponentToEquipmentSocketIfAvailable(ShoulderBag2Component, PlayerMesh, FName("SOCKET_ShoulderBag2"), Parent);
 	bAttachedAnyComponent |= AttachComponentToEquipmentSocketIfAvailable(BackpackComponent, PlayerMesh, FName("SOCKET_Backpack"), Parent);
