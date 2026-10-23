@@ -298,6 +298,9 @@ float IInventoryPlayerInterface::PlayerRemoveItem(int32 TopLeft, EBagSlot Slot)
 
 int32 IInventoryPlayerInterface::PlayerGetItem(int32 TopLeft, EBagSlot Slot) const
 {
+	// Reserved objects are unavailable to inventory transactions, but remain visible in bag replication.
+	if (Slot != EBagSlot::BankPool && GetInventoryComponentConst()->IsItemInUse(Slot, TopLeft))
+		return INDEX_NONE;
 	if (Slot == EBagSlot::BankPool)
 		return GetBankComponent()->GetItemAtIndex(TopLeft);
 

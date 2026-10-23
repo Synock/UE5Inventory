@@ -36,6 +36,9 @@ class INVENTORYPLUGIN_API UEquipmentComponent : public UActorComponent
 	GENERATED_BODY()
 
 public:
+	bool ReserveItemUse(const FGuid& Claim, EEquipmentSlot Slot);
+	void ReleaseItemUse(const FGuid& Claim);
+	bool IsEquipmentItemInUse(EEquipmentSlot Slot) const;
 	// Sets default values for this component's properties
 	UEquipmentComponent();
 
@@ -56,6 +59,7 @@ public:
 	void SetOwnerNoSeeForSlot(EEquipmentSlot Slot, bool bOwnerNoSee);
 
 private:
+	TMap<FGuid, EEquipmentSlot> ItemUseReservations;
 	/** Applies the LOD-0-only simulation policy to one cloth overlay. Returns true when simulation was reset and re-enabled. */
 	static bool ApplyClothSimulationLODPolicy(USkeletalMeshComponent* MeshComponent);
 	void UpdateClothSimulationLODPolicy();

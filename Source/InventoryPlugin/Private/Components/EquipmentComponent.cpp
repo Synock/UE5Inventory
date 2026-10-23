@@ -1243,11 +1243,42 @@ void UEquipmentComponent::EquipItemWithDurability(const UInventoryItemEquipable*
 
 bool UEquipmentComponent::IsEquipmentSlotReserved(EEquipmentSlot InSlot, const FGuid& IgnoredReservation) const
 {
+	for (const auto& Reservation : ItemUseReservations)
+		if (Reservation.Key != IgnoredReservation && Reservation.Value == InSlot)
+			return true;
 	for (const TPair<FGuid, TArray<EEquipmentSlot>>& Reservation : PendingDeliveryReservations)
 	{
 		if (Reservation.Key != IgnoredReservation && Reservation.Value.Contains(InSlot))
 			return true;
 	}
+	return false;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+bool UEquipmentComponent::ReserveItemUse(const FGuid& Claim, EEquipmentSlot Slot)
+{
+	if (!GetOwner() || !GetOwner()->HasAuthority() || !Claim.IsValid() ||
+		ItemUseReservations.Contains(Claim) || IsEquipmentSlotReserved(Slot) || !GetItemAtSlot(Slot))
+		return false;
+	ItemUseReservations.Add(Claim, Slot);
+	return true;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UEquipmentComponent::ReleaseItemUse(const FGuid& Claim)
+{
+	ItemUseReservations.Remove(Claim);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+bool UEquipmentComponent::IsEquipmentItemInUse(EEquipmentSlot Slot) const
+{
+	for (const auto& Reservation : ItemUseReservations)
+		if (Reservation.Value == Slot)
+			return true;
 	return false;
 }
 
@@ -1486,6 +1517,8 @@ const UInventoryItemEquipable* UEquipmentComponent::GetItemCoveringSlot(EEquipme
 
 bool UEquipmentComponent::RemoveItem(EEquipmentSlot InSlot)
 {
+	if (IsEquipmentItemInUse(InSlot))
+		return false;
 	if (IsSlotEmpty(InSlot))
 		return false;
 

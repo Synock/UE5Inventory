@@ -41,6 +41,9 @@ class INVENTORYPLUGIN_API UInventoryComponent : public UActorComponent
 	GENERATED_BODY()
 
 public:
+	bool ReserveItemUse(const FGuid& Claim, EBagSlot BagSlot, int32 TopLeft, int32 ExpectedItemId);
+	void ReleaseItemUse(const FGuid& Claim);
+	bool IsItemInUse(EBagSlot BagSlot, int32 TopLeft) const;
 	static bool IsEmptyItemId(int32 ItemID) { return ItemID == INDEX_NONE; }
 	bool CanPlaceItemAt(EBagSlot BagSlot, const UInventoryItemBase* Item, int32 TopLeft) const;
 	bool ReserveItemFootprint(const FGuid& ReservationId, EBagSlot BagSlot,
@@ -204,6 +207,12 @@ public:
 	bool IsBagValid(EBagSlot InputSlot) const;
 
 private:
+	struct FItemUseReservation
+	{
+		EBagSlot Bag = EBagSlot::Unknown;
+		int32 TopLeft = INDEX_NONE;
+	};
+	TMap<FGuid, FItemUseReservation> ItemUseReservations;
 	struct FItemFootprintReservation
 	{
 		EBagSlot BagSlot = EBagSlot::Unknown;

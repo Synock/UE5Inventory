@@ -1,6 +1,7 @@
 ﻿#include "BagStorage.h"
 
 #include "InventoryPlugin.h"
+#include "Components/InventoryComponent.h"
 #include "InventoryUtilities.h"
 #include <Net/UnrealNetwork.h>
 
@@ -259,6 +260,9 @@ int32 UBagStorage::GetItemAtIndex(int32 ID) const
 
 void UBagStorage::RemoveItem_Implementation(int32 TopLeftIndex)
 {
+	if (const UInventoryComponent* Inventory = GetOwner() ? GetOwner()->FindComponentByClass<UInventoryComponent>() : nullptr;
+		Inventory && Inventory->IsItemInUse(LocalBagSlot, TopLeftIndex))
+		return;
 
 	if (!GetOwner() || !GetOwner()->HasAuthority())
 	{

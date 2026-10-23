@@ -154,7 +154,12 @@ int32 UInventoryComponent::GetItemAtIndex(EBagSlot ConsideredBag, int32 ID) cons
 
 void UInventoryComponent::RemoveItem_Implementation(EBagSlot ConsideredBag, int32 TopLeftIndex)
 {
-	GetRelatedBag(ConsideredBag)->RemoveItem(TopLeftIndex);
+	if (IsItemInUse(ConsideredBag, TopLeftIndex))
+		return;
+	UBagStorage* Bag = GetRelatedBag(ConsideredBag);
+	if (!Bag)
+		return;
+	Bag->RemoveItem(TopLeftIndex);
 	InventoryItemRemove.Broadcast(ConsideredBag, TopLeftIndex);
 }
 
@@ -407,8 +412,43 @@ bool UInventoryComponent::HasItemFootprintReservation(const FGuid& ReservationId
 
 bool UInventoryComponent::HasReservationsInBag(EBagSlot BagSlot) const
 {
+	for (const auto& Pair : ItemUseReservations)
+		if (Pair.Value.Bag == BagSlot)
+			return true;
 	for (const TPair<FGuid, FItemFootprintReservation>& Pair : ItemFootprintReservations)
 		if (Pair.Value.BagSlot == BagSlot)
+			return true;
+	return false;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+bool UInventoryComponent::ReserveItemUse(const FGuid& Claim, EBagSlot BagSlot, int32 TopLeft, int32 ExpectedItemId)
+{
+	if (!GetOwner() || !GetOwner()->HasAuthority() || !Claim.IsValid() ||
+		ItemUseReservations.Contains(Claim) || IsItemInUse(BagSlot, TopLeft) || ExpectedItemId <= 0 ||
+		GetItemAtIndex(BagSlot, TopLeft) != ExpectedItemId)
+		return false;
+	ItemUseReservations.Add(Claim, {BagSlot, TopLeft});
+	SetItemLockState(BagSlot, TopLeft, true);
+	return true;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+void UInventoryComponent::ReleaseItemUse(const FGuid& Claim)
+{
+	FItemUseReservation Reservation;
+	if (ItemUseReservations.RemoveAndCopyValue(Claim, Reservation))
+		SetItemLockState(Reservation.Bag, Reservation.TopLeft, false);
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+
+bool UInventoryComponent::IsItemInUse(EBagSlot BagSlot, int32 TopLeft) const
+{
+	for (const auto& Pair : ItemUseReservations)
+		if (Pair.Value.Bag == BagSlot && Pair.Value.TopLeft == TopLeft)
 			return true;
 	return false;
 }
