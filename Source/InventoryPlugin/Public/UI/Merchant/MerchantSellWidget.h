@@ -17,6 +17,8 @@
 
 class UCoinDisplayWidget;
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FMerchantTransactionSubmitted);
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FNotEnoughPlayerMoney);
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FNotEnoughPlayerSpace);
@@ -311,6 +313,9 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "Inventory|Merchant")
 	FNotEnoughPlayerMoney OnNotEnoughPlayerMoneyDelegate;
+
+	UPROPERTY(BlueprintAssignable, Category = "Inventory|Merchant")
+	FMerchantTransactionSubmitted OnTransactionSubmitted;
 
 	UPROPERTY(BlueprintAssignable, Category = "Inventory|Merchant")
 	FNotEnoughPlayerSpace OnNotEnoughPlayerSpaceDelegate;

@@ -13,6 +13,7 @@
 #include "Components/InventoryDeliveryComponent.h"
 #include "InventoryPlugin.h"
 #include "Components/LootPoolComponent.h"
+#include "Components/LootAllOrdering.h"
 #include "InventoryPlugin.h"
 #include "Components/StagingAreaComponent.h"
 #include "Components/StagingReturnRouting.h"
@@ -986,7 +987,11 @@ void UInventoryNetComponent::HandlePlayerAutoLootAll()
 	if (!Loot || !Loot->GetLootPoolComponent())
 		return;
 
-	TArray<FMinimalItemStorage> ItemsCopy = Loot->GetLootPoolComponent()->GetBagConst();
+	const TArray<FMinimalItemStorage> ItemsCopy = LootAllOrdering::Build(
+		Loot->GetLootPoolComponent()->GetBagConst(), [this](int32 ItemId)
+		{
+			return UInventoryUtilities::GetItemFromID(ItemId, GetWorld());
+		});
 	for (const FMinimalItemStorage& ItemStorage : ItemsCopy)
 	{
 		EEquipmentSlot TriedSlot = EEquipmentSlot::Unknown;

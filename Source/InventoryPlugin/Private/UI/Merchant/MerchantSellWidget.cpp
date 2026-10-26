@@ -123,6 +123,7 @@ void UMerchantSellWidget::HandleBuyClick()
 		return;
 	}
 
+	OnTransactionSubmitted.Broadcast();
 	PC->PlayerBuyFromMerchant(SelectedItemId, TransactionValue);
 
 	if (BuySellButton)
@@ -157,6 +158,8 @@ void UMerchantSellWidget::HandleSellClick()
 		OnNotEnoughMerchantMoney();
 		return;
 	}
+
+	OnTransactionSubmitted.Broadcast();
 
 	if (bHasEquipmentOrigin)
 	{
