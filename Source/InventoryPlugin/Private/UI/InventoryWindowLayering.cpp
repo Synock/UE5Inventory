@@ -16,8 +16,7 @@ void InventoryWindowLayering::AddToViewportAboveSource(UUserWidget* ChildWindow,
 	{
 		if (Candidate->GetClass()->ImplementsInterface(UInventoryWindowLayerHost::StaticClass()))
 		{
-			ChildWindow->AddToViewport(IInventoryWindowLayerHost::Execute_GetChildWindowZOrder(
-				const_cast<UObject*>(Candidate)));
+			IInventoryWindowLayerHost::Execute_AttachChildWindow(const_cast<UObject*>(Candidate), ChildWindow);
 			return;
 		}
 	}
