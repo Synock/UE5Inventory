@@ -1121,8 +1121,10 @@ void UEquipmentComponent::OnRep_ItemList()
 			if (SecWeapon->EquipmentMesh &&
 				SecondaryWeaponComponent->GetSkeletalMeshAsset() == SecWeapon->EquipmentMesh)
 			{
-				if (USkeletalMeshComponent* Sheath = GetSkeletalMeshComponentFromSocket(
-					FindBestSocketForItem(SecWeapon, EEquipmentSlot::Secondary)))
+				USkeletalMeshComponent* Sheath = GetSkeletalMeshComponentFromSocket(
+					FindBestSocketForItem(SecWeapon, EEquipmentSlot::Secondary));
+				// Non-weapon secondary items resolve directly to the hand socket.
+				if (Sheath && Sheath != SecondaryWeaponComponent)
 					Sheath->SetSkeletalMeshAsset(nullptr);
 			}
 			else
