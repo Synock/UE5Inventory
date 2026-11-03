@@ -52,6 +52,9 @@ public:
 	bool CanRemoveEquippedItem(EEquipmentSlot Slot, int32 ExpectedItemId = INDEX_NONE) const;
 
 #if WITH_AUTOMATION_WORKER
+	void SetPlayerInterfaceForTests(IInventoryPlayerInterface* InPlayerInterface) { PlayerInterface = InPlayerInterface; }
+	void HandleCancelStagingAreaForTests() { HandleCancelStagingArea(); }
+
 	bool ValidatePlayerBuyFromMerchantForTests(int32 ItemId, const FCoinValue& Price)
 	{
 		return ValidatePlayerBuyFromMerchant(ItemId, Price);

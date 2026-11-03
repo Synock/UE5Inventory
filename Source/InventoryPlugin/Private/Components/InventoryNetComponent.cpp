@@ -1305,10 +1305,12 @@ void UInventoryNetComponent::HandleReturnStagingItem(FGuid ReservationId)
 
 bool UInventoryNetComponent::TryReturnStagedItem(const FInventoryEscrowItem& ItemStorage)
 {
-	if (!PlayerInterface)
+	UWorld* World = GetWorld();
+	// Late component teardown can outlive its world. Keep the escrow unresolved.
+	if (!PlayerInterface || !IsValid(World))
 		return false;
 
-	const UInventoryItemBase* Item = UInventoryUtilities::GetItemFromID(ItemStorage.ItemID, GetWorld());
+	const UInventoryItemBase* Item = UInventoryUtilities::GetItemFromID(ItemStorage.ItemID, World);
 	const auto ReestablishReservation = [this, &ItemStorage, Item]()
 	{
 		if (!Item)
